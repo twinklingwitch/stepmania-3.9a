@@ -1,0 +1,38 @@
+MinaCalc, Etterna's difficulty calculator (calc version 527).
+
+Source:  https://github.com/etternagame/etterna
+Commit:  2d706147cc4bcf95a8ceb24dc4f4129be207f803 (2026-09-07)
+License: MIT, Copyright (c) 2016-2023 Etterna; see LICENSE.
+
+Etterna/ mirrors the upstream src/Etterna layout, so the calculator's own
+relative includes work unchanged:
+
+  Etterna/MinaCalc/                     src/Etterna/MinaCalc/ (without CMakeLists.txt)
+  Etterna/Models/NoteData/NoteDataStructures.h
+                                        src/Etterna/Models/NoteData/NoteDataStructures.h
+
+The files are as upstream except for one change, which upstream needs to build
+with STANDALONE_CALC at all: the call to load_calc_params_from_disk() in
+Calc::InitializeHands is only compiled into the game, like the function it
+calls.  It runs only in debug mode, which nothing here uses.
+
+--- src/Etterna/MinaCalc/MinaCalc.cpp
++++ Etterna/MinaCalc/MinaCalc.cpp
+@@ -545,7 +545,9 @@
+ 	// if debug, force params to load and reset pmods and base diffs
+ 	if (debugmode || loadparams) {
++#if !defined(STANDALONE_CALC) && !defined(PHPCALC)
+ 		ulbu_in_charge->load_calc_params_from_disk(true);
++#endif
+ 		for (const auto& hand : both_hands) {
+
+sse2neon/ is Etterna's extern/sse2neon/sse2neon (sse2neon v1.7.0,
+https://github.com/DLTcollab/sse2neon, MIT, see sse2neon/LICENSE), unchanged.
+The calc includes it instead of <xmmintrin.h> on 64-bit ARM.
+
+minacalc_c.h and minacalc_c.cpp are ours: a C interface for the game (C++03)
+and the online server (Go, through cgo).
+
+To update: copy the two upstream paths over Etterna/, delete the
+CMakeLists.txt files, reapply the change above if it is still needed, and
+update the commit and calc version here.
