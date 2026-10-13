@@ -787,7 +787,10 @@ float RageDisplay_OGL::GetRefreshRate() const { return wind->GetRefreshRate(); }
 
 static void SetupVertices( const RageSpriteVertex v[], int iNumVerts )
 {
-	static float *Vertex, *Texture, *Normal;	
+	/* Positions, normals and texture coordinates are sent straight out of a
+	 * copy of the vertices; only the colors need reordering, since RageVColor
+	 * is BGRA. */
+	static RageSpriteVertex *Vertex;
 	static GLubyte *Color;
 	static int Size = 0;
 	if(iNumVerts > Size)
@@ -795,36 +798,27 @@ static void SetupVertices( const RageSpriteVertex v[], int iNumVerts )
 		Size = iNumVerts;
 		delete [] Vertex;
 		delete [] Color;
-		delete [] Texture;
-		delete [] Normal;
-		Vertex = new float[Size*3];
+		Vertex = new RageSpriteVertex[Size];
 		Color = new GLubyte[Size*4];
-		Texture = new float[Size*2];
-		Normal = new float[Size*3];
 	}
 
+	memcpy( Vertex, v, iNumVerts*sizeof(RageSpriteVertex) );
 	for(unsigned i = 0; i < unsigned(iNumVerts); ++i)
 	{
-		Vertex[i*3+0]  = v[i].p[0];
-		Vertex[i*3+1]  = v[i].p[1];
-		Vertex[i*3+2]  = v[i].p[2];
-		Color[i*4+0]   = v[i].c.r;
-		Color[i*4+1]   = v[i].c.g;
-		Color[i*4+2]   = v[i].c.b;
-		Color[i*4+3]   = v[i].c.a;
-		Texture[i*2+0] = v[i].t[0];
-		Texture[i*2+1] = v[i].t[1];
-		Normal[i*3+0] = v[i].n[0];
-		Normal[i*3+1] = v[i].n[1];
-		Normal[i*3+2] = v[i].n[2];
+		/* Build each color in a local, so it's stored at once. */
+		const RageVColor &c = v[i].c;
+		const GLubyte rgba[4] = { c.r, c.g, c.b, c.a };
+		memcpy( &Color[i*4], rgba, 4 );
 	}
+
 	/* The arrays only move when they grow, and the pointers are only replaced
 	 * by the compiled geometry, which forgets them; the driver reads through
 	 * them at draw time, so only point them again if they've changed. */
+	const GLsizei stride = sizeof(RageSpriteVertex);
 	SetClientState( ARRAY_VERTEX, GL_VERTEX_ARRAY, true );
 	if( g_State.pArray[ARRAY_VERTEX] != Vertex )
 	{
-		glVertexPointer(3, GL_FLOAT, 0, Vertex);
+		glVertexPointer(3, GL_FLOAT, stride, &Vertex[0].p);
 		g_State.pArray[ARRAY_VERTEX] = Vertex;
 	}
 
@@ -836,17 +830,17 @@ static void SetupVertices( const RageSpriteVertex v[], int iNumVerts )
 	}
 
 	SetClientState( ARRAY_TEXCOORD, GL_TEXTURE_COORD_ARRAY, true );
-	if( g_State.pArray[ARRAY_TEXCOORD] != Texture )
+	if( g_State.pArray[ARRAY_TEXCOORD] != Vertex )
 	{
-		glTexCoordPointer(2, GL_FLOAT, 0, Texture);
-		g_State.pArray[ARRAY_TEXCOORD] = Texture;
+		glTexCoordPointer(2, GL_FLOAT, stride, &Vertex[0].t);
+		g_State.pArray[ARRAY_TEXCOORD] = Vertex;
 	}
 
 	SetClientState( ARRAY_NORMAL, GL_NORMAL_ARRAY, true );
-	if( g_State.pArray[ARRAY_NORMAL] != Normal )
+	if( g_State.pArray[ARRAY_NORMAL] != Vertex )
 	{
-		glNormalPointer(GL_FLOAT, 0, Normal);
-		g_State.pArray[ARRAY_NORMAL] = Normal;
+		glNormalPointer(GL_FLOAT, stride, &Vertex[0].n);
+		g_State.pArray[ARRAY_NORMAL] = Vertex;
 	}
 }
 
