@@ -74,8 +74,8 @@ NetworkSyncManager::NetworkSyncManager( LoadingWindow *ld )
 NetworkSyncManager::~NetworkSyncManager ()
 {
 	//Close Connection to server nicely.
-    if (useSMserver)
-        NetPlayerClient->close();
+	if (useSMserver)
+		NetPlayerClient->close();
 	delete NetPlayerClient;
 
 	if( isLanServer )

@@ -140,8 +140,8 @@ void ScreenGameplay::Init()
 
 
 	// fill in difficulty of CPU players with that of the first human player
-    FOREACH_PotentialCpuPlayer(p)
-        GAMESTATE->m_pCurSteps[p] = GAMESTATE->m_pCurSteps[ GAMESTATE->GetFirstHumanPlayer() ];
+	FOREACH_PotentialCpuPlayer(p)
+		GAMESTATE->m_pCurSteps[p] = GAMESTATE->m_pCurSteps[ GAMESTATE->GetFirstHumanPlayer() ];
 
 	switch( GAMESTATE->m_PlayMode )
 	{
@@ -850,8 +850,8 @@ void ScreenGameplay::SetupSong( PlayerNumber p, int iSongIndex )
 static int GetMaxSongsPlayed()
 {
 	int SongNumber = 0;
-    FOREACH_EnabledPlayer(p)
-        SongNumber = max( SongNumber, g_CurStageStats.iSongsPlayed[p] );
+	FOREACH_EnabledPlayer(p)
+		SongNumber = max( SongNumber, g_CurStageStats.iSongsPlayed[p] );
 	return SongNumber;
 }
 
@@ -2041,8 +2041,8 @@ void ScreenGameplay::HandleScreenMessage( const ScreenMessage SM )
 
 				/* Mark failure.  This hasn't been done yet if m_bTwoPlayerRecovery is set. */
 				if( GAMESTATE->m_SongOptions.m_FailType != SongOptions::FAIL_OFF &&
-					(m_pLifeMeter[p] && m_pLifeMeter[p]->IsFailing()) || 
-					(m_pCombinedLifeMeter && m_pCombinedLifeMeter->IsFailing(p)) )
+					((m_pLifeMeter[p] && m_pLifeMeter[p]->IsFailing()) || 
+					(m_pCombinedLifeMeter && m_pCombinedLifeMeter->IsFailing(p))) )
 					g_CurStageStats.bFailed[p] = true;
 
 				if( !g_CurStageStats.bFailed[p] )

@@ -555,8 +555,8 @@ void MovieTexture_FFMpeg::DestroyTexture()
 
 void MovieTexture_FFMpeg::CreateTexture()
 {
-    if( m_uTexHandle )
-        return;
+	if( m_uTexHandle )
+		return;
 
 	CHECKPOINT;
 

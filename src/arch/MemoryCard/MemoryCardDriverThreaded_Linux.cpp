@@ -50,8 +50,8 @@ static int RunProgram( const char *path, char *const args[], CString &out )
 		for( int i = 0; i < 1024; ++i )
 			if( i != fileno(stdout) )
 				close( i );
-			execvp( path, args );
-			_exit(1);
+		execvp( path, args );
+		_exit(1);
     }
 	
 	close( fds[1] );

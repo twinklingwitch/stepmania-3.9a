@@ -253,7 +253,7 @@ bool MemoryCardManager::PathIsMemCard( CString sDir ) const
 	FOREACH_PlayerNumber( p )
 		if( !sDir.Left(MEM_CARD_MOUNT_POINT[p].size()).CompareNoCase( MEM_CARD_MOUNT_POINT[p] ) )
 			return true;
-		return false;
+	return false;
 }
 
 CString MemoryCardManager::GetName( PlayerNumber pn ) const
@@ -279,7 +279,7 @@ bool IsAnyPlayerUsingMemoryCard()
 	FOREACH_HumanPlayer( pn )
 		if( MEMCARDMAN->GetCardState(pn) == MEMORY_CARD_STATE_READY )
 			return true;
-		return false;
+	return false;
 }
 
 #include "LuaFunctions.h"

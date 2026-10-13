@@ -546,9 +546,9 @@ void NoteField::DrawPrimitives()
 			// Test every note to make sure it's on screen before drawing
 			float fYStartOffset = ArrowGetYOffset( m_PlayerNumber, 0, NoteRowToBeat(hn.iStartRow) );
 			float fYEndOffset = ArrowGetYOffset( m_PlayerNumber, 0, NoteRowToBeat(hn.iEndRow) );
-			if( !( iFirstPixelToDraw <= fYEndOffset && fYEndOffset <= iLastPixelToDraw  ||
-				iFirstPixelToDraw <= fYStartOffset  && fYStartOffset <= iLastPixelToDraw  ||
-				fYStartOffset < iFirstPixelToDraw   && fYEndOffset > iLastPixelToDraw ) )
+			if( !( (iFirstPixelToDraw <= fYEndOffset && fYEndOffset <= iLastPixelToDraw)  ||
+				(iFirstPixelToDraw <= fYStartOffset  && fYStartOffset <= iLastPixelToDraw)  ||
+				(fYStartOffset < iFirstPixelToDraw   && fYEndOffset > iLastPixelToDraw) ) )
 			{
 				continue;	// skip
 			}

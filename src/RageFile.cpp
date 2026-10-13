@@ -118,8 +118,8 @@ int RageFile::GetLine( CString &out )
 {
 	out = "";
 
-    if ( !IsOpen() )
-        RageException::Throw("\"%s\" is not open.", m_Path.c_str());
+	if ( !IsOpen() )
+		RageException::Throw("\"%s\" is not open.", m_Path.c_str());
 
 	if( !(m_Mode&READ) )
 		RageException::Throw("\"%s\" is not open for reading", GetPath().c_str());
