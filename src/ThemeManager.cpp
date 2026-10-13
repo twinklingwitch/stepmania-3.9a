@@ -48,6 +48,11 @@ deque<Theme> g_vThemes;
 /* We spend a lot of time doing redundant theme path lookups.  Cache results. */
 static map<CString, CString> g_ThemePathCache[NUM_ELEMENT_CATEGORIES];
 
+/* Metrics are looked up by name over and over, some of them every frame, and
+ * each lookup may walk a chain of fallback classes.  Remember the ones we've
+ * found until the metrics are reloaded. */
+static map<CString, map<CString, CString> > g_MetricCache;
+
 void FileNameToClassAndElement( const CString &sFileName, CString &sClassNameOut, CString &sElementOut )
 {
 	// split into class name and file name
@@ -197,6 +202,7 @@ void ThemeManager::SwitchThemeAndLanguage( CString sThemeName, CString sLanguage
 		g_ThemePathCache[i].clear();
 
 	g_vThemes.clear();
+	g_MetricCache.clear();
 
 	// load current theme
 	LoadThemeRecursive( g_vThemes, m_sCurThemeName );
@@ -214,6 +220,7 @@ void ThemeManager::SwitchThemeAndLanguage( CString sThemeName, CString sLanguage
 
 		g_vThemes.front().iniMetrics.SetValue( sBits[0], sBits[1], sBits[2] );
 	}
+	g_MetricCache.clear();
 	
 	LOG->MapLog("theme", "Theme: %s", sThemeName.c_str());
 	LOG->MapLog("language", "Language: %s", sLanguage.c_str());
@@ -532,11 +539,22 @@ bool ThemeManager::GetMetricRaw( CString sClassName, CString sValueName, CString
 
 CString ThemeManager::GetMetricRaw( CString sClassName, CString sValueName )
 {
+	map<CString, map<CString, CString> >::const_iterator c = g_MetricCache.find( sClassName );
+	if( c != g_MetricCache.end() )
+	{
+		map<CString, CString>::const_iterator v = c->second.find( sValueName );
+		if( v != c->second.end() )
+			return v->second;
+	}
+
 try_metric_again:
 
 	CString ret;
 	if( ThemeManager::GetMetricRaw( sClassName, sValueName, ret ) )
+	{
+		g_MetricCache[sClassName][sValueName] = ret;
 		return ret;
+	}
 
 
 	CString sMessage = ssprintf( "The theme metric '%s-%s' is missing.  Correct this and click Retry, or Cancel to break.",sClassName.c_str(),sValueName.c_str() );
