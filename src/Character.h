@@ -13,7 +13,6 @@ public:
 
 	bool Load( CString sCharDir );	// return true if success
 
-	CString GetTakingABreakPath() const;
 	CString GetCardPath() const;
 	CString GetIconPath() const;
 

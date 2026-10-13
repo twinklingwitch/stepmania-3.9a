@@ -19,7 +19,6 @@ screens = files(
   'EditCoursesSongMenu.cpp',
   'ScreenEditMenu.cpp',
   'ScreenEnding.cpp',
-  'ScreenEndlessBreak.cpp',
   'ScreenEvaluation.cpp',
   'ScreenExit.cpp',
   'ScreenNetEvaluation.cpp',

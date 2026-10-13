@@ -27,7 +27,6 @@ public:
 	void LoadFromCourse( Course* pCourse );
 	void LoadCardFromCharacter( Character* pCharacter );
 	void LoadIconFromCharacter( Character* pCharacter );
-	void LoadTABreakFromCharacter( Character* pCharacter );
 	void LoadRoulette();
 	void LoadRandom();
 	void LoadFallback();

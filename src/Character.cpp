@@ -52,18 +52,6 @@ CString Character::GetModelPath() const
 CString Character::GetRestAnimationPath() const	{ return DerefRedir(GetRandomFileInDir(m_sCharDir + "Rest/")); }
 CString Character::GetWarmUpAnimationPath() const { return DerefRedir(GetRandomFileInDir(m_sCharDir + "WarmUp/")); }
 CString Character::GetDanceAnimationPath() const { return DerefRedir(GetRandomFileInDir(m_sCharDir + "Dance/")); }
-CString Character::GetTakingABreakPath() const
-{
-	CStringArray as;
-	GetDirListing( m_sCharDir+"break.png", as, false, true );
-	GetDirListing( m_sCharDir+"break.jpg", as, false, true );
-	GetDirListing( m_sCharDir+"break.gif", as, false, true );
-	GetDirListing( m_sCharDir+"break.bmp", as, false, true );
-	if( as.empty() )
-		return "";
-	else
-		return as[0];
-}
 
 CString Character::GetSongSelectIconPath() const
 {
