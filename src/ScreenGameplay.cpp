@@ -13,7 +13,6 @@
 #include "ScoreDisplayNormal.h"
 #include "ScoreDisplayPercentage.h"
 #include "ScoreDisplayOni.h"
-#include "ScoreDisplayBattle.h"
 #include "ScoreDisplayRave.h"
 #include "ScreenPrompt.h"
 #include "GrooveRadar.h"
@@ -29,7 +28,6 @@
 #include "RageTextureManager.h"
 #include "GameSoundManager.h"
 #include "CombinedLifeMeterTug.h"
-#include "Inventory.h"
 #include "Course.h"
 #include "NoteDataUtil.h"
 #include "UnlockSystem.h"
@@ -112,7 +110,6 @@ void ScreenGameplay::Init()
 		m_pSecondaryScoreDisplay[p] = NULL;
 		m_pPrimaryScoreKeeper[p] = NULL;
 		m_pSecondaryScoreKeeper[p] = NULL;
-		m_pInventory[p] = NULL ;
 	}
 	m_pCombinedLifeMeter = NULL;
 
@@ -660,19 +657,6 @@ void ScreenGameplay::Init()
 	SET_XY( m_BPMDisplay );
 	this->AddChild( &m_BPMDisplay );
 
-	ZERO( m_pInventory );
-    FOREACH_PlayerNumber(p)
-	{
-//		switch( GAMESTATE->m_PlayMode )
-//		{
-//		case PLAY_MODE_BATTLE:
-//			m_pInventory[p] = new Inventory;
-//			m_pInventory[p]->Load( p );
-//			this->AddChild( m_pInventory[p] );
-//			break;
-//		}
-	}
-
 	
 	if( !m_bDemonstration )	// only load if we're going to use it
 	{
@@ -791,7 +775,6 @@ ScreenGameplay::~ScreenGameplay()
 		SAFE_DELETE( m_pSecondaryScoreDisplay[p] );
 		SAFE_DELETE( m_pPrimaryScoreKeeper[p] );
 		SAFE_DELETE( m_pSecondaryScoreKeeper[p] );
-		SAFE_DELETE( m_pInventory[p] );
 	}
 	SAFE_DELETE( m_pCombinedLifeMeter );
 	m_soundMusic.StopPlaying();
@@ -828,7 +811,7 @@ void ScreenGameplay::SetupSong( PlayerNumber p, int iSongIndex )
 	const Style* pStyle = GAMESTATE->GetCurrentStyle();
 	NoteData pNewNoteData;
 	pStyle->GetTransformedNoteDataForStyle( p, &pOriginalNoteData, &pNewNoteData );
-	m_Player[p].Load( p, &pNewNoteData, m_pLifeMeter[p], m_pCombinedLifeMeter, m_pPrimaryScoreDisplay[p], m_pSecondaryScoreDisplay[p], m_pInventory[p], m_pPrimaryScoreKeeper[p], m_pSecondaryScoreKeeper[p] );
+	m_Player[p].Load( p, &pNewNoteData, m_pLifeMeter[p], m_pCombinedLifeMeter, m_pPrimaryScoreDisplay[p], m_pSecondaryScoreDisplay[p], m_pPrimaryScoreKeeper[p], m_pSecondaryScoreKeeper[p] );
 
 
 	// Put course options into effect.  Do this after Player::Load so
@@ -1837,24 +1820,6 @@ void ScreenGameplay::Input( const DeviceInput& DeviceI, const InputEventType typ
 		if( !PREFSMAN->m_bAutoPlay )
 			m_Player[StyleI.player].Step( StyleI.col, DeviceI.ts ); 
 	}
-//	else if( type==IET_FIRST_PRESS && 
-//		!PREFSMAN->m_bAutoPlay && 
-//		MenuI.IsValifd() &&
-//		GAMESTATE->IsPlayerEnabled( MenuI.player ) &&
-//		GAMESTATE->IsBattleMode() )
-//	{
-//		int iItemSlot;
-//		switch( MenuI.button )
-//		{
-//		case MENU_BUTTON_LEFT:	iItemSlot = 0;	break;
-//		case MENU_BUTTON_START:	iItemSlot = 1;	break;
-//		case MENU_BUTTON_RIGHT:	iItemSlot = 2;	break;
-//		default:				iItemSlot = -1;	break;
-//		}
-//		
-//		if( iItemSlot != -1 )
-//			m_pInventory[MenuI.player]->UseItem( iItemSlot );
-//	}
 }
 
 void ScreenGameplay::UpdateAutoPlayText()

@@ -17,7 +17,6 @@
 #include "DifficultyIcon.h"
 #include "DifficultyMeter.h"
 #include "BPMDisplay.h"
-class Inventory;
 #include "BeginnerHelper.h"
 #include "LyricDisplay.h"
 #include "Character.h"
@@ -158,7 +157,6 @@ protected:
 	Player				m_Player[NUM_PLAYERS];
 
 	// used in PLAY_MODE_BATTLE
-	Inventory*			m_pInventory[NUM_PLAYERS];
 	
 	DifficultyIcon		m_DifficultyIcon[NUM_PLAYERS];
 	DifficultyMeter		m_DifficultyMeter[NUM_PLAYERS];

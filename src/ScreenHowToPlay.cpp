@@ -153,7 +153,7 @@ ScreenHowToPlay::ScreenHowToPlay( CString sName ) : ScreenAttract( sName )
 		GAMESTATE->m_PlayerController[PLAYER_1] = PC_AUTOPLAY;
 
 		m_pPlayer = new Player;
-		m_pPlayer->Load( PLAYER_1, &m_NoteData, m_pLifeMeterBar, NULL, NULL, NULL, NULL, NULL, NULL );
+		m_pPlayer->Load( PLAYER_1, &m_NoteData, m_pLifeMeterBar, NULL, NULL, NULL, NULL, NULL );
 		m_pPlayer->SetX( PLAYERX );
 		this->AddChild( m_pPlayer );
 

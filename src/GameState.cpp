@@ -588,7 +588,6 @@ void GameState::ResetStageStatistics()
 	}
 
 	RemoveAllActiveAttacks();
-	RemoveAllInventory();
 	m_fOpponentHealthPercent = 1;
 	m_fTugLifePercentP1 = 0.5f;
 	FOREACH_PlayerNumber( p )
@@ -996,17 +995,6 @@ bool GameState::IsCourseMode() const
 	}
 }
 
-bool GameState::IsBattleMode() const
-{
-	switch( this->m_PlayMode )
-	{
-	case PLAY_MODE_BATTLE:
-		return true;
-	default:
-		return false;
-	}
-}
-
 bool GameState::HasEarnedExtraStage() const
 {
 	if( PREFSMAN->m_bEventMode )
@@ -1291,16 +1279,6 @@ void GameState::RemoveActiveAttacksForPlayer( PlayerNumber pn, AttackLevel al )
 		--s;
 	}
 	RebuildPlayerOptionsFromActiveAttacks( pn );
-}
-
-void GameState::RemoveAllInventory()
-{
-	FOREACH_PlayerNumber( p )
-		for( int s=0; s<NUM_INVENTORY_SLOTS; s++ )
-		{
-			m_Inventory[p][s].fSecsRemaining = 0;
-			m_Inventory[p][s].sModifier = "";
-		}
 }
 
 void GameState::RebuildPlayerOptionsFromActiveAttacks( PlayerNumber pn )

@@ -15,7 +15,6 @@
 #include "PlayerNumber.h"
 #include "GameConstantsAndTypes.h"	// for TapNoteScore and HoldNoteScore
 class NoteData;
-class Inventory;
 class Steps;
 
 

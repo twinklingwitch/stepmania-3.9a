@@ -264,7 +264,6 @@ enum StageResult
 //
 // Battle stuff
 //
-const int NUM_INVENTORY_SLOTS	= 3;
 enum AttackLevel
 {
 	ATTACK_LEVEL_1,

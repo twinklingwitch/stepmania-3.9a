@@ -77,7 +77,6 @@ PlayerMinus::PlayerMinus()
 	m_pSecondaryScoreDisplay = NULL;
 	m_pPrimaryScoreKeeper = NULL;
 	m_pSecondaryScoreKeeper = NULL;
-	m_pInventory = NULL;
 	
 	m_iOffsetSample = 0;
 	m_bStepFromMine = false;
@@ -98,7 +97,7 @@ PlayerMinus::~PlayerMinus()
 {
 }
 
-void PlayerMinus::Load( PlayerNumber pn, const NoteData* pNoteData, LifeMeter* pLM, CombinedLifeMeter* pCombinedLM, ScoreDisplay* pScoreDisplay, ScoreDisplay* pSecondaryScoreDisplay, Inventory* pInventory, ScoreKeeper* pPrimaryScoreKeeper, ScoreKeeper* pSecondaryScoreKeeper, NoteField* pNoteField )
+void PlayerMinus::Load( PlayerNumber pn, const NoteData* pNoteData, LifeMeter* pLM, CombinedLifeMeter* pCombinedLM, ScoreDisplay* pScoreDisplay, ScoreDisplay* pSecondaryScoreDisplay, ScoreKeeper* pPrimaryScoreKeeper, ScoreKeeper* pSecondaryScoreKeeper, NoteField* pNoteField )
 {
 	m_iDCState = AS2D_IDLE;
 	//LOG->Trace( "PlayerMinus::Load()", );
@@ -110,7 +109,6 @@ void PlayerMinus::Load( PlayerNumber pn, const NoteData* pNoteData, LifeMeter* p
 	m_pCombinedLifeMeter = pCombinedLM;
 	m_pScoreDisplay = pScoreDisplay;
 	m_pSecondaryScoreDisplay = pSecondaryScoreDisplay;
-	m_pInventory = pInventory;
 	m_pPrimaryScoreKeeper = pPrimaryScoreKeeper;
 	m_pSecondaryScoreKeeper = pSecondaryScoreKeeper;
 	m_pNoteField = pNoteField;
@@ -1375,9 +1373,9 @@ void PlayerMinus::FadeToFail()
 }
 
 /* XXX: Why's m_NoteField in a separate class, again?  Is that still needed? */
-void Player::Load( PlayerNumber player_no, const NoteData* pNoteData, LifeMeter* pLM, CombinedLifeMeter* pCombinedLM, ScoreDisplay* pScoreDisplay, ScoreDisplay* pSecondaryScoreDisplay, Inventory* pInventory, ScoreKeeper* pPrimaryScoreKeeper, ScoreKeeper* pSecondaryScoreKeeper )
+void Player::Load( PlayerNumber player_no, const NoteData* pNoteData, LifeMeter* pLM, CombinedLifeMeter* pCombinedLM, ScoreDisplay* pScoreDisplay, ScoreDisplay* pSecondaryScoreDisplay, ScoreKeeper* pPrimaryScoreKeeper, ScoreKeeper* pSecondaryScoreKeeper )
 {
-	PlayerMinus::Load( player_no, pNoteData, pLM, pCombinedLM, pScoreDisplay, pSecondaryScoreDisplay, pInventory, pPrimaryScoreKeeper, pSecondaryScoreKeeper, &m_NoteField );
+	PlayerMinus::Load( player_no, pNoteData, pLM, pCombinedLM, pScoreDisplay, pSecondaryScoreDisplay, pPrimaryScoreKeeper, pSecondaryScoreKeeper, &m_NoteField );
 }
 
 /*

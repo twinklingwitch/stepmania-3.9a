@@ -24,7 +24,6 @@ class ScoreDisplay;
 class LifeMeter;
 class CombinedLifeMeter;
 class ScoreKeeper;
-class Inventory;
 
 #define	SAMPLE_COUNT	16
 
@@ -38,7 +37,7 @@ public:
 	virtual void Update( float fDeltaTime );
 	virtual void DrawPrimitives();
 
-	void Load( PlayerNumber player_no, const NoteData* pNoteData, LifeMeter* pLM, CombinedLifeMeter* pCombinedLM, ScoreDisplay* pScoreDisplay, ScoreDisplay* pSecondaryScoreDisplay, Inventory* pInventory, ScoreKeeper* pPrimaryScoreKeeper, ScoreKeeper* pSecondaryScoreKeeper, NoteField* pNoteField );
+	void Load( PlayerNumber player_no, const NoteData* pNoteData, LifeMeter* pLM, CombinedLifeMeter* pCombinedLM, ScoreDisplay* pScoreDisplay, ScoreDisplay* pSecondaryScoreDisplay, ScoreKeeper* pPrimaryScoreKeeper, ScoreKeeper* pSecondaryScoreKeeper, NoteField* pNoteField );
 	void CrossedRow( int iNoteRow );
 	void CrossedMineRow( int iNoteRow );
 	void Step( int col, RageTimer tm );
@@ -91,7 +90,6 @@ protected:
 	ScoreDisplay*	m_pSecondaryScoreDisplay;
 	ScoreKeeper*	m_pPrimaryScoreKeeper;
 	ScoreKeeper*	m_pSecondaryScoreKeeper;
-	Inventory*		m_pInventory;
 
 	int				m_iRowLastCrossed;
 	int				m_iMineRowLastCrossed;
@@ -105,7 +103,7 @@ protected:
 class Player : public PlayerMinus
 {
 public:
-	void Load( PlayerNumber player_no, const NoteData* pNoteData, LifeMeter* pLM, CombinedLifeMeter* pCombinedLM, ScoreDisplay* pScoreDisplay, ScoreDisplay* pSecondaryScoreDisplay, Inventory* pInventory, ScoreKeeper* pPrimaryScoreKeeper, ScoreKeeper* pSecondaryScoreKeeper );
+	void Load( PlayerNumber player_no, const NoteData* pNoteData, LifeMeter* pLM, CombinedLifeMeter* pCombinedLM, ScoreDisplay* pScoreDisplay, ScoreDisplay* pSecondaryScoreDisplay, ScoreKeeper* pPrimaryScoreKeeper, ScoreKeeper* pSecondaryScoreKeeper );
 
 protected:
 	NoteField		m_NoteField;

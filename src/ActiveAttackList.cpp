@@ -3,7 +3,6 @@
 #include "RageUtil.h"
 #include "GameState.h"
 #include "ThemeManager.h"
-#include "Inventory.h"
 #include "RageTimer.h"
 
 
@@ -33,7 +32,7 @@ void ActiveAttackList::Refresh()
 {
 	CString s;
 
-	const AttackArray& attacks = GAMESTATE->m_ActiveAttacks[m_PlayerNumber];	// NUM_INVENTORY_SLOTS
+	const AttackArray& attacks = GAMESTATE->m_ActiveAttacks[m_PlayerNumber];
 	
 	// clear all lines, then add all active attacks
 	for( unsigned i=0; i<attacks.size(); i++ )

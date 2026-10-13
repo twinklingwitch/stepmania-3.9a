@@ -99,7 +99,6 @@ public:
 
 
 	bool IsCourseMode() const;
-	bool IsBattleMode() const; /* not Rave */
 
 	bool ShowMarvelous() const;
 
@@ -190,7 +189,6 @@ public:
 	void SetNoteSkinForBeatRange( PlayerNumber pn, CString sNoteSkin, float StartBeat, float EndBeat );
 
 	// used in PLAY_MODE_BATTLE
-	Attack	m_Inventory[NUM_PLAYERS][NUM_INVENTORY_SLOTS];
 	float	m_fOpponentHealthPercent;
 
 	// used in PLAY_MODE_RAVE
@@ -204,7 +202,6 @@ public:
 	void RebuildPlayerOptionsFromActiveAttacks( PlayerNumber pn );
 	void RemoveAllActiveAttacks();	// called on end of song
 	void RemoveActiveAttacksForPlayer( PlayerNumber pn, AttackLevel al=NUM_ATTACK_LEVELS /*all*/ );
-	void RemoveAllInventory();
 	int GetSumOfActiveAttackLevels( PlayerNumber pn ) const;
 	PlayerNumber GetBestPlayer() const;
 	StageResult GetStageResult( PlayerNumber pn ) const;

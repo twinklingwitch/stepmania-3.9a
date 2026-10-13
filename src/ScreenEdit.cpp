@@ -323,7 +323,7 @@ ScreenEdit::ScreenEdit( CString sName ) : Screen( sName )
 
 	/* XXX: Do we actually have to send real note data here, and to m_NoteFieldRecord? 
 	 * (We load again on play/record.) */
-	m_Player.Load( PLAYER_1, &noteData, NULL, NULL, NULL, NULL, NULL, NULL, NULL );
+	m_Player.Load( PLAYER_1, &noteData, NULL, NULL, NULL, NULL, NULL, NULL );
 	GAMESTATE->m_PlayerController[PLAYER_1] = PC_HUMAN;
 	m_Player.SetX( PLAYER_X );
 	/* Why was this here?  Nothing ever sets Player Y values; this was causing
@@ -1942,7 +1942,7 @@ void ScreenEdit::HandleAreaMenuChoice( AreaMenuChoice c, int* iAnswers )
 
 				SetupCourseAttacks();
 
-				m_Player.Load( PLAYER_1, &m_NoteFieldEdit, NULL, NULL, NULL, NULL, NULL, NULL, NULL );
+				m_Player.Load( PLAYER_1, &m_NoteFieldEdit, NULL, NULL, NULL, NULL, NULL, NULL );
 				GAMESTATE->m_PlayerController[PLAYER_1] = PREFSMAN->m_bAutoPlay?PC_AUTOPLAY:PC_HUMAN;
 
 				m_rectRecordBack.StopTweening();
