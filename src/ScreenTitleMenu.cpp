@@ -38,7 +38,6 @@
 #define CHOICES_START_Y				THEME->GetMetricF("ScreenTitleMenu","ChoicesStartY")
 #define CHOICES_SPACING_Y			THEME->GetMetricF("ScreenTitleMenu","ChoicesSpacingY")
 #define CHOICES_SHADOW_LENGTH		THEME->GetMetricF("ScreenTitleMenu","ChoicesShadowLength")
-#define COLOR_NOT_SELECTED			THEME->GetMetricC("ScreenTitleMenu","ColorNotSelected")
 #define COLOR_SELECTED				THEME->GetMetricC("ScreenTitleMenu","ColorSelected")
 #define ZOOM_NOT_SELECTED			THEME->GetMetricF("ScreenTitleMenu","ZoomNotSelected")
 #define ZOOM_SELECTED				THEME->GetMetricF("ScreenTitleMenu","ZoomSelected")
@@ -47,7 +46,6 @@
 #define SECONDS_BEFORE_ATTRACT		THEME->GetMetricF("ScreenTitleMenu","SecondsBeforeAttract")
 #define HELP_TEXT( coin_mode )		THEME->GetMetric("ScreenTitleMenu","HelpText"+Capitalize(CoinModeToString(coin_mode)))
 #define MENU_ITEM_CREATE			THEME->GetMetric("ScreenTitleMenu","MenuCommandOnCreate")
-#define MENU_ITEM_SELECT_DELAY		THEME->GetMetricF("ScreenTitleMenu","MenuCommandSelectDelay")
 
 #define NAME( sChoiceName )			THEME->GetMetric (m_sName,ssprintf("Name%s",sChoiceName.c_str()))
 

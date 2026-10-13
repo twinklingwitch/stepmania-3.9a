@@ -24,7 +24,6 @@
 #define NUM_CODES				THEME->GetMetricI(m_sName,"NumCodes")
 #define CODE( c )				THEME->GetMetric (m_sName,ssprintf("Code%d",c+1))
 #define CODE_ACTION( c )		THEME->GetMetric (m_sName,ssprintf("Code%dAction",c+1))
-#define HELP_TEXT				THEME->GetMetric (m_sName,"HelpText")
 #define NEXT_SCREEN( c )		THEME->GetMetric (m_sName,ssprintf("NextScreen%d",c+1))
 
 ScreenSelect::ScreenSelect( CString sClassName ) : ScreenWithMenuElements(sClassName)

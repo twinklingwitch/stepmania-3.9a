@@ -12,8 +12,6 @@
 #include "Style.h"
 
 #define NEXT_SCREEN				THEME->GetMetric("ScreenStyleSplash","NextScreen")
-#define NONSTOP_SCREEN				THEME->GetMetric("ScreenStyleSplash","NonstopScreen")
-#define ONI_SCREEN				THEME->GetMetric("ScreenStyleSplash","OniScreen")
 
 const ScreenMessage SM_DoneOpening		= ScreenMessage(SM_User-7);
 const ScreenMessage SM_StartClosing		= ScreenMessage(SM_User-8);

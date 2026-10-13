@@ -18,9 +18,6 @@
 #include "StageStats.h"
 
 
-#define SCROLL_DELAY		THEME->GetMetricF("ScreenEnding","ScrollDelay")
-#define SCROLL_SPEED		THEME->GetMetricF("ScreenEnding","ScrollSpeed")
-#define TEXT_ZOOM			THEME->GetMetricF("ScreenEnding","TextZoom")
 
 
 

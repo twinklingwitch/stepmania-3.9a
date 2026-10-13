@@ -2152,7 +2152,6 @@ void ScreenGameplay::HandleScreenMessage( const ScreenMessage SM )
 				m_Toasty.StartTransitioning();
 		break;
 
-#define SECS_SINCE_LAST_COMMENT (SECONDS_BETWEEN_COMMENTS-m_fTimeLeftBeforeDancingComment)
 	case SM_100Combo:
 		PlayAnnouncer( "gameplay 100 combo", 2 );
 		break;

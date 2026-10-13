@@ -12,7 +12,6 @@
 
 const float GRAPH_EDGE_WIDTH	= 2;
 
-#define EDGE_WIDTH				THEME->GetMetricF("GrooveGraph","EdgeWidth")
 #define DIFFICULTY_COLORS(dc)	THEME->GetMetricC("GrooveGraph",Capitalize(DifficultyToString(dc))+"Color")
 #define SHOW_CATEGORY(cat)		THEME->GetMetricB("GrooveGraph","Show"+Capitalize(RadarCategoryToString(cat)))
 #define CATEGORY_X(cat)			THEME->GetMetricF("GrooveGraph",Capitalize(RadarCategoryToString(cat))+"X")

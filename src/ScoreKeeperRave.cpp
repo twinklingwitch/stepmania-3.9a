@@ -31,8 +31,6 @@ void ScoreKeeperRave::HandleTapScore( TapNoteScore score )
 	AddSuperMeterDelta( fPercentToMove );
 }
 
-#define CROSSED( val ) (fOld < val && fNew >= val)
-#define CROSSED_ATTACK_LEVEL( level ) CROSSED(1.f/NUM_ATTACK_LEVELS*(level+1))
 void ScoreKeeperRave::HandleTapRowScore( TapNoteScore scoreOfLastTap, int iNumTapsInRow )
 {
 	float fPercentToMove;

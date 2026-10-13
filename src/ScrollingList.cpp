@@ -22,7 +22,6 @@ enum BANNER_PREFS_TYPES
 #define BANNER_HEIGHT			THEME->GetMetricF("ScreenSelectMusic","BannerHeight")
 #define EZ2_BANNER_WIDTH THEME->GetMetricF("ScreenSelectMusic","BannerWidth")
 #define EZ2_BANNER_HEIGHT THEME->GetMetricF("ScreenSelectMusic","BannerHeight")
-#define EZ2_BANNER_ZOOM 2.0
 
 #define ZOOM_OFFSET THEME->GetMetricF("ScreenEz2SelectMusic","BannerZoomOffset")
 #define FADE_OFFSET THEME->GetMetricF("ScreenEz2SelectMusic","BannerFadeOffset")

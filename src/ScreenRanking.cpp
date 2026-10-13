@@ -37,7 +37,6 @@ XToString( PageType );
 #define ROW_SPACING_X				THEME->GetMetricF("ScreenRanking","RowSpacingX")
 #define ROW_SPACING_Y				THEME->GetMetricF("ScreenRanking","RowSpacingY")
 #define COL_SPACING_X				THEME->GetMetricF("ScreenRanking","ColSpacingX")
-#define COL_SPACING_Y				THEME->GetMetricF("ScreenRanking","ColSpacingY")
 #define STEPS_TYPE_COLOR( i )		THEME->GetMetricC("ScreenRanking",ssprintf("StepsTypeColor%d",i+1))
 #define SONG_SCORE_ROWS_TO_SHOW		THEME->GetMetricI("ScreenRanking","SongScoreRowsToShow")
 #define SONG_SCORE_SECONDS_PER_ROW	THEME->GetMetricF("ScreenRanking","SongScoreSecondsPerRow")
