@@ -750,11 +750,18 @@ public:
 
 		if( bExactSizeSupported )
 		{
+			/* Most strings are short: format into a buffer on the stack, and
+			 * only format again if it didn't fit. */
+			CT szBuf[512];
 			va_list tmp;
 			va_copy( tmp, argList );
-			char ignore;
-			int iNeeded = ssvsprintf( &ignore, 0, szFormat, tmp );
+			int iNeeded = ssvsprintf( szBuf, sizeof(szBuf)/sizeof(CT), szFormat, tmp );
 			va_end(tmp);
+			if( iNeeded >= 0 && iNeeded < int(sizeof(szBuf)/sizeof(CT)) )
+			{
+				this->assign( szBuf, iNeeded );
+				return;
+			}
 
 			char *buf = GetBuffer( iNeeded+1 );
 			ssvsprintf( buf, iNeeded+1, szFormat, argList );
