@@ -119,22 +119,37 @@ void NotesWriterSM::WriteGlobalTags( RageFile &f, const Song &out, bool bSavingC
 	}
 }
 
-static void WriteLineList( RageFile &f, vector<CString> &lines, bool SkipLeadingBlankLines, bool OmitLastNewline )
+/* Write each line of sText with trailing whitespace removed, separated by newlines
+ * (no newline after the last).  The note data is thousands of short lines, so build
+ * it up in one string and write that, instead of writing a line at a time. */
+static void WriteTrimmedLines( RageFile &f, const CString &sText )
 {
-	for( unsigned i = 0; i < lines.size(); ++i )
-	{
-		TrimRight( lines[i] );
-		if( SkipLeadingBlankLines )
-		{
-			if( lines.size() == 0 )
-				continue;
-			SkipLeadingBlankLines = false;
-		}
-		f.Write( lines[i] );
+	const char *p = sText.c_str();
+	const char *pEnd = p + sText.size();
 
-		if( !OmitLastNewline || i+1 < lines.size() )
-			f.PutLine( "" ); /* newline */
+	CString sOut;
+	sOut.reserve( sText.size() + sText.size()/4 );
+	while( 1 )
+	{
+		const char *pLineEnd = (const char *) memchr( p, '\n', pEnd-p );
+		if( pLineEnd == NULL )
+			pLineEnd = pEnd;
+
+		/* The same characters TrimRight() removes by default (and NULs, which it
+		 * also removes, since strchr finds the terminator). */
+		const char *pTrimmed = pLineEnd;
+		while( pTrimmed > p && (pTrimmed[-1] == '\r' || pTrimmed[-1] == '\n' ||
+			pTrimmed[-1] == '\t' || pTrimmed[-1] == ' ' || pTrimmed[-1] == '\0') )
+			--pTrimmed;
+		sOut.append( p, pTrimmed-p );
+
+		if( pLineEnd == pEnd )
+			break;
+		sOut.append( "\r\n" );
+		p = pLineEnd+1;
 	}
+
+	f.Write( sOut );
 }
 
 void NotesWriterSM::WriteSMNotesTag( const Steps &in, RageFile &f, bool bSavingCache, const unsigned *puHash )
@@ -168,21 +183,14 @@ void NotesWriterSM::WriteSMNotesTag( const Steps &in, RageFile &f, bool bSavingC
 	CString sAttackData;
 	in.GetSMNoteData( sNoteData, sAttackData );
 
-	vector<CString> lines;
-
-	split( sNoteData, "\n", lines, false );
-	WriteLineList( f, lines, true, true );
+	WriteTrimmedLines( f, sNoteData );
 
 	if( sAttackData.empty() )
 		f.PutLine( ";" );
 	else
 	{
 		f.PutLine( ":" );
-
-		lines.clear();
-		split( sAttackData, "\n", lines, false );
-		WriteLineList( f, lines, true, true );
-
+		WriteTrimmedLines( f, sAttackData );
 		f.PutLine( ";" );
 	}
 }
