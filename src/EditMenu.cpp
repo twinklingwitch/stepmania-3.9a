@@ -171,13 +171,13 @@ bool EditMenu::CanGoRight()
 {
 	int num_values[NUM_ROWS] = 
 	{
-		m_sGroups.size(),
-		m_pSongs.size(),
-		m_StepsTypes.size(),
+		(int)m_sGroups.size(),
+		(int)m_pSongs.size(),
+		(int)m_StepsTypes.size(),
 		NUM_DIFFICULTIES,
-		m_StepsTypes.size(),
+		(int)m_StepsTypes.size(),
 		NUM_DIFFICULTIES,
-		m_Actions.size()
+		(int)m_Actions.size()
 	};
 
 	return m_iSelection[m_SelectedRow] != (num_values[m_SelectedRow]-1);

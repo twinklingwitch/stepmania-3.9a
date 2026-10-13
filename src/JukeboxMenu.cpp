@@ -96,10 +96,10 @@ bool JukeboxMenu::CanGoRight()
 {
 	int num_values[NUM_ROWS] = 
 	{
-		m_Styles.size(),
-		m_sGroups.size(),
-		m_sDifficulties.size(),
-		m_sModifiers.size()
+		(int)m_Styles.size(),
+		(int)m_sGroups.size(),
+		(int)m_sDifficulties.size(),
+		(int)m_sModifiers.size()
 	};
 
 	return m_iSelection[m_SelectedRow] != (num_values[m_SelectedRow]-1);

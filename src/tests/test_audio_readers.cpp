@@ -276,11 +276,12 @@ struct TestFile
 	/* The number of silent frames we expect: */
 	int SilentFrames;
 
-	/* The first two frames (four samples): */
-	int16_t initial[TestDataSize*2];
+	/* The first two frames (four samples), as the bit patterns of the
+	 * int16_t samples: */
+	uint16_t initial[TestDataSize*2];
 
 	/* Frames of data half a second in: */
-	int16_t later[TestDataSize*2];
+	uint16_t later[TestDataSize*2];
 };
 const int channels = 2;
 
@@ -330,7 +331,7 @@ bool RunTests( SoundReader *snd, const TestFile &tf )
 		if( !Identical )
 		{
 			LOG->Trace("Expected data:");
-			dump( tf.initial, ARRAYSIZE(tf.initial) );
+			dump( (const int16_t *) tf.initial, ARRAYSIZE(tf.initial) );
 			LOG->Trace(" ");
 			Failed = true;
 		}
@@ -348,7 +349,7 @@ bool RunTests( SoundReader *snd, const TestFile &tf )
 		if( !Identical )
 		{
 			LOG->Trace("Expected half second data:");
-                        dump( tf.later, ARRAYSIZE(tf.later) );
+                        dump( (const int16_t *) tf.later, ARRAYSIZE(tf.later) );
 			LOG->Trace("Got half second data:");
 			dump( LaterData, 16 );
 			Failed = true;

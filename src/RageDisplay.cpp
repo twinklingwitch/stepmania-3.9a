@@ -634,7 +634,7 @@ RageMatrix RageDisplay::GetPerspectiveMatrix(float fovy, float aspect, float zNe
 RageDisplay::PixelFormat RageDisplay::FindPixelFormat( 
 	int bpp, int Rmask, int Gmask, int Bmask, int Amask, bool realtime )
 {
-	PixelFormatDesc tmp = { bpp, { Rmask, Gmask, Bmask, Amask } };
+	PixelFormatDesc tmp = { bpp, { (unsigned) Rmask, (unsigned) Gmask, (unsigned) Bmask, (unsigned) Amask } };
 
 	for(int pixfmt = 0; pixfmt < NUM_PIX_FORMATS; ++pixfmt)
 	{
