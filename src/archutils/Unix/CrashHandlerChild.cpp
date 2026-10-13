@@ -16,10 +16,6 @@
 #include "RageLog.h" /* for RageLog::GetAdditionalLog, etc. only */
 #include "ProductInfo.h"
 
-#if defined(HAVE_VERSION_INFO)
-extern const unsigned version_num;
-#endif
-
 const char *g_pCrashHandlerArgv0 = NULL;
 
 
@@ -279,9 +275,6 @@ static void child_process()
 	}
 
     fprintf(CrashDump, "%s crash report", PRODUCT_NAME_VER );
-#if defined(HAVE_VERSION_INFO)
-    fprintf(CrashDump, " (build %u)", version_num);
-#endif
     fprintf(CrashDump, "\n");
     fprintf(CrashDump, "--------------------------------------\n");
     fprintf(CrashDump, "\n");

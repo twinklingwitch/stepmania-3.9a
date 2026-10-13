@@ -476,18 +476,9 @@ static void MountTreeOfZips( const CString &dir )
 	}
 }
 
-#if defined(HAVE_VERSION_INFO)
-extern unsigned long version_num;
-extern const char *version_time;
-#endif
-
 static void WriteLogHeader()
 {
 	LOG->Info( PRODUCT_NAME_VER );
-
-#if defined(HAVE_VERSION_INFO)
-	LOG->Info( "Compiled %s (build %lu)", version_time, version_num );
-#endif
 
 	time_t cur_time;
 	time(&cur_time);

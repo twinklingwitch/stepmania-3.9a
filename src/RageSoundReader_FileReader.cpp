@@ -4,9 +4,7 @@
 #include "RageLog.h"
 
 #include <set>
-#ifndef NO_WAV_SUPPORT
 #include "RageSoundReader_WAV.h"
-#endif
 
 #ifndef NO_MP3_SUPPORT
 #include "RageSoundReader_MP3.h"
@@ -20,10 +18,8 @@ SoundReader_FileReader *SoundReader_FileReader::TryOpenFile( CString filename, C
 {
 	SoundReader_FileReader *Sample = NULL;
 
-#ifndef NO_WAV_SUPPORT
 	if( !format.CompareNoCase("wav") )
 		Sample = new RageSoundReader_WAV;
-#endif
 #ifndef NO_MP3_SUPPORT
 	if( !format.CompareNoCase("mp3") )
 		Sample = new RageSoundReader_MP3;

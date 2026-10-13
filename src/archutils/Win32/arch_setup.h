@@ -1,9 +1,7 @@
 #ifndef ARCH_SETUP_WIN32_H
 #define ARCH_SETUP_WIN32_H
 
-#if !defined(MISSING_STDINT_H) /* need to define int64_t if so */
 #include <stdint.h>
-#endif
 
 /* mingw-w64 ships unistd.h, strings.h and the rest of the POSIX bits we use.  Pull
  * unistd.h in before redefining usleep() below. */

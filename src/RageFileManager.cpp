@@ -150,11 +150,9 @@ RageFileManager::RageFileManager( CString argv0 )
 	RageFileManager::Mount( "mem", "(cache)", "@mem" );
 }
 
-#ifndef HAVE_EXTRA // set for custom initial mount rules
 void RageFileManager::MountInitialFilesystems()
 {
 	/* Add file search paths, higher priority first. */
-#if defined(UNIX) || defined(WINDOWS)
 #if defined(UNIX)
 	/* Absolute paths.  This is rarely used. 
 	 * All paths that start with a slash (eg. "/proc") should use this, so put it
@@ -250,12 +248,7 @@ void RageFileManager::MountInitialFilesystems()
 	}
 
 	RageFileManager::Mount( "dir", Root, "" );
-#else
-	/* Paths relative to the CWD: */
-	RageFileManager::Mount( "dir", ".", "" );
-#endif
 }
-#endif
 
 RageFileManager::~RageFileManager()
 {

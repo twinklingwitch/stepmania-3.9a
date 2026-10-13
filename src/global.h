@@ -1,5 +1,3 @@
-#if !defined(SM_PCH) || SM_PCH == FALSE
-
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
@@ -49,25 +47,7 @@
 #include <cstring>
 #include <strings.h>
 
-#if !defined(MISSING_STDINT_H) /* need to define int64_t if so */
 #include <stdint.h>
-#endif
-
-#if defined(NEED_CSTDLIB_WORKAROUND)
-#define llabs ::llabs
-#endif
-
-#if defined(NEED_MINMAX_TEMPLATES)
-/* Some old <algorithm>s don't actually define min and max. */
-template<class T>
-inline const T& max(const T &a, const T &b)			{ return a < b? b:a; }
-template<class T, class P>
-inline const T& max(const T &a, const T &b, P Pr)	{ return Pr(a, b)? b:a; }
-template<class T>
-inline const T& min(const T &a, const T &b)			{ return b < a? b:a; }
-template<class T, class P>
-inline const T& min(const T &a, const T &b, P Pr)	{ return Pr(b, a)? b:a; }
-#endif
 
 using namespace std;
 
@@ -85,14 +65,8 @@ namespace Checkpoints
 
 
 /* Define a macro to tell the compiler that a function doesn't return.  This just
- * improves compiler warnings.  This should be placed near the beginning of the
- * function prototype (although it looks better near the end, VC only accepts it
- * at the beginning). */
-#if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
+ * improves compiler warnings. */
 #define NORETURN __attribute__ ((__noreturn__))
-#else
-#define NORETURN
-#endif
 
 void NORETURN sm_crash( const char *reason = "Internal error" );
 
@@ -112,11 +86,7 @@ void NORETURN sm_crash( const char *reason = "Internal error" );
 
 /* Define a macro to tell the compiler that a function has printf() semantics, to
  * aid warning output. */
-#if defined(__GNUC__)
 #define PRINTF(a,b) __attribute__((format(__printf__,a,b)))
-#else
-#define PRINTF(a,b)
-#endif
 
 /* Use CStdString: */
 #include "StdString.h"
@@ -131,49 +101,11 @@ typedef const CString& CCStringRef;
 #define stricmp strcasecmp
 #define strnicmp strncasecmp
 
-/* Define a few functions if necessary */
 #include <cmath>
-#ifdef NEED_POWF
-inline float powf (float x, float y) { return float(pow(double(x),double(y))); }
-#endif
-
-#ifdef NEED_SQRTF
-inline float sqrtf(float x) { return float(sqrt(double(x))); }
-#endif
-
-#ifdef NEED_SINF
-inline float sinf(float x) { return float(sin(double(x))); }
-#endif
-
-#ifdef NEED_TANF
-inline float tanf(float x) { return float(tan(double(x))); }
-#endif
-
-#ifdef NEED_COSF
-inline float cosf(float x) { return float(cos(double(x))); }
-#endif
-
-#ifdef NEED_ACOSF
-inline float acosf(float x) { return float(acos(double(x))); }
-#endif
-
-#ifdef NEED_TRUNCF
-inline float truncf( float f )	{ return float(int(f)); };
-#endif
-
-#ifdef NEED_ROUNDF
-inline float roundf( float f )	{ if(f < 0) return truncf(f-0.5f); return truncf(f+0.5f); };
-#endif
-
-#ifdef NEED_STRTOF
-inline float strtof( const char *s, char **se ) { return (float) strtod( s, se ); }
-#endif
 
 /* Don't include our own headers here, since they tend to change often. */
 
 #endif
-
-#endif /* SM_PCH */
 
 /*
  * (c) 2001-2004 Chris Danford, Glenn Maynard

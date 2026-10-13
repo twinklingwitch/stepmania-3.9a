@@ -1,9 +1,7 @@
 #ifndef ARCH_SETUP_UNIX_H
 #define ARCH_SETUP_UNIX_H
 
-#if !defined(MISSING_STDINT_H) /* need to define int64_t if so */
 #include <stdint.h>
-#endif
 
 #if defined(CPU_X86)
 
