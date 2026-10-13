@@ -342,7 +342,7 @@ RageDisplay *CreateDisplay()
 			error += "Initializing OpenGL...\n";
 			try {
 				return new RageDisplay_OGL( params, PREFSMAN->m_bAllowUnacceleratedRenderer );
-			} catch(RageException e) {
+			} catch(const RageException &e) {
 				error += CString(e.what()) + "\n";
 				continue;
 			};

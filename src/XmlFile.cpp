@@ -129,7 +129,7 @@ void SetString( char* psz, char* end, CString* ps, bool trim = false, int escape
 	if( trim )
 	{
 		while( psz && psz < end && isspace(*psz) ) psz++;
-		while( (end-1) && psz < (end-1) && isspace(*(end-1)) ) end--;
+		while( psz < (end-1) && isspace(*(end-1)) ) end--;
 	}
 	int len = end - psz;
 	if( len <= 0 ) return;

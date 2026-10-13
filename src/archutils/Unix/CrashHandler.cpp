@@ -69,7 +69,7 @@ static void GetExecutableName( char *buf, int bufsize )
 	{
 		safe_print( fileno(stderr), "Crash handler readlink ", proc_fn, " failed: ", strerror(errno), "\n", NULL );
 
-		strncpy( buf, g_pCrashHandlerArgv0, bufsize );
+		strncpy( buf, g_pCrashHandlerArgv0, bufsize-1 );
 		buf[bufsize-1] = 0;
 	}
 
@@ -85,14 +85,14 @@ static void GetExecutableName( char *buf, int bufsize )
 	{
 		safe_print( fileno(stderr), "Crash handler sysctl failed: ", strerror(errno), "\n", NULL );
 
-		strncpy( buf, g_pCrashHandlerArgv0, bufsize );
+		strncpy( buf, g_pCrashHandlerArgv0, bufsize-1 );
 		buf[bufsize-1] = 0;
 	}
 }
 #else
 static void GetExecutableName( char *buf, int bufsize )
 {
-	strncpy( buf, g_pCrashHandlerArgv0, bufsize );
+	strncpy( buf, g_pCrashHandlerArgv0, bufsize-1 );
 	buf[bufsize-1] = 0;
 }
 #endif

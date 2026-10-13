@@ -70,7 +70,6 @@ void Steps::SetNoteData( const NoteData* pNewNoteData )
 
 void Steps::GetNoteData( NoteData* pNoteDataOut ) const
 {
-	ASSERT(this);
 	ASSERT(pNoteDataOut);
 
 	Decompress();
@@ -314,7 +313,6 @@ void Steps::CreateBlank( StepsType ntTo )
 
 const Steps *Steps::Real() const
 {
-	ASSERT( this );
 	if(parent) return parent;
 	return this;
 }

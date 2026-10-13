@@ -174,7 +174,7 @@ void Model::LoadMaterialsFromMilkshapeAscii( CString sPath )
                 RageVector4 Ambient;
                 if (sscanf (sLine, "%f %f %f %f", &Ambient[0], &Ambient[1], &Ambient[2], &Ambient[3]) != 4)
 					THROW;
-                memcpy( &Material.Ambient, &Ambient, sizeof(Material.Ambient) );
+                memcpy( (void *) &Material.Ambient, &Ambient, sizeof(Material.Ambient) );
 
                 // diffuse
 			    if( f.GetLine( sLine ) <= 0 )
@@ -182,7 +182,7 @@ void Model::LoadMaterialsFromMilkshapeAscii( CString sPath )
                 RageVector4 Diffuse;
                 if (sscanf (sLine, "%f %f %f %f", &Diffuse[0], &Diffuse[1], &Diffuse[2], &Diffuse[3]) != 4)
 					THROW;
-                memcpy( &Material.Diffuse, &Diffuse, sizeof(Material.Diffuse) );
+                memcpy( (void *) &Material.Diffuse, &Diffuse, sizeof(Material.Diffuse) );
 
                 // specular
 			    if( f.GetLine( sLine ) <= 0 )
@@ -190,7 +190,7 @@ void Model::LoadMaterialsFromMilkshapeAscii( CString sPath )
                 RageVector4 Specular;
                 if (sscanf (sLine, "%f %f %f %f", &Specular[0], &Specular[1], &Specular[2], &Specular[3]) != 4)
 					THROW;
-                memcpy( &Material.Specular, &Specular, sizeof(Material.Specular) );
+                memcpy( (void *) &Material.Specular, &Specular, sizeof(Material.Specular) );
 
                 // emissive
 			    if( f.GetLine( sLine ) <= 0 )
@@ -198,7 +198,7 @@ void Model::LoadMaterialsFromMilkshapeAscii( CString sPath )
                 RageVector4 Emissive;
                 if (sscanf (sLine, "%f %f %f %f", &Emissive[0], &Emissive[1], &Emissive[2], &Emissive[3]) != 4)
 					THROW;
-                memcpy( &Material.Emissive, &Emissive, sizeof(Material.Emissive) );
+                memcpy( (void *) &Material.Emissive, &Emissive, sizeof(Material.Emissive) );
 
                 // shininess
 			    if( f.GetLine( sLine ) <= 0 )

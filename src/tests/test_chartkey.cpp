@@ -1,5 +1,5 @@
-/* Checks chart keys against the ones Etterna's algorithm gives for the charts in
- * chartkey/*.sm.  Etterna isn't built here, so the expected keys come from
+/* Checks chart keys against the ones Etterna's algorithm gives for the .sm charts
+ * in chartkey/.  Etterna isn't built here, so the expected keys come from
  * chartkey/reference.py, a separate reading of Etterna's code (see there), and
  * for tiny.sm from working the string out by hand:
  *
