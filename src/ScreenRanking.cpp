@@ -783,17 +783,8 @@ float ScreenRanking::SetPage( PageToShow pts )
 					{
 						HighScoreList &hsl = PROFILEMAN->GetMachineProfile()->GetStepsHighScoreList(pSong,pSteps);
 						HighScore hs = hsl.GetTopScore();
-						bool bRecentHighScore = false;
-						if( !hsl.vHighScores.empty() )
-						{
-							hs = hsl.GetTopScore();
-							const CString *psName = &hsl.GetTopScore().sName;
-							bRecentHighScore = find( GAMESTATE->m_vpsNamesThatWereFilled.begin(), GAMESTATE->m_vpsNamesThatWereFilled.end(), psName ) != GAMESTATE->m_vpsNamesThatWereFilled.end();
-						}
-						else
-						{
-							hs.sName = NO_SCORE_NAME;				
-						}
+						if( hsl.vHighScores.empty() )
+							hs.sName = NO_SCORE_NAME;
 
 						CString s;
 						s = hs.GetDisplayName() + "\n";
@@ -826,17 +817,10 @@ float ScreenRanking::SetPage( PageToShow pts )
 					const HighScoreList &hsl = PROFILEMAN->GetMachineProfile()->GetCourseHighScoreList( pCourse, pTrail );
 
 					HighScore hs;
-					bool bRecentHighScore = false;
 					if( !hsl.vHighScores.empty() )
-					{
 						hs = hsl.vHighScores[0];
-						const CString *psName = &hsl.GetTopScore().sName;
-						bRecentHighScore = find( GAMESTATE->m_vpsNamesThatWereFilled.begin(), GAMESTATE->m_vpsNamesThatWereFilled.end(), psName ) != GAMESTATE->m_vpsNamesThatWereFilled.end();
-					}
 					else
-					{
-						hs.sName = NO_SCORE_NAME;				
-					}
+						hs.sName = NO_SCORE_NAME;
 
 					CString s;
 					s = hs.GetDisplayName() + "\n";
