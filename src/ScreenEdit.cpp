@@ -1631,10 +1631,6 @@ void ScreenEdit::HandleMainMenuChoice( MainMenuChoice c, int* iAnswers )
 				SCREENMAN->MiniMenu( &g_EditSongInfo, SM_BackFromEditSongInfo );
 			}
 			break;
-//		case edit_bpm:
-//			break;
-//		case edit_stop:
-//			break;
 		case edit_bg_change:
 			{
 				//

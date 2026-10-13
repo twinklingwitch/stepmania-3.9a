@@ -20,9 +20,6 @@
 
 const float PARTICLE_SPEED = 300;
 
-const float SPIRAL_MAX_ZOOM = 2;
-const float SPIRAL_MIN_ZOOM = 0.3f;
-
 #define MAX_TILES_WIDE (SCREEN_WIDTH/32+2)
 #define MAX_TILES_HIGH (SCREEN_HEIGHT/32+2)
 #define MAX_SPRITES (MAX_TILES_WIDE*MAX_TILES_HIGH)
@@ -80,10 +77,6 @@ void BGAnimationLayer::Init()
 	m_fFOV = -1;	// no change
 	m_bLighting = false;
 
-//	m_bCycleColor = false;
-//	m_bCycleAlpha = false;
-//	m_Effect = EFFECT_STRETCH_STILL;
-
 	m_vParticleVelocity.clear();
 
 	m_Type = TYPE_SPRITE;
@@ -110,18 +103,6 @@ void BGAnimationLayer::Init()
 	m_fTileVelocityX = 0;
 	m_fTileVelocityY = 0;
 
-	/*
-	m_PosX = m_PosY = 0;
-	m_Zoom = 0;
-	m_Rot = 0;
-	m_ShowTime = 0;
-	m_HideTime = 0;
-	m_TweenStartTime = 0;
-	m_TweenX = m_TweenY = 0.0;
-	m_TweenSpeed = 0;
-	m_TweenState = 0;
-	m_TweenPassedX = m_TweenPassedY = 0;
-	*/
 }
 
 /* Static background layers are simple, uncomposited background images with nothing
@@ -660,8 +641,6 @@ void BGAnimationLayer::Update( float fDeltaTime )
 
 	fDeltaTime *= m_fUpdateRate;
 
-	const float fSongBeat = GAMESTATE->m_fSongBeat;
-	
 	unsigned i;
 	for( i=0; i<m_SubActors.size(); i++ )
 		m_SubActors[i]->Update( fDeltaTime );
@@ -680,39 +659,6 @@ void BGAnimationLayer::Update( float fDeltaTime )
 			}
 		}
 		break;
-/*	case EFFECT_PARTICLES_SPIRAL_OUT:
-		for( i=0; i<m_iNumSprites; i++ )
-		{
-			m_SubActors[i].SetZoom( m_SubActors[i].GetZoom() + fDeltaTime );
-			if( m_SubActors[i].GetZoom() > SPIRAL_MAX_ZOOM )
-				m_SubActors[i].SetZoom( SPIRAL_MIN_ZOOM );
-
-			m_SubActors[i].SetRotationZ( m_SubActors[i].GetRotationZ() + fDeltaTime );
-
-			float fRadius = (m_SubActors[i].GetZoom()-SPIRAL_MIN_ZOOM);
-			fRadius *= fRadius;
-			fRadius *= 200;
-			m_SubActors[i].SetX( CENTER_X + cosf(m_SubActors[i].GetRotationZ())*fRadius );
-			m_SubActors[i].SetY( CENTER_Y + sinf(m_SubActors[i].GetRotationZ())*fRadius );
-		}
-		break;
-	case EFFECT_PARTICLES_SPIRAL_IN:
-		for( i=0; i<m_iNumSprites; i++ )
-		{
-			m_SubActors[i].SetZoom( m_SubActors[i].GetZoom() - fDeltaTime );
-			if( m_SubActors[i].GetZoom() < SPIRAL_MIN_ZOOM )
-				m_SubActors[i].SetZoom( SPIRAL_MAX_ZOOM );
-
-			m_SubActors[i].SetRotationZ( m_SubActors[i].GetRotationZ() - fDeltaTime );
-
-			float fRadius = (m_SubActors[i].GetZoom()-SPIRAL_MIN_ZOOM);
-			fRadius *= fRadius;
-			fRadius *= 200;
-			m_SubActors[i].SetX( CENTER_X + cosf(m_SubActors[i].GetRotationZ())*fRadius );
-			m_SubActors[i].SetY( CENTER_Y + sinf(m_SubActors[i].GetRotationZ())*fRadius );
-		}
-		break;
-*/
 	case TYPE_PARTICLES:
 		for( i=0; i<m_SubActors.size(); i++ )
 		{
@@ -791,132 +737,11 @@ void BGAnimationLayer::Update( float fDeltaTime )
 					m_SubActors[i]->SetY( fY );
 				}
 			}
-/*			
-		for( i=0; i<m_iNumSprites; i++ )
-		{
-			m_SubActors[i].SetX( m_SubActors[i].GetX() + fDeltaTime*  );
-			m_SubActors[i].SetY( m_SubActors[i].GetY() + fDeltaTime*m_vParticleVelocity[i].y  );
-			m_SubActors[i].SetZ( m_SubActors[i].GetZ() + fDeltaTime*m_vParticleVelocity[i].z  );
-			if( IsOffScreenLeft(&m_SubActors[i]) )
-				m_SubActors[i].SetX( m_SubActors[i].GetX()-GetOffScreenLeft(&m_SubActors[i]) + GetOffScreenRight(&m_SubActors[i]) );
-			if( IsOffScreenRight(&m_SubActors[i]) )
-				m_SubActors[i].SetX( m_SubActors[i].GetX()-GetOffScreenRight(&m_SubActors[i]) + GetOffScreenLeft(&m_SubActors[i]) );
-			if( IsOffScreenTop(&m_SubActors[i]) )
-				m_SubActors[i].SetY( m_SubActors[i].GetY()-GetOffScreenTop(&m_SubActors[i]) + GetOffScreenBottom(&m_SubActors[i]) );
-			if( IsOffScreenBottom(&m_SubActors[i]) )
-				m_SubActors[i].SetY( m_SubActors[i].GetY()-GetOffScreenBottom(&m_SubActors[i]) + GetOffScreenTop(&m_SubActors[i]) );
-				*/
 		}
-		break;
-	case EFFECT_TILE_PULSE:
-		for( i=0; i<m_SubActors.size(); i++ )
-			m_SubActors[i]->SetZoom( sinf( fSongBeat*PI/2 ) );
-
 		break;
 	default:
 		ASSERT(0);
 	}
-
-	/*
-	if(m_TweenStartTime != 0 && !(m_TweenStartTime < 0))
-	{
-		m_TweenStartTime -= fDeltaTime;
-		if(m_TweenStartTime <= 0) // if we've gone past the magic point... show the beast....
-		{
-		//	m_SubActors[0].SetXY( m_TweenX, m_TweenY);
-			
-			// WHAT WOULD BE NICE HERE:
-			// Set the Sprite Tweening To m_TweenX and m_TweenY
-			// Going as fast as m_TweenSpeed specifies.
-			// however, TWEEN falls over on its face at this point.
-			// Lovely.
-			// Instead: Manual tweening. Blah.
-			m_TweenState = 1;
-			if(m_PosX == m_TweenX)
-			{
-				m_TweenPassedX = 1;
-			}
-			if(m_PosY == m_TweenY)
-			{
-				m_TweenPassedY = 1;
-			}
-		}		
-	}
-
-	if(m_TweenState) // A FAR from perfect Tweening Mechanism.
-	{
-		if(m_TweenPassedY != 1) // Check to see if we still need to Tween Along the Y Axis
-		{
-			if(m_SubActors[0].GetY() < m_TweenY) // it needs to travel down
-			{
-				// Speed = Distance / Time....
-				// Take away from the current position... the distance it has to travel divided by the time they want it done in...
-				m_SubActors[0].SetY(m_SubActors[0].GetY() + ((m_TweenY - m_PosY)/(m_TweenSpeed*60)));
-
-				if(m_SubActors[0].GetY() > m_TweenY) // passed the location we wanna go to?
-				{
-					m_SubActors[0].SetY(m_TweenY); // set it to the exact location we want
-					m_TweenPassedY = 1; // say we passed it.
-				}
-			}
-			else // travelling up
-			{
-				m_SubActors[0].SetY(m_SubActors[0].GetY() - ((m_TweenY + m_PosY)/(m_TweenSpeed*60)));
-
-				if(m_SubActors[0].GetY() < m_TweenY)
-				{
-					m_SubActors[0].SetY(m_TweenY);
-					m_TweenPassedY = 1;
-				}
-			}
-		}
-
-		if(m_TweenPassedX != 1) // Check to see if we still need to Tween Along the X Axis
-		{
-			if(m_SubActors[0].GetX() < m_TweenX) // it needs to travel right
-			{
-				m_SubActors[0].SetX(m_SubActors[0].GetX() + ((m_TweenX - m_PosX)/(m_TweenSpeed*60)));
-				if(m_SubActors[0].GetX() > m_TweenX)
-				{
-					m_SubActors[0].SetX(m_TweenX);
-					m_TweenPassedX = 1;
-				}
-			}
-			else // travelling left
-			{
-				m_SubActors[0].SetX(m_SubActors[0].GetX() - ((m_TweenX + m_PosX)/(m_TweenSpeed*60)));
-				if(m_SubActors[0].GetX() < m_TweenX)
-				{
-					m_SubActors[0].SetX(m_TweenX);
-					m_TweenPassedX = 1;
-				}
-			}
-		}
-
-		if(m_TweenPassedY == 1 && m_TweenPassedX == 1) // totally passed both X and Y? Stop tweening.
-		{
-			m_TweenState = 0;
-		}
-	}
-
-	if(m_ShowTime != 0 && !(m_ShowTime < 0))
-	{
-		m_ShowTime -= fDeltaTime;
-		if(m_ShowTime <= 0) // if we've gone past the magic point... show the beast....
-		{
-			m_SubActors[0].SetDiffuse( RageColor(1,1,1,1) );
-		}		
-	}
-	if(m_HideTime != 0 && !(m_HideTime < 0)) // make sure it's not 0 or less than 0...
-	{
-		m_HideTime -= fDeltaTime;
-		if(m_HideTime <= 0) // if we've gone past the magic point... hide the beast....
-		{
-			m_SubActors[0].SetDiffuse( RageColor(0,0,0,0) );
-		}
-		
-	}
-	*/
 
 	if( m_fRepeatCommandEverySeconds != -1 )	// if repeating
 	{

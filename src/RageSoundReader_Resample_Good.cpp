@@ -198,8 +198,6 @@ SoundReader *RageSoundReader_Resample_Good::Copy() const
 	ret->BufSamples = BufSamples;
 	ret->eof = eof;
 
-//	ret->Open(new_source);
-//	ret->SetSampleRate(samplerate);
 	return ret;
 }
 

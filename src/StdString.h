@@ -1148,16 +1148,6 @@ struct StdStringEqualsNoCaseA
 	{ return ssicmp(sLeft.c_str(), sRight.c_str()) == 0; }
 };
 
-// These std::swap specializations come courtesy of Mike Crusader. 
-
-//namespace std
-//{
-//	inline void swap(CStdStringA& s1, CStdStringA& s2) throw()
-//	{
-//		s1.swap(s2);
-//	}
-//}
-
 #define CString CStdString
 #define CStringArray vector<CString>
 

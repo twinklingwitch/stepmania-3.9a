@@ -394,8 +394,6 @@ void ScreenSelectMusic::TweenSongPartsOnScreen( bool Initial )
 			ON_COMMAND( m_DifficultyList );
 			m_DifficultyList.TweenOnScreen();
 		}
-//		else // do this after SM_SortOrderChanged
-//			m_DifficultyList.Show();
 	}
 
 	{
@@ -1452,15 +1450,6 @@ void ScreenSelectMusic::AfterTrailChange( PlayerNumber pn )
 	m_textHighScore[pn].SetText( ssprintf("%*i", NUM_SCORE_DIGITS, iScore) );
 	
 	m_DifficultyIcon[pn].SetFromTrail( pn, pTrail );
-	//if( pTrail && pTrail->IsAutogen() )
-	//{
-	//	m_AutoGenIcon[pn].SetEffectDiffuseShift();
-	//}
-	//else
-	//{
-	//	m_AutoGenIcon[pn].SetEffectNone();
-	//	m_AutoGenIcon[pn].SetDiffuse( RageColor(1,1,1,0) );
-	//}
 
 	/* Update the trail list, but don't actually start the tween; only do that when
 	 * the actual course changes (AfterMusicChange). */
@@ -1922,9 +1911,6 @@ void ScreenSelectMusic::SortOrderChanged()
 			m_DifficultyList.Show();
 		break;
 	}
-
-	// tween music sort on screen
-//	m_MusicSortDisplay.FadeOn( 0, "fade", TWEEN_TIME );
 }
 
 /*

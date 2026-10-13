@@ -123,17 +123,7 @@ void GrooveGraph::Mountain::DrawPrimitives()
 		DISPLAY->DrawFan( v, 3 );
 	}
 
-	// TODO: Add this back in
-	// This shouldn't be needed anymore. -glenn
-//	switch( PREFSMAN->m_iPolygonRadar )
-//	{
-//	case 0:		DISPLAY->DrawLoop_LinesAndPoints( v, 3, 2 );	break;
-//	case 1:		DISPLAY->DrawLoop_Polys( v, 3, 2 );				break;
-//	default:
-//	case -1:
 	DISPLAY->DrawLineStrip( v, 4, 2 );
-//	break;
-//	}
 }
 
 /*

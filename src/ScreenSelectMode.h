@@ -57,9 +57,6 @@ protected:
 	bool m_bSelected;
 	bool m_b2DAvailable;
 	bool m_bCharsAvailable;
-	
-//	private:
-//	vector<Character*>		m_Characters;
 };
 
 #endif

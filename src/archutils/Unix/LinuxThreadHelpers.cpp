@@ -116,9 +116,6 @@ static int PtraceAttach( int ThreadID )
 	ret = waittid( ThreadID, &status, 0 );
 	if( ret == -1 )
 		return -1;
-
-//	printf( "ret %i, exited %i, signalled %i, sig %i, stopped %i, stopsig %i\n", ret, WIFEXITED(status),
-//			WIFSIGNALED(status), WTERMSIG(status), WIFSTOPPED(status), WSTOPSIG(status));
 	return 0;
 }
 

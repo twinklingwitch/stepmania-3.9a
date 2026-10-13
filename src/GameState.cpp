@@ -552,10 +552,6 @@ void GameState::ReloadCharacters()
 	
 	if( !FoundDefault )
 		RageException::Throw( "'Characters/default' is missing." );
-
-	// If FoundDefault, then we're not empty. -Chris
-//	if( m_pCharacters.empty() )
-//		RageException::Throw( "Couldn't find any character definitions" );
 }
 
 const float GameState::MUSIC_SECONDS_INVALID = -5000.0f;
@@ -1671,11 +1667,6 @@ void GameState::GetRankingFeats( PlayerNumber pn, vector<RankingFeat> &asFeatsOu
 		ASSERT(0);
 	}
 }
-
-/*bool GameState::IsNameBlacklisted( CString name )
-{
-
-}*/
 
 void GameState::StoreRankingName( PlayerNumber pn, CString name )
 {

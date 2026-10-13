@@ -362,10 +362,6 @@ bool MusicWheel::SelectSort( SortOrder so )
 void MusicWheel::GetSongList(vector<Song*> &arraySongs, SortOrder so, CString sPreferredGroup )
 {
 	vector<Song*> apAllSongs;
-//	if( so==SORT_PREFERRED && GAMESTATE->m_sPreferredGroup!=GROUP_ALL_MUSIC)
-//		SONGMAN->GetSongs( apAllSongs, GAMESTATE->m_sPreferredGroup, GAMESTATE->GetNumStagesLeft() );	
-//	else
-//		SONGMAN->GetSongs( apAllSongs, GAMESTATE->GetNumStagesLeft() );
 	if( so == SORT_MOST_PLAYED )
 		SONGMAN->GetBestSongs( apAllSongs, GAMESTATE->m_sPreferredGroup, GAMESTATE->GetNumStagesLeft() );
 	else
@@ -823,19 +819,6 @@ void MusicWheel::NotesOrTrailChanged( PlayerNumber pn )	// update grade graphics
 
 void MusicWheel::DrawPrimitives()
 {
-	if( USE_3D )
-	{
-//		DISPLAY->PushMatrix();
-//		DISPLAY->EnterPerspective(45, false);
-
-		// construct view and project matrix
-//		RageVector3 Up( 0.0f, 1.0f, 0.0f );
-//		RageVector3 Eye( CENTER_X, CENTER_Y, 550 );
-//		RageVector3 At( CENTER_X, CENTER_Y, 0 );
-
-//		DISPLAY->LookAt(Eye, At, Up);
-	}
-
 	// draw outside->inside
 	int i;
 	for( i=0; i<NUM_WHEEL_ITEMS/2; i++ )
@@ -845,12 +828,6 @@ void MusicWheel::DrawPrimitives()
 
 
 	ActorFrame::DrawPrimitives();
-	
-	if( USE_3D )
-	{
-//		DISPLAY->ExitPerspective();
-//		DISPLAY->PopMatrix();
-	}
 }
 
 
@@ -978,39 +955,6 @@ void MusicWheel::Update( float fDeltaTime )
 						if( GAMESTATE->IsPlayerEnabled(p) )
 							GAMESTATE->m_PreferredDifficulty[p] = dc;
 				}
-
-				//
-				// Unselect the current song if this is a course mode.
-				// Unselect the current course if this is a song sort.
-				//
-				/* If we do this, then switching to course mode and back will put you
-				 * back on the default song.  From the CVS commit, this looks like it
-				 * was originally to fix ScreenOptionsMaster difficulty display, and
-				 * isn't needed anymore ... -glenn */
-/*				switch( GAMESTATE->m_SortOrder )
-				{
-				case SORT_PREFERRED:
-				case SORT_GROUP:
-				case SORT_TITLE:
-				case SORT_BPM:
-				case SORT_GRADE:
-				case SORT_ARTIST:
-				case SORT_MOST_PLAYED:
-				case SORT_ROULETTE:
-				case SORT_EASY_METER:
-				case SORT_MEDIUM_METER:
-				case SORT_HARD_METER:
-				case SORT_CHALLENGE_METER:
-					GAMESTATE->m_pCurCourse = NULL;
-					break;
-				case SORT_ALL_COURSES:
-				case SORT_NONSTOP_COURSES:
-				case SORT_ONI_COURSES:
-				case SORT_ENDLESS_COURSES:
-					GAMESTATE->m_pCurSong = NULL;
-					break;
-				}
-*/
 
 				SCREENMAN->PostMessageToTopScreen( SM_SongChanged, 0 );
 				RebuildMusicWheelItems();
@@ -1288,10 +1232,6 @@ bool MusicWheel::Select()	// return true if this selection ends the screen
 		return false;
 	case TYPE_SONG:
 	case TYPE_PORTAL:
-		// Don't -permanently- unlock the song.  Just let them play 
-		// the unlocked song once.
-//		if( !GAMESTATE->IsExtraStage() && !GAMESTATE->IsExtraStage2() )
-//			UNLOCKMAN->UnlockSong( m_CurWheelItemData[m_iSelection]->m_pSong );
 		return true;
 	case TYPE_COURSE:
 		return true;

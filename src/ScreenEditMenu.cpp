@@ -99,8 +99,6 @@ void ScreenEditMenu::MenuStart( PlayerNumber pn )
 	StepsType st				= m_Selector.GetSelectedStepsType();
 	Difficulty dc				= m_Selector.GetSelectedDifficulty();
 	Steps* pSteps				= m_Selector.GetSelectedNotes();
-//	StepsType soureNT			= m_Selector.GetSelectedSourceStepsType();
-//	Difficulty sourceDiff		= m_Selector.GetSelectedSourceDifficulty();
 	Steps* pSourceNotes			= m_Selector.GetSelectedSourceNotes();
 	EditMenu::Action action		= m_Selector.GetSelectedAction();
 

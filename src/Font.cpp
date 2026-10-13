@@ -94,9 +94,6 @@ void FontPage::Load( FontPageSettings cfg )
 
 	SetTextureCoords(FrameWidths, cfg.AdvanceExtraPixels);
 	SetExtraPixels(cfg.DrawExtraPixelsLeft, cfg.DrawExtraPixelsRight);
-
-//	LOG->Trace("Font %s: height %i, baseline %i ( == top %i)",
-//		   m_sTexturePath.c_str(), height, baseline, baseline-height);
 }
 
 void FontPage::SetTextureCoords(const vector<int> &widths, int AdvanceExtraPixels)
@@ -463,9 +460,6 @@ void Font::LoadFontPageSettings(FontPageSettings &cfg, IniFile &ini, const CStri
 	
 	ini.RenameKey("Char Widths", "main");
 
-//	LOG->Trace("Loading font page '%s' settings from page name '%s'",
-//		TexturePath.c_str(), PageName.c_str());
-	
 	ini.GetValue( PageName, "DrawExtraPixelsLeft", cfg.DrawExtraPixelsLeft );
 	ini.GetValue( PageName, "DrawExtraPixelsRight", cfg.DrawExtraPixelsRight );
 	ini.GetValue( PageName, "AddToAllWidths", cfg.AddToAllWidths );

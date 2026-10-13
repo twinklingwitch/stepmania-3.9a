@@ -167,15 +167,6 @@ void ScreenSelectDifficulty::UpdateSelectableChoices()
 			}
 		}
 	}
-
-	// I'm not sure why this was here -- but there seem no ill effects
-	// of it's removal.
-	//
-	//FOREACH_HumanPlayer( p )
-	//	{
-	//		MenuRight( p );
-	//		MenuLeft( p );
-	//	}
 }
 
 static bool BothPlayersModeChoice( const ModeChoice &mc )
@@ -194,8 +185,6 @@ static bool BothPlayersModeChoice( const ModeChoice &mc )
 
 void ScreenSelectDifficulty::MenuLeft( PlayerNumber pn )
 {
-//	if( m_fLockInputTime > 0 )
-//		return;
 	if( m_bChosen[pn] )
 		return;
 
@@ -230,8 +219,6 @@ void ScreenSelectDifficulty::MenuLeft( PlayerNumber pn )
 
 void ScreenSelectDifficulty::MenuRight( PlayerNumber pn )
 {
-//	if( m_fLockInputTime > 0 )
-//		return;
 	if( m_bChosen[pn] )
 		return;
 

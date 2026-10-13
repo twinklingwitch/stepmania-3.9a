@@ -13,12 +13,6 @@
 #define TEXT_ZOOM			THEME->GetMetricF("ScreenMusicScroll","TextZoom")
 
 
-const CString CREDIT_LINES[] = 
-{
-""
-};
-const unsigned NUM_CREDIT_LINES = sizeof(CREDIT_LINES) / sizeof(CString);
-
 
 ScreenMusicScroll::ScreenMusicScroll( CString sClassName ) : ScreenAttract( sClassName )
 {
@@ -40,15 +34,6 @@ ScreenMusicScroll::ScreenMusicScroll( CString sClassName ) : ScreenAttract( sCla
 
 		this->AddChild( bt );
 	}
-
-//	for( i=0; i<min(NUM_CREDIT_LINES, MAX_CREDIT_LINES); i++ )
-//	{
-//		m_textLines[m_iNumLines].LoadFromFont( THEME->GetPathToF("ScreenMusicScroll titles") );
-//		m_textLines[m_iNumLines].SetText( CREDIT_LINES[i] );
-//		m_textLines[m_iNumLines].SetZoom( TEXT_ZOOM );
-//
-//		m_iNumLines++;
-//	}
 
 	for( i=0; i<m_textLines.size(); i++ )
 	{

@@ -435,9 +435,6 @@ void NoteField::DrawPrimitives()
 	const int iFirstIndexToDraw  = BeatToNoteRow(fFirstBeatToDraw);
 	const int iLastIndexToDraw   = BeatToNoteRow(fLastBeatToDraw);
 
-//	LOG->Trace( "start = %f.1, end = %f.1", fFirstBeatToDraw-fSongBeat, fLastBeatToDraw-fSongBeat );
-//	LOG->Trace( "Drawing elements %d through %d", iFirstIndexToDraw, iLastIndexToDraw );
-
 	if( GAMESTATE->m_bEditing )
 	{
 		ASSERT(GAMESTATE->m_pCurSong);

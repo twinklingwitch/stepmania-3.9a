@@ -100,19 +100,6 @@ ScreenNameEntry::ScreenNameEntry( CString sClassName ) : Screen( sClassName )
 	g_iNumCharsToDrawTotal = NUM_CHARS_TO_DRAW_TOTAL;
 	g_fFakeBeatsPerSec = FAKE_BEATS_PER_SEC;
 
-
-
-
-		// DEBUGGING STUFF
-//	GAMESTATE->m_CurGame = GAME_DANCE;
-//	GAMESTATE->m_CurStyle = STYLE_DANCE_SINGLE;
-//	GAMESTATE->m_PlayMode = PLAY_MODE_REGULAR;
-//	GAMESTATE->m_bSideIsJoined[PLAYER_1] = true;
-//	GAMESTATE->m_MasterPlayerNumber = PLAYER_1;
-//	GAMESTATE->m_RankingCategory[PLAYER_1] = RANKING_A;
-//	GAMESTATE->m_iRankingIndex[PLAYER_1] = 0;
-
-
 	/* Save options.  We'll reset them to display letters, and we must put them
 	 * back when we're done. */
 	GAMESTATE->StoreSelectedOptions();
@@ -382,14 +369,6 @@ void ScreenNameEntry::HandleScreenMessage( const ScreenMessage SM )
 	case SM_GoToNextScreen:
 		{
 			GAMESTATE->RestoreSelectedOptions();
-
-			// There shouldn't be NameEntry in event mode.  -Chris
-//			/* Hack: go back to the select course screen in event mode. */
-//			if( PREFSMAN->m_bEventMode && GAMESTATE->IsCourseMode() )
-//			{
-//				SCREENMAN->SetNewScreen( "ScreenSelectCourse" );
-//				break;
-//			}
 
 			SCREENMAN->SetNewScreen( NEXT_SCREEN );
 		}

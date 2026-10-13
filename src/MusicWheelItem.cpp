@@ -104,18 +104,8 @@ MusicWheelItem::MusicWheelItem()
 void MusicWheelItem::LoadFromWheelItemData( WheelItemData* pWID )
 {
 	ASSERT( pWID != NULL );
-	
-	
-	
+
 	data = pWID;
-	/*
-	// copy all data items
-	this->m_Type	= pWID->m_Type;
-	this->m_sSectionName	= pWID->m_sSectionName;
-	this->m_pCourse			= pWID->m_pCourse;
-	this->m_pSong			= pWID->m_pSong;
-	this->m_color			= pWID->m_color;
-	this->m_Type		= pWID->m_Type; */
 
 
 	// init type specific stuff

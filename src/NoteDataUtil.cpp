@@ -163,9 +163,6 @@ void NoteDataUtil::LoadFromSMNoteDataString( NoteData &out, CString sSMNoteData,
 				const int iIndex = BeatToNoteRow( fBeat );
 				l++;
 
-	//			if( m_iNumTracks != sMeasureLine.GetLength() )
-	//				RageException::Throw( "Actual number of note columns (%d) is different from the StepsType (%d).", m_iNumTracks, sMeasureLine.GetLength() );
-
 				const int iLineLength = pLineEnd - pLine;
 				const int iColumns = min(iLineLength,out.GetNumTracks());
 
@@ -1658,10 +1655,7 @@ void NoteDataUtil::CopyLeftToRight( NoteData &in )
 			int iTrackEarlier = t;
 			int iTrackLater = in.GetNumTracks()-1-t;
 
-			// swap
 			TapNote tnEarlier = in.GetTapNote(iTrackEarlier, r);
-//			TapNote tnLater = in.GetTapNote(iTrackLater, r);
-//			in.SetTapNote(iTrackEarlier, r, tnLater);
 			in.SetTapNote(iTrackLater, r, tnEarlier);
 		}
 	}
@@ -1679,11 +1673,8 @@ void NoteDataUtil::CopyRightToLeft( NoteData &in )
 			int iTrackEarlier = t;
 			int iTrackLater = in.GetNumTracks()-1-t;
 
-			// swap
-//			TapNote tnEarlier = in.GetTapNote(iTrackEarlier, r);
 			TapNote tnLater = in.GetTapNote(iTrackLater, r);
 			in.SetTapNote(iTrackEarlier, r, tnLater);
-//			in.SetTapNote(iTrackLater, r, tnEarlier);
 		}
 	}
 	in.Convert4sToHoldNotes();

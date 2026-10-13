@@ -31,16 +31,10 @@ void ConditionalBGA::Load(CString szScreenName)
 	CString szThemeDir = THEME->GetCurThemeDir();
 	CString szConditionalBGAFile = szThemeDir += szScreenName += " ConditionalBGA.ini";
 
-
-//	char filepath[512];
-//	strcpy(filepath,""); // empty the path first
-//	strcpy(filepath,szConditionalBGAFile.c_str());
 	
 	LOG->Trace("ConditionalBGA Load:%s",szConditionalBGAFile.c_str());
 
 	bool loaded = file.Open(szConditionalBGAFile,RageFile::READ);
-//	FILE* fp = NULL;
-//	fp = fopen(filepath,"r");
 	if(!loaded)
 	{
 		LOG->Trace("ConditionalBGA File Not Found");
@@ -130,10 +124,6 @@ void ConditionalBGA::Load(CString szScreenName)
 							m_bgainfo[bgano].songdays.push_back(dn);
 						}
 					}
-			//		for(d=0; d<info.songdays.size(); d++)
-			//		{
-			//			LOG->Trace("SongDay: %d",info.songdays[d]);
-			//		}
 				}
 				if(!asSplitLine[0].CompareNoCase("songmonth") && asSplitLine.size() > 1)
 				{
@@ -147,10 +137,6 @@ void ConditionalBGA::Load(CString szScreenName)
 							m_bgainfo[bgano].songmonths.push_back(dn);
 						}
 					}
-		//			for(d=0; d<info.songmonths.size(); d++)
-		//			{
-		//				LOG->Trace("SongMonth: %d",info.songmonths[d]);
-		//			}
 				}
 
 				// foot meter ratings
@@ -226,10 +212,6 @@ void ConditionalBGA::Load(CString szScreenName)
 					{
 						m_bgainfo[bgano].difficulties.push_back(StringToDifficulty(asDifficulties[d]));
 					}
-		//			for(d=0; d<info.difficulties.size(); d++)
-		//			{
-		//				LOG->Trace("Difficulty: %d",info.difficulties[d]);
-		//			}
 				}
 				if(!asSplitLine[0].CompareNoCase("grade") && asSplitLine.size() > 1)
 				{
@@ -298,26 +280,6 @@ void ConditionalBGA::CheckBgaRequirements(BgaCondInfo info)
 {
 	LOG->Trace("Checking Conditions For BGA: %s",info.bganame.c_str());				
 
-
-/*
-	for(unsigned d=0; d<info.difficulties.size(); d++)
-	{
-		LOG->Trace("Difficulty: %d",info.difficulties[d]);
-	}
-	for(d=0; d<info.songmonths.size(); d++)
-	{
-		LOG->Trace("SongMonth: %d",info.songmonths[d]);
-	}	
-	for(d=0; d<info.songdays.size(); d++)
-	{
-		LOG->Trace("SongDay: %d",info.songdays[d]);
-	}
-
-	LOG->Trace("Clear Conditon: %d",info.cleared);
-	LOG->Trace("SongTitle: %s",info.songtitle.c_str());
-	LOG->Trace("SongArtist: %s",info.songartist.c_str());
-
-*/
 	bool valid = true; // valid until proven otherwise.
 	bool hasconditions = false; // if there is a bga with no conditions for display
 								// then we dont want it to appear

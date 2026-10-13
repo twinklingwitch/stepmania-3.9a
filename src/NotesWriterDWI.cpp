@@ -31,54 +31,8 @@ CString NotesWriterDWI::NotesToDWIString( const TapNote cNoteCols[6] )
 	if( holds.size() + taps.size() == 0 )
 		return "0";
 
-//	CString combine = taps;
-//	for( unsigned i = 0; i < holds.size(); ++i )
-//		combine += ssprintf("%c!%c", holds[i], holds[i]);
-
-//	if( holds.size() + taps.size() > 1 )
-//		combine = ssprintf("<%s>", combine.c_str() );
-
-//	return combine;
-
 	/* More than one. */
 	return OptimizeDWIString( holds, taps );
-/*	struct DWICharLookup {
-		char c;
-		bool bCol[6];	
-	} const lookup[] = {
-		{ '0', { 0, 0, 0, 0, 0, 0 } },
-		{ '1', { 1, 0, 1, 0, 0, 0 } },
-		{ '2', { 0, 0, 1, 0, 0, 0 } },
-		{ '3', { 0, 0, 1, 0, 0, 1 } },
-		{ '4', { 1, 0, 0, 0, 0, 0 } },
-		{ '6', { 0, 0, 0, 0, 0, 1 } },
-		{ '7', { 1, 0, 0, 1, 0, 0 } },
-		{ '8', { 0, 0, 0, 1, 0, 0 } },
-		{ '9', { 0, 0, 0, 1, 0, 1 } },
-		{ 'A', { 0, 0, 1, 1, 0, 0 } },
-		{ 'B', { 1, 0, 0, 0, 0, 1 } },
-		{ 'C', { 0, 1, 0, 0, 0, 0 } },
-		{ 'D', { 0, 0, 0, 0, 1, 0 } },
-		{ 'E', { 1, 1, 0, 0, 0, 0 } },
-		{ 'F', { 0, 1, 1, 0, 0, 0 } },
-		{ 'G', { 0, 1, 0, 1, 0, 0 } },
-		{ 'H', { 0, 1, 0, 0, 0, 1 } },
-		{ 'I', { 1, 0, 0, 0, 1, 0 } },
-		{ 'J', { 0, 0, 1, 0, 1, 0 } },
-		{ 'K', { 0, 0, 0, 1, 1, 0 } },
-		{ 'L', { 0, 0, 0, 0, 1, 1 } },
-		{ 'M', { 0, 1, 0, 0, 1, 0 } },
-	};
-	const int iNumLookups = sizeof(lookup) / sizeof(*lookup);
-
-	for( int i=0; i<iNumLookups; i++ )
-	{
-		const DWICharLookup& l = lookup[i];
-		if( l.bCol[0]==bCol1 && l.bCol[1]==bCol2 && l.bCol[2]==bCol3 && l.bCol[3]==bCol4 && l.bCol[4]==bCol5 && l.bCol[5]==bCol6 )
-			return l.c;
-	}
-	LOG->Warn( "Failed to find the DWI character for the row %d %d %d %d %d %d", bCol1, bCol2, bCol3, bCol4, bCol5, bCol6 );
-	return '0';*/
 }
 
 CString NotesWriterDWI::NotesToDWIString( TapNote cNoteCol1, TapNote cNoteCol2, TapNote cNoteCol3, TapNote cNoteCol4, TapNote cNoteCol5, TapNote cNoteCol6 )

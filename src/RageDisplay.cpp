@@ -48,35 +48,6 @@ CString RageDisplay::PixelFormatToString( PixelFormat pixfmt )
 // Return true if device was re-created and we need to reload textures.
 bool RageDisplay::SetVideoMode( VideoModeParams p )
 {
-	/* Round to the nearest valid fullscreen resolution */
-	/* Don't do this: we might be manually set to a less common resolution,
-	 * like 1280x1024 or 640x240, which are occasionally useful. XXX: how
-	 * should we do this sanity check?  A list of acceptable height/widths,
-	 * forcing unknown ones? */
-	/*
-	if( !p.windowed )
-	{
-		if(      p.width <= 320 )	p.width = 320;
-		else if( p.width <= 400 )	p.width = 400;
-		else if( p.width <= 512 )	p.width = 512;
-		else if( p.width <= 640 )	p.width = 640;
-		else if( p.width <= 800 )	p.width = 800;
-		else if( p.width <= 1024 )	p.width = 1024;
-		else if( p.width <= 1280 )	p.width = 1280;
-
-		switch( p.width )
-		{
-		case 320:	p.height = 240;	break;
-		case 400:	p.height = 300;	break;
-		case 512:	p.height = 384;	break;
-		case 640:	p.height = 480;	break;
-		case 800:	p.height = 600;	break;
-		case 1024:	p.height = 768;	break;
-		case 1280:	p.height = 960;	break;
-		default:	ASSERT(0);
-		}
-	}
-*/
 	bool bNeedReloadTextures;
 	
 	CString err;
@@ -623,74 +594,6 @@ void RageDisplay::LoadMenuPerspective( float fovDegrees, float fVanishPointX, fl
 	}
 }
 
-
-/* Switch from orthogonal to perspective view.
- *
- * Tricky: we want to maintain all of the zooms, rotations and translations
- * that have been applied already.  They're in our internal screen space (that
- * is, 640x480 ortho).  We can't simply leave them where they are, since they'll
- * be applied before the perspective transform, which means they'll be in the
- * wrong coordinate space.
- *
- * Handle translations (the right column of the transform matrix) to the viewport.
- * Move rotations and scaling (0,0 through 1,1) to after the perspective transform.
- * Actually, those might be able to stay where they are, I'm not sure; it's translations
- * that are annoying.  So, XXX: see if rots and scales can be left on the modelview
- * matrix instead of messing with the projection matrix.
- *
- * When finished, the current position will be the "viewpoint" (at 0,0).  negative
- * Z goes into the screen, positive X and Y is right and down.
- */
-//void RageDisplay::EnterPerspective(float fov, bool preserve_loc, float near_clip, float far_clip)
-//{
-//	g_ProjectionStack.Push();
-//	g_WorldStack.Push();
-//
-//	float aspect = SCREEN_WIDTH/(float)SCREEN_HEIGHT;
-//	g_ProjectionStack.LoadMatrix( GetPerspectiveMatrix(fov, aspect, near_clip, far_clip) );
-//	/* Flip the Y coordinate, so positive numbers go down. */
-//	g_ProjectionStack.Scale(1, -1, 1);
-//
-//	if( preserve_loc )
-//	{
-//		
-		//RageMatrix matTop = *g_WorldStack.GetTop();
-		/* TODO: Come up with a more general way to handle this.  
-		 * It looks kind of hacky. -Chris */
-	//	{
-	//		/* Pull out the 2d translation. */
-	//		float x = matTop.m[3][0], y = matTop.m[3][1];
-	//
-	//		/* These values are where the viewpoint should be.  By default, it's in the
-	//		* center of the screen, and these values are from the top-left, so subtract
-	//		* the difference. */
-	//		x -= SCREEN_WIDTH/2;
-	//		y -= SCREEN_HEIGHT/2;
-	//		SetViewport(int(x), int(y));
-	//	}
-	//
-	//	/* Pull out the 2d rotations and scales. */
-	//	{
-	//		RageMatrix mat;
-	//		RageMatrixIdentity(&mat);
-	//		mat.m[0][0] = matTop.m[0][0];
-	//		mat.m[0][1] = matTop.m[0][1];
-	//		mat.m[1][0] = matTop.m[1][0];
-	//		mat.m[1][1] = matTop.m[1][1];
-	//		this->MultMatrix(mat);
-	//	}
-	//
-	//	/* We can't cope with perspective matrices or things that touch Z.  (We shouldn't
-	//	* have touched those while in 2d, anyway.) */
-	//	ASSERT(matTop.m[0][2] == 0.f &&	matTop.m[0][3] == 0.f && matTop.m[1][2] == 0.f &&
-	//		matTop.m[1][3] == 0.f && matTop.m[2][0] == 0.f && matTop.m[2][1] == 0.f &&
-	//		matTop.m[2][2] == 1.f && matTop.m[3][2] == 0.f && matTop.m[3][3] == 1.f);
-	//
-	//	/* Reset the matrix back to identity. */
-	//	glMatrixMode( GL_MODELVIEW );
-	//	glLoadIdentity();
-//	}
-//}
 
 void RageDisplay::CameraPushMatrix()
 {

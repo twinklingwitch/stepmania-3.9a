@@ -158,8 +158,6 @@ public:
 
 
 		// set custom texture coords
-//		float fPrecentOffset = fRightEdgePercent;
-
 		RectF frectCustomTexRect(
 			fPercentCroppedFromLeft,
 			0,
@@ -517,9 +515,6 @@ void LifeMeterBar::DrawPrimitives()
 void LifeMeterBar::UpdateNonstopLifebar(const int cleared, 
 		const int total, int ProgressiveLifebarDifficulty)
 {
-//	if (cleared > total) cleared = total; // clear/total <= 1
-//	if (total == 0) total = 1;  // no division by 0
-
 	if (GAMESTATE->IsExtraStage() || GAMESTATE->IsExtraStage2())
 	{   // extra stage is its own thing, should not be progressive
 	    // and it should be as difficult as life 4

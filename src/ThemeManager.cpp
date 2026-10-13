@@ -588,15 +588,8 @@ float ThemeManager::GetMetricF( CString sClassName, CString sValueName )
 	return strtof( GetMetricRaw(sClassName,sValueName), NULL );
 }
 
-// #include "LuaHelpers.h"
 bool ThemeManager::GetMetricB( CString sClassName, CString sValueName )
 {
-//	const CString str = GetMetricRaw( sClassName,sValueName );
-//	if( str == "0" )
-//		return false; /* optimization */
-//	if( str == "1" )
-//		return true; /* optimization */
-//	return Lua::RunExpression( str );
 	return atoi( GetMetricRaw(sClassName,sValueName) ) != 0;
 }
 

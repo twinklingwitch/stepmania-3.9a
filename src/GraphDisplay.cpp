@@ -86,11 +86,6 @@ void GraphDisplay::UpdateVerts()
 		Slices[i*4+1].p = RageVector3( Left,		quadVertices.bottom,	0 );	// bottom left
 		Slices[i*4+2].p = RageVector3( Right,		quadVertices.bottom,	0 );	// bottom right
 		Slices[i*4+3].p = RageVector3( Right,		RightTop,	0 );	// top right
-
-	//	Slices[i*4+0].c = RageColor(.2,.2,.2,1);
-	//	Slices[i*4+1].c = RageColor(1,1,1,1);
-	//	Slices[i*4+2].c = RageColor(1,1,1,1);
-	//	Slices[i*4+3].c = RageColor(.2,.2,.2,1);
 	}
 
 	const RectF *tex = m_pTexture->GetTextureCoordRect( 0 );

@@ -112,18 +112,6 @@ void ScrollingList::StartBouncing()
 		m_RippleCSprite.Load( m_apCSprites[m_iSelection]->GetTexturePath() );
 
 
-		// ScaleToClipped should detect rotated banner files and correct
-		// accordingly.  If there's a case I didn't think about, feel free
-		// to change it back.  -Chris
-//		if(m_RippleCSprite.GetUnzoomedWidth() == m_RippleCSprite.GetUnzoomedHeight()) // rotated graphics need cropping
-//		{
-//			m_RippleCSprite.ScaleToClipped( 100, 100 );
-//		}
-//		else // flat, unrotated graphics need widths changing
-//		{
-//			m_RippleCSprite.ScaleToClipped( -1, -1 ); // default image size.
-//			m_RippleCSprite.SetWH(EZ2_BANNER_WIDTH+10, EZ2_BANNER_HEIGHT+10);
-//		}
 		m_RippleCSprite.ScaleToClipped( EZ2_BANNER_WIDTH+10, EZ2_BANNER_HEIGHT+10 );
 
 		m_RippleCSprite.SetXY( m_apCSprites[m_iSelection]->GetX(), m_apCSprites[m_iSelection]->GetY() );
@@ -400,17 +388,6 @@ void ScrollingList::Replace(CString sGraphicPath, int ElementNumber)
 		pNewCSprite->Load( sGraphicPath );
 		if(m_iBannerPrefs == BANNERPREFS_DDRFLAT)
 		{
-			// ScaleToClipped should detect rotated banner files and correct
-			// accordingly.  If there's a case I didn't think about, feel free
-			// to change it back.  -Chris
-//			if(pNewCSprite->GetUnzoomedWidth() == pNewCSprite->GetUnzoomedHeight()) // rotated graphics need cropping
-//			{
-//				pNewCSprite->SetCroppedSize( BANNER_WIDTH, BANNER_HEIGHT );
-//			}
-//			else // flat, unrotated graphics need widths changing
-//			{
-//				pNewCSprite->SetWH(BANNER_WIDTH, BANNER_HEIGHT );
-//			}
 		
 			pNewCSprite->ScaleToClipped( BANNER_WIDTH, BANNER_HEIGHT );
 		}
@@ -421,17 +398,6 @@ void ScrollingList::Replace(CString sGraphicPath, int ElementNumber)
 		}
 		else if(m_iBannerPrefs == BANNERPREFS_EZ2)
 		{
-			// ScaleToClipped should detect rotated banner files and correct
-			// accordingly.  If there's a case I didn't think about, feel free
-			// to change it back.  -Chris
-//			if(pNewCSprite->GetUnzoomedWidth() == pNewCSprite->GetUnzoomedHeight()) // rotated graphics need cropping
-//			{
-//				pNewCSprite->ScaleToClipped( EZ2_BANNER_WIDTH, EZ2_BANNER_HEIGHT );
-//			}
-//			else // flat, unrotated graphics need widths changing
-//			{
-//				pNewCSprite->SetWH(EZ2_BANNER_WIDTH, EZ2_BANNER_HEIGHT);
-//			}
 			pNewCSprite->ScaleToClipped( BANNER_WIDTH, BANNER_HEIGHT );
 		}
 			

@@ -213,20 +213,6 @@ void ScreenEvaluation::Init()
 
 	LOG->Trace( "total error: %i, %i", stageStats.iTotalError[0], stageStats.iTotalError[1] );
 
-/*
-	//
-	// Debugging
-	//
-	{
-		FOREACH_PlayerNumber( p )	// foreach line
-			for( int r=0; r<NUM_RADAR_CATEGORIES; r++ )	// foreach line
-			{
-				stageStats.radarPossible[p][r] = 0.5f + r/10.0f;
-				stageStats.radarActual[p][r] = 0.5f + r/10.0f;
-			}
-	}
-*/
-
 	//
 	// Calculate grades
 	//

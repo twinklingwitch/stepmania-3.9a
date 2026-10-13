@@ -164,13 +164,6 @@ ScreenTitleMenu::ScreenTitleMenu( CString sClassName ) : ScreenSelect( sClassNam
 	}
 
 
-//	m_AttractOut.Load( THEME->GetPathToB("ScreenTitleMenu out") );
-//	this->AddChild( &m_AttractOut );
-
-//	m_BeginOut.Load( THEME->GetPathToB("ScreenTitleMenu begin out") );
-//	this->AddChild( &m_BeginOut );
-
-
 	SOUND->PlayOnceFromAnnouncer( "title menu game name" );
 
 
@@ -192,8 +185,6 @@ ScreenTitleMenu::ScreenTitleMenu( CString sClassName ) : ScreenSelect( sClassNam
 	this->PostScreenMessage( SM_PlayComment, SECONDS_BETWEEN_COMMENTS);
 
 	this->SortByDrawOrder();
-
-//	this->MoveToTail( &m_AttractOut );	// put it in the back so it covers up the stuff we just added
 }
 
 ScreenTitleMenu::~ScreenTitleMenu()
@@ -210,8 +201,6 @@ void ScreenTitleMenu::MoveCursor( bool up )
 {
 	if( PREFSMAN->GetCoinMode() != COIN_HOME )
 		return;
-//	if( m_BeginOut.IsTransitioning() )
-//		return;
 	
 	TimeToDemonstration.GetDeltaTime();	/* Reset the demonstration timer when a key is pressed. */
 	LoseFocus( m_Choice );

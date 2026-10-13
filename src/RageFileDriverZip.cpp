@@ -314,8 +314,6 @@ int RageFileDriverZip::ProcessCdirFileHdr( RageFile &zip, FileInfo &info )
         return -1;
 	}
 
-//    crec.version_made_by[0] = byterec[C_VERSION_MADE_BY_0];
-//    crec.version_made_by[1] = byterec[C_VERSION_MADE_BY_1];
     const int version_needed_to_extract = byterec[C_VERSION_NEEDED_TO_EXTRACT_0];
 	if( version_needed_to_extract > 20 ) /* compatible with PKUNZIP 2.0 */
 	{

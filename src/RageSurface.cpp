@@ -228,11 +228,6 @@ RageSurface *CreateSurface( int width, int height, int BitsPerPixel, uint32_t Rm
 	pImg->pitch = width*BitsPerPixel/8;
 	pImg->pixels = new uint8_t[ pImg->pitch*height ];
 
-//	if( BitsPerPixel == 8 )
-//	{
-//		pImg->fmt.palette = new RageSurfacePalette;
-//	}
-
 	return pImg;
 }
 

@@ -39,17 +39,11 @@ ScreenTestSound::ScreenTestSound( CString sClassName ) : Screen( sClassName )
 	s[3].s.Load("Themes/default/Sounds/ScreenGameplay oni die.ogg");
 	s[4].s.Load("Themes/default/Sounds/Common back.ogg");
 
-//s[0].s.SetStartSeconds(45);
-//s[0].s.SetPositionSeconds();
-// s[4].s.SetLengthSeconds(1);
 	RageSoundParams p;
 	p.StopMode = RageSoundParams::M_STOP;
 	// p.SetPlaybackRate( 1.20f );
 	for( int i = 0; i < nsounds; ++i )
 		s[i].s.SetParams( p );
-
-//s[0].s.SetStopMode(RageSound::M_LOOP);
-//s[0].s.Play();
 
 	selected = 0;
 	for( int i = 0; i < nsounds; ++i )
@@ -139,20 +133,6 @@ void ScreenTestSound::Input( const DeviceInput& DeviceI, const InputEventType ty
 				s[selected].s.SetParams( p );
 			}
 			break;
-
-/*		case KEY_LEFT:
-			obj.SetX(obj.GetX() - 10);
-			break;
-		case KEY_RIGHT:
-			obj.SetX(obj.GetX() + 10);
-			break;
-		case KEY_UP:
-			obj.SetY(obj.GetY() - 10);
-			break;
-		case KEY_DOWN:
-			obj.SetY(obj.GetY() + 10);
-			break;
-*/
 		}
 
 	}

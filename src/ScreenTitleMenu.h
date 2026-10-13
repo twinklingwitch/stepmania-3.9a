@@ -48,7 +48,6 @@ private:
 	BGAnimation		m_CoinMode;
 	BGAnimation		m_Premium;
 
-	Transition		m_AttractOut;
 };
 
 #endif

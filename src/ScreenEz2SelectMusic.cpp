@@ -118,10 +118,6 @@ ScreenEz2SelectMusic::ScreenEz2SelectMusic( CString sName ) : ScreenWithMenuElem
 
 		for(int p=0; p<NUM_PLAYERS; p++ )
 		{
-		//	m_FootMeter[p].SetXY( METER_X(p), METER_Y(p) );
-		//	m_FootMeter[p].SetShadowLength( 2 );
-		//	this->AddChild( &m_FootMeter[p] );
-
 			m_SpeedIcon[p].Load( THEME->GetPathToG("ScreenEz2SelectMusic speedicon"));
 			m_SpeedIcon[p].SetXY( SPEEDICON_X(p), SPEEDICON_Y(p) );
 			m_SpeedIcon[p].SetDiffuse( RageColor(0,0,0,0) );
@@ -221,9 +217,6 @@ ScreenEz2SelectMusic::ScreenEz2SelectMusic( CString sName ) : ScreenWithMenuElem
 
 void ScreenEz2SelectMusic::Input( const DeviceInput& DeviceI, const InputEventType type, const GameInput &GameI, const MenuInput &MenuI, const StyleInput &StyleI )
 {
-//	if( type != IET_FIRST_PRESS )
-//		return;	// ignore
-
 	if(i_ErrorDetected) return; // don't let the user do anything if theres an error
 
 	if( type == IET_RELEASE || type == IET_LEVEL_CHANGED )	return;		// don't care
@@ -678,12 +671,6 @@ void ScreenEz2SelectMusic::AfterNotesChange( PlayerNumber pn )
 		m_PumpDifficultyRating.SetDiffuse(  SONGMAN->GetDifficultyColor(pSteps->GetDifficulty()) );
 		m_DifficultyRating.SetDifficulty(pSteps->GetMeter());
 	}
-
-//	GAMESTATE->m_pCurSteps[pn] = pSteps;
-
-//	Steps* m_pSteps = GAMESTATE->m_pCurSteps[pn];
-
-//	m_FootMeter[pn].SetFromSteps( pSteps );
 }
 
 /*
