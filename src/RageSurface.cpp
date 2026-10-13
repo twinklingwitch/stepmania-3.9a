@@ -50,7 +50,14 @@ RageSurfaceFormat::RageSurfaceFormat( const RageSurfaceFormat &cpy ):
 	Rmask(Mask[0]), Gmask(Mask[1]), Bmask(Mask[2]), Amask(Mask[3]),
 	Rshift(Shift[0]), Gshift(Shift[1]), Bshift(Shift[2]), Ashift(Shift[3])
 {
-	memcpy( this, &cpy, sizeof(RageSurfaceFormat) );
+	/* Don't memcpy the whole struct: that would point the references above
+	 * at cpy's members. */
+	BytesPerPixel = cpy.BytesPerPixel;
+	BitsPerPixel = cpy.BitsPerPixel;
+	memcpy( Mask, cpy.Mask, sizeof(Mask) );
+	memcpy( Shift, cpy.Shift, sizeof(Shift) );
+	memcpy( Loss, cpy.Loss, sizeof(Loss) );
+	palette = cpy.palette;
 	if( palette )
 		palette = new RageSurfacePalette( *palette );
 }
