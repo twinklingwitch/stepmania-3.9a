@@ -122,14 +122,6 @@ float HHMMSSToSeconds( const CString &sHHMMSS )
 	return fSeconds;
 }
 
-CString SecondsToHHMMSS( float fSecs )
-{
-	const int iMinsDisplay = (int)fSecs/60;
-	const int iSecsDisplay = (int)fSecs - iMinsDisplay*60;
-	CString sReturn = ssprintf( "%02d:%02d:%02d", iMinsDisplay/60, iMinsDisplay%60, iSecsDisplay );
-	return sReturn;
-}
-
 CString SecondsToMMSSMsMs( float fSecs )
 {
 	const int iMinsDisplay = (int)fSecs/60;
@@ -146,11 +138,6 @@ CString SecondsToMMSSMsMsMs( float fSecs )
 	const int iLeftoverDisplay = (int) ( (fSecs - iMinsDisplay*60 - iSecsDisplay) * 1000 );
 	CString sReturn = ssprintf( "%02d:%02d.%03d", iMinsDisplay, iSecsDisplay, min(999,iLeftoverDisplay) );
 	return sReturn;
-}
-
-CString PrettyPercent( float fNumerator, float fDenominator)
-{
-	return ssprintf("%0.2f%%",fNumerator/fDenominator*100);
 }
 
 CString Commify( int iNum ) 
@@ -834,22 +821,6 @@ wchar_t utf8_get_char( const CString &s )
 
 
 
-/* Replace invalid sequences in s. */
-void utf8_sanitize( CString &s )
-{
-	CString ret;
-	for( unsigned start = 0; start < s.size(); )
-	{
-		wchar_t ch;
-		if( !utf8_to_wchar_ec( s, start, ch ) )
-			ch = INVALID_CHAR;
-
-		wchar_to_utf8( ch, ret );
-	}
-
-	s = ret;
-}
-
 
 bool utf8_is_valid( const CString &s )
 {
@@ -1036,12 +1007,6 @@ void FixSlashesInPlace( CString &sPath )
 	for( unsigned i = 0; i < sPath.size(); ++i )
 		if( sPath[i] == '\\' )
 			sPath[i] = '/';
-}
-
-CString FixSlashes( CString sPath )
-{
-	FixSlashesInPlace( sPath );
-    return sPath;
 }
 
 /*

@@ -167,11 +167,8 @@ int power_of_two(int input);
 bool IsAnInt( const CString &s );
 bool IsHexVal( const CString &s );
 float HHMMSSToSeconds( const CString &sHMS );
-CString SecondsToHHMMSS( float fSecs );
 CString SecondsToMMSSMsMs( float fSecs );
 CString SecondsToMMSSMsMsMs( float fSecs );
-CString PrettyPercent( float fNumerator, float fDenominator );
-inline CString PrettyPercent( int fNumerator, int fDenominator ) { return PrettyPercent( float(fNumerator), float(fDenominator) ); }
 CString Commify( int iNum );
 
 
@@ -325,12 +322,10 @@ void GetDirListing( const CString &sPath, CStringArray &AddTo, bool bOnlyDirs=fa
 bool DoesFileExist( const CString &sPath );
 bool IsAFile( const CString &sPath );
 bool IsADirectory( const CString &sPath );
-unsigned GetFileSizeInBytes( const CString &sFilePath );
 void FlushDirCache();
 
-// call FixSlashes on any path that came from the user
+// call FixSlashesInPlace on any path that came from the user
 void FixSlashesInPlace( CString &sPath );
-CString FixSlashes( CString sPath );
 void CollapsePath( CString &sPath, bool bRemoveLeadingDot=false );
 
 // helper file functions used by Bookkeeper and ProfileManager

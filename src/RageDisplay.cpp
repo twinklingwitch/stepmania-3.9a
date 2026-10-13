@@ -631,19 +631,6 @@ RageMatrix RageDisplay::GetPerspectiveMatrix(float fovy, float aspect, float zNe
    return GetFrustumMatrix(xmin, xmax, ymin, ymax, zNear, zFar);
 }
 
-RageSurface *RageDisplay::CreateSurfaceFromPixfmt( PixelFormat pixfmt,
-						void *pixels, int width, int height, int pitch )
-{
-	const PixelFormatDesc *tpf = GetPixelFormatDesc(pixfmt);
-
-	RageSurface *surf = CreateSurfaceFrom(
-		width, height, tpf->bpp, 
-		tpf->masks[0], tpf->masks[1], tpf->masks[2], tpf->masks[3],
-		(uint8_t *) pixels, pitch );
-
-	return surf;
-}
-
 RageDisplay::PixelFormat RageDisplay::FindPixelFormat( 
 	int bpp, int Rmask, int Gmask, int Bmask, int Amask, bool realtime )
 {

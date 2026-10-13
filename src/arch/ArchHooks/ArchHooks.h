@@ -52,9 +52,8 @@ public:
 	static int64_t GetMicrosecondsSinceStart( bool bAccurate );
 
 private:
-	/* This are helpers for GetMicrosecondsSinceStart on systems with a timer
-	 * that may loop or move backwards. */
-	static uint64_t FixupTimeIfLooped( uint64_t usecs );
+	/* Helper for GetMicrosecondsSinceStart on systems with a timer that may
+	 * move backwards. */
 	static uint64_t FixupTimeIfBackwards( uint64_t usecs );
 };
 

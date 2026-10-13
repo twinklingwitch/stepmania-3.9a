@@ -26,7 +26,6 @@ public:
 
 	RageFileObj *Open( const CString &path, int mode, RageFile &p, int &err );
 	bool Remove( const CString &sPath ) { return false; }
-	bool Ready() { return true; }
 
 private:
 	CString root;

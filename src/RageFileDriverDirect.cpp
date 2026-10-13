@@ -163,11 +163,6 @@ RageFileObj *RageFileObjDirect::Copy( RageFile &p ) const
 	return ret;
 }
 
-bool RageFileDriverDirect::Ready()
-{
-	return PathReady( root );
-}
-
 static const unsigned int BUFSIZE = 1024*64;
 RageFileObjDirect::RageFileObjDirect( const CString &path_, int fd_, RageFile &p ):
 	RageFileObj( p )

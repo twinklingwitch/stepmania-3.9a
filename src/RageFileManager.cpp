@@ -438,23 +438,6 @@ bool RageFileManager::IsMounted( CString MountPoint )
 	return false;
 }
 
-/* Return true if the driver with the given root path is ready (eg. CD or memory card
- * inserted). */
-bool RageFileManager::MountpointIsReady( CString MountPoint )
-{
-	LockMut( *g_Mutex );
-
-	for( unsigned i = 0; i < g_Drivers.size(); ++i )
-	{
-		if( g_Drivers[i].MountPoint.CompareNoCase( MountPoint ) )
-			continue;
-
-		return g_Drivers[i].driver->Ready();
-	}
-
-	return false;
-}
-
 void RageFileManager::GetLoadedDrivers( vector<DriverLocation> &Mounts )
 {
 	for( unsigned i = 0; i < g_Drivers.size(); ++i )
@@ -790,11 +773,6 @@ bool IsAFile( const CString &sPath )
 bool IsADirectory( const CString &sPath )
 {
 	return FILEMAN->IsADirectory( sPath );
-}
-
-unsigned GetFileSizeInBytes( const CString &sPath )
-{
-	return FILEMAN->GetFileSizeInBytes( sPath );
 }
 
 void GetDirListing( const CString &sPath, CStringArray &AddTo, bool bOnlyDirs, bool bReturnPathToo )

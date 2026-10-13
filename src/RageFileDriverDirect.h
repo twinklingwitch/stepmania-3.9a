@@ -10,7 +10,6 @@ public:
 
 	RageFileObj *Open( const CString &path, int mode, RageFile &p, int &err );
 	bool Remove( const CString &sPath );
-	bool Ready();
 
 private:
 	CString root;
