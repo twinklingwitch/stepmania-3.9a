@@ -16,6 +16,15 @@ LoadingWindow_SDL::LoadingWindow_SDL()
 	if( !SDL_InitSubSystem(SDL_INIT_VIDEO) )
 		RageException::Throw( "Couldn't initialize SDL: %s", SDL_GetError() );
 
+	/* On X11, SDL would otherwise put the window surface in an OpenGL texture,
+	 * which means loading the GL driver (only to unload it and load it again for
+	 * the real window) and drawing through it every time we're painted.  The
+	 * plain X11 framebuffer is all a still picture needs.  The environment can
+	 * still override this. */
+	const char *szVideoDriver = SDL_GetCurrentVideoDriver();
+	if( szVideoDriver != NULL && !strcmp(szVideoDriver, "x11") )
+		SDL_SetHint( SDL_HINT_FRAMEBUFFER_ACCELERATION, "0" );
+
 	/* Load the BMP - we need its dimensions */
 	CString error;
 	RageSurface *srf = RageSurface_Load_XPM( loading, error );
@@ -79,6 +88,7 @@ LoadingWindow_SDL::~LoadingWindow_SDL()
 {
 	SDL_DestroyWindow( window );
 	SDL_QuitSubSystem( SDL_INIT_VIDEO );
+	SDL_ResetHint( SDL_HINT_FRAMEBUFFER_ACCELERATION );
 }
 
 void LoadingWindow_SDL::Paint()
