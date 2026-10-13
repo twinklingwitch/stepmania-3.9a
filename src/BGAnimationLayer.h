@@ -30,6 +30,7 @@ public:
 	void LoseFocus();
 
 	void PlayCommand( const CString &sCommandName );
+	using ActorFrame::PlayOffCommand;
 	void PlayOffCommand() { PlayCommand( "Off" ); }
 
 protected:

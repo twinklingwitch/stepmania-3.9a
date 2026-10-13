@@ -10,6 +10,7 @@ class HoldGhostArrow : public Sprite
 public:
 	HoldGhostArrow();
 
+	using Sprite::Load;
 	virtual void Load( CString sNoteSkin, CString sButton, CString sElement );
 
 	virtual void Update( float fDeltaTime );
