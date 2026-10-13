@@ -114,6 +114,8 @@ struct msBone
 
 struct msAnimation
 {
+	msAnimation(): nTotalFrames(0), Position(0,0,0), Rotation(0,0,0) { }
+
     vector<msBone>     Bones;
 
 	int FindBoneByName( const char* szName ) const
@@ -134,6 +136,8 @@ struct msAnimation
 
 struct myBone_t
 {
+	myBone_t();
+
 	RageMatrix	mRelative;
 	RageMatrix	mAbsolute;
 	RageMatrix	mRelativeFinal;

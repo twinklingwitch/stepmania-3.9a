@@ -364,25 +364,22 @@ void Actor::BeginTweening( float time, TweenType tt )
 	DEBUG_ASSERT( m_TweenStates.size() < 50 );	// there's no reason for the number of tweens to ever go this large
 
 	// add a new TweenState to the tail, and initialize it
-	m_TweenStates.resize( m_TweenStates.size()+1 );
-	m_TweenInfo.resize( m_TweenInfo.size()+1 );
-
-	ASSERT( m_TweenStates.size() == m_TweenInfo.size() );
-
-	TweenState &TS = m_TweenStates.back();	// latest
-	TweenInfo  &TI = m_TweenInfo.back();	// latest
-
-	if( m_TweenStates.size() >= 2 )		// if there was already a TS on the stack
+	if( !m_TweenStates.empty() )		// if there was already a TS on the stack
 	{
 		// initialize the new TS from the last TS in the list
-		TS = m_TweenStates[m_TweenStates.size()-2];
+		m_TweenStates.push_back( m_TweenStates.back() );
 	}
 	else
 	{
 		// This new TS is the only TS.
 		// Set our tween starting and ending values to the current position.
-		TS = m_current;
+		m_TweenStates.push_back( m_current );
 	}
+	m_TweenInfo.resize( m_TweenInfo.size()+1 );
+
+	ASSERT( m_TweenStates.size() == m_TweenInfo.size() );
+
+	TweenInfo  &TI = m_TweenInfo.back();	// latest
 
 	TI.m_TweenType = tt;
 	TI.m_fTweenTime = time;

@@ -17,7 +17,7 @@ struct Attack
 	void GetAttackBeats( const Song *song, PlayerNumber pn, float &fStartBeat, float &fEndBeat ) const;
 	bool IsBlank() { return sModifier.empty(); }
 	void MakeBlank() { sModifier=""; }
-	Attack() { fStartSecond = -1; bOn = false; bGlobal = false; }
+	Attack() { level = ATTACK_LEVEL_1; fStartSecond = -1; fSecsRemaining = 0; bOn = false; bGlobal = false; }
 	bool operator== ( const Attack &rhs ) const;
 	bool ContainsTransformOrTurn() const;
 };

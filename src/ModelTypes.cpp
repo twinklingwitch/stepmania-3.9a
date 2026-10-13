@@ -181,6 +181,14 @@ msMesh::~msMesh()
 
 #define THROW RageException::Throw( "Parse error in \"%s\" at line %d: '%s'", sPath.c_str(), iLineNum, sLine.c_str() )
 
+myBone_t::myBone_t()
+{
+	RageMatrixIdentity( &mRelative );
+	RageMatrixIdentity( &mAbsolute );
+	RageMatrixIdentity( &mRelativeFinal );
+	RageMatrixIdentity( &mFinal );
+}
+
 bool msAnimation::LoadMilkshapeAsciiBones( CString sAniName, CString sPath )
 {
 	FixSlashesInPlace(sPath);

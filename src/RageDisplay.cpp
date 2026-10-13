@@ -313,8 +313,7 @@ public:
 
 	MatrixStack()
 	{
-		stack.resize(1);
-		LoadIdentity();
+		stack.push_back( RageMatrixIdentity() );
 	}
 
     // Pops the top of the stack.
