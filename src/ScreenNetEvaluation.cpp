@@ -99,7 +99,7 @@ void ScreenNetEvaluation::MenuDown( PlayerNumber pn, const InputEventType type )
 
 void ScreenNetEvaluation::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GotEval:
 		m_bHasStats = true;

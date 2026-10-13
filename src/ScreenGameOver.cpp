@@ -33,7 +33,7 @@ ScreenGameOver::ScreenGameOver( CString sName ) : Screen( sName )
 
 void ScreenGameOver::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_PlayAnnouncer:
 		SOUND->PlayOnceFromDir( ANNOUNCER->GetPathTo("game over") );

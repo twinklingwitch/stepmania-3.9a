@@ -152,7 +152,7 @@ void ScreenSelectGroup::DrawPrimitives()
 
 void ScreenSelectGroup::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_BeginFadingOut:
 		StartTransitioning( SM_GoToNextScreen );

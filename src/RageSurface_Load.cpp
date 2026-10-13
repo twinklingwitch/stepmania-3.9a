@@ -71,6 +71,8 @@ static RageSurface *TryOpenFile( CString sPath, bool bHeaderOnly, CString &error
 		 * don't bother trying the other file types. */
 		bKeepTrying = false;
 		break;
+	default:
+		break;
 	}
 
 	return NULL;

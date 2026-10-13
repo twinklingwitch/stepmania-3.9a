@@ -71,7 +71,7 @@ void ScreenNetworkOptions::GoToNextState()
 
 void ScreenNetworkOptions::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_DoneConnecting:
 		if( !ScreenTextEntry::s_bCancelledLast )

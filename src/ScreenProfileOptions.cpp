@@ -124,7 +124,7 @@ void ScreenProfileOptions::GoToNextState()
 
 void ScreenProfileOptions::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_DoneCreating:
 		if( !ScreenTextEntry::s_bCancelledLast && ScreenTextEntry::s_sLastAnswer != "" )

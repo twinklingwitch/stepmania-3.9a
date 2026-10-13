@@ -191,6 +191,8 @@ void ScreenJukebox::Input( const DeviceInput& DeviceI, const InputEventType type
 		case MENU_BUTTON_RIGHT:
 			SCREENMAN->PostMessageToTopScreen( SM_NotesEnded, 0 );
 			return;
+		default:
+			break;
 		}
 	}
 
@@ -199,7 +201,7 @@ void ScreenJukebox::Input( const DeviceInput& DeviceI, const InputEventType type
 
 void ScreenJukebox::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_NotesEnded:
 		if( m_Out.IsTransitioning() || m_Out.IsFinished() )

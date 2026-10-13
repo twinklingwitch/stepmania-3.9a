@@ -991,6 +991,8 @@ void ScreenEdit::InputEdit( const DeviceInput& DeviceI, const InputEventType typ
 			{
 			case IET_SLOW_REPEAT:	fDeltaBPM *= 10;	break;
 			case IET_FAST_REPEAT:	fDeltaBPM *= 40;	break;
+			default:
+				break;
 			}
 			
 			float fNewBPM = fBPM + fDeltaBPM;
@@ -1017,6 +1019,8 @@ void ScreenEdit::InputEdit( const DeviceInput& DeviceI, const InputEventType typ
 			{
 			case IET_SLOW_REPEAT:	fStopDelta *= 10;	break;
 			case IET_FAST_REPEAT:	fStopDelta *= 40;	break;
+			default:
+				break;
 			}
 
 			unsigned i;
@@ -1060,6 +1064,8 @@ void ScreenEdit::InputEdit( const DeviceInput& DeviceI, const InputEventType typ
 			{
 			case IET_SLOW_REPEAT:	fOffsetDelta *= 10;	break;
 			case IET_FAST_REPEAT:	fOffsetDelta *= 40;	break;
+			default:
+				break;
 			}
 
 			m_pSong->m_Timing.m_fBeat0OffsetInSeconds += fOffsetDelta;
@@ -1082,6 +1088,8 @@ void ScreenEdit::InputEdit( const DeviceInput& DeviceI, const InputEventType typ
 			{
 			case IET_SLOW_REPEAT:	fDelta *= 10;	break;
 			case IET_FAST_REPEAT:	fDelta *= 40;	break;
+			default:
+				break;
 			}
 
 			if( INPUTFILTER->IsBeingPressed(DeviceInput(DEVICE_KEYBOARD, KEY_LSHIFT)) ||
@@ -1209,6 +1217,8 @@ void ScreenEdit::InputRecord( const DeviceInput& DeviceI, const InputEventType t
 	case IET_RELEASE:
 		// don't add or extend holds here
 		break;
+	default:
+		break;
 	}
 }
 
@@ -1253,6 +1263,8 @@ void ScreenEdit::InputPlay( const DeviceInput& DeviceI, const InputEventType typ
 				{
 				case IET_SLOW_REPEAT:	fOffsetDelta *= 10;	break;
 				case IET_FAST_REPEAT:	fOffsetDelta *= 40;	break;
+				default:
+					break;
 				}
 
 				m_pSong->m_Timing.m_fBeat0OffsetInSeconds += fOffsetDelta;
@@ -1266,6 +1278,8 @@ void ScreenEdit::InputPlay( const DeviceInput& DeviceI, const InputEventType typ
 	case PLAYER_1:	
 		if( !PREFSMAN->m_bAutoPlay )
 			m_Player.Step( StyleI.col, DeviceI.ts ); 
+		break;
+	default:
 		break;
 	}
 
@@ -1322,7 +1336,7 @@ void ReloadFromDisk( void *p )
 
 void ScreenEdit::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GoToNextScreen:
 		// Reload song from disk to discard changes.
@@ -2096,6 +2110,8 @@ void ScreenEdit::HandleEditNotesStatisticsChoice( EditNotesStatisticsChoice c, i
 	{
 	case description:
 		SCREENMAN->TextEntry( SM_None, "Edit notes description.\nPress Enter to confirm,\nEscape to cancel.", m_pSteps->GetDescription(), ChangeDescription, NULL );
+		break;
+	default:
 		break;
 	}
 }

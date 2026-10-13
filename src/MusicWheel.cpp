@@ -172,6 +172,9 @@ void MusicWheel::Load()
 	case SORT_SORT_MENU:
 	case SORT_MODE_MENU:
 		GAMESTATE->m_SortOrder = SORT_INVALID;
+		break;
+	default:
+		break;
 	}
 
 	switch( GAMESTATE->m_PlayMode )
@@ -460,6 +463,8 @@ void MusicWheel::BuildWheelItemDatas( vector<WheelItemData> &arrayWheelItemDatas
 				/* Don't display course modes after the first stage. */
 				if( !PREFSMAN->m_bEventMode && GAMESTATE->m_iCurrentStageIndex )
 					continue;
+			default:
+				break;
 			}
 
 			if( !wid.m_Action.IsPlayable() )
@@ -680,6 +685,8 @@ void MusicWheel::BuildWheelItemDatas( vector<WheelItemData> &arrayWheelItemDatas
 			case PLAY_MODE_ONI:		sThisSection = "Oni";		break;
 			case PLAY_MODE_NONSTOP:	sThisSection = "Nonstop";	break;
 			case PLAY_MODE_ENDLESS:	sThisSection = "Endless";	break;
+			default:
+				break;
 			}
 
 			// check that this course has at least one song playable in the current style
@@ -698,6 +705,8 @@ void MusicWheel::BuildWheelItemDatas( vector<WheelItemData> &arrayWheelItemDatas
 		}
 		break;
 	}
+	default:
+		break;
 	}
 
 	// init music status icons
@@ -846,6 +855,8 @@ void MusicWheel::DrawItem( int i )
 			SetItemPosition( display, fThisBannerPositionOffsetFromSelection );
 		}
 		break;
+	default:
+		break;
 	}
 
 	if( m_WheelState == STATE_LOCKED  &&  i != NUM_WHEEL_ITEMS/2 )
@@ -947,6 +958,8 @@ void MusicWheel::Update( float fDeltaTime )
 				case SORT_MEDIUM_METER:		dc = DIFFICULTY_MEDIUM;		break;
 				case SORT_HARD_METER:		dc = DIFFICULTY_HARD;		break;
 				case SORT_CHALLENGE_METER:	dc = DIFFICULTY_CHALLENGE;	break;
+				default:
+					break;
 				}
 				if( dc != DIFFICULTY_INVALID )
 				{
@@ -1132,6 +1145,8 @@ bool MusicWheel::ChangeSort( SortOrder new_so )	// return true if change success
 	case SORT_MODE_MENU:
 		if( m_WheelItemDatas[new_so].size() < 2 )
 			return false;
+	default:
+		break;
 	}
 
 	switch( m_WheelState )
@@ -1164,6 +1179,8 @@ bool MusicWheel::NextSort()		// return true if change successful
 	case SORT_SORT_MENU:
 	case SORT_MODE_MENU:
 		return false;
+	default:
+		break;
 	}
 
 	// find the index of the current sort
@@ -1482,6 +1499,8 @@ Song* MusicWheel::GetSelectedSong()
 	{
 	case TYPE_PORTAL:
 		return GetPreferredSelectionForRandomOrPortal();
+	default:
+		break;
 	}
 
 	return m_CurWheelItemData[m_iSelection]->m_pSong;

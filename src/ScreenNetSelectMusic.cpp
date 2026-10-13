@@ -337,7 +337,7 @@ void ScreenNetSelectMusic::HandleScreenMessage( const ScreenMessage SM )
 {
 	Screen::HandleScreenMessage( SM );
 
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GoToPrevScreen:
 		SCREENMAN->SetNewScreen( "ScreenTitleMenu" );
@@ -462,6 +462,8 @@ void ScreenNetSelectMusic::MenuLeft( PlayerNumber pn, const InputEventType type 
 		GAMESTATE->m_bEditing = true;
 		SCREENMAN->AddNewScreenToTop( "ScreenPlayerOptions", SM_BackFromOpts );
 		break;
+	default:
+		break;
 	}
 }
 
@@ -509,6 +511,8 @@ void ScreenNetSelectMusic::MenuRight( PlayerNumber pn, const InputEventType type
 		NSMAN->ReportNSSOnOff(2);
 		GAMESTATE->m_bEditing = true;
 		SCREENMAN->AddNewScreenToTop( "ScreenPlayerOptions", SM_BackFromOpts );
+		break;
+	default:
 		break;
 	}
 }

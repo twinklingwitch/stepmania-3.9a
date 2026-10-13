@@ -55,7 +55,7 @@ void ScreenCaution::Input( const DeviceInput& DeviceI, const InputEventType type
 
 void ScreenCaution::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_StartClosing:
 		m_Background.PlayCommand("Off");

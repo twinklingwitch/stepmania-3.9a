@@ -668,6 +668,8 @@ bool Course::GetTrailUnsorted( StepsType st, CourseDifficulty cd, Trail &trail )
 	case DIFFICULTY_BEGINNER:
 	case DIFFICULTY_CHALLENGE:
 		return false;
+	default:
+		break;
 	}
 
 	//
@@ -1027,6 +1029,8 @@ bool Course::CourseHasBestOrWorst() const
 		case COURSE_ENTRY_BEST:
 		case COURSE_ENTRY_WORST:
 			return true;
+		default:
+			break;
 		}
 	}
 

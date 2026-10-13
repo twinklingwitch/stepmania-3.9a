@@ -333,6 +333,8 @@ void Actor::Update( float fDeltaTime )
 		case CLOCK_BGM:
 			m_fSecsIntoEffect = g_fCurrentBGMTime;
 			break;
+		default:
+			break;
 		}
 
 		break;

@@ -142,12 +142,14 @@ void Screen::Input( const DeviceInput& DeviceI, const InputEventType type, const
 	case MENU_BUTTON_BACK:	this->MenuBack( MenuI.player, type );	return;
 	case MENU_BUTTON_START:	this->MenuStart( MenuI.player, type );	return;
 	case MENU_BUTTON_COIN:	this->MenuCoin( MenuI.player, type );	return;
+	default:
+		break;
 	}
 }
 
 void Screen::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_MenuTimer:
 		FOREACH_HumanPlayer(p)

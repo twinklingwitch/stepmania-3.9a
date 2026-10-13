@@ -244,6 +244,8 @@ CString Background::CreateRandomBGA()
 	case PrefsManager::BGMODE_ANIMATIONS:	ret->LoadFromAniDir( file ); break;
 	case PrefsManager::BGMODE_MOVIEVIS:		ret->LoadFromVisualization( file ); break;
 	case PrefsManager::BGMODE_RANDOMMOVIES:	ret->LoadFromMovie( file ); break;
+	default:
+		break;
 	}
 
 	m_BGAnimations[file] = ret;

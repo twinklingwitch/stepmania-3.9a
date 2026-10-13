@@ -173,6 +173,8 @@ void PlayerMinus::Load( PlayerNumber pn, const NoteData* pNoteData, LifeMeter* p
 				count %= 4;
 			}
 			break;
+		default:
+			break;
 	}
 
 	int iStartDrawingAtPixels = GAMESTATE->m_bEditing ? -100 : START_DRAWING_AT_PIXELS;
@@ -758,6 +760,8 @@ void PlayerMinus::Step( int col, RageTimer tm )
 			case PC_AUTOPLAY:
 				score = TNS_MARVELOUS;
 				break;
+			default:
+				break;
 			}
 
 			// TRICKY:  We're asking the AI to judge mines.  consider TNS_GOOD and below
@@ -957,6 +961,8 @@ void PlayerMinus::WifeJudged( int col, int iRow, TapNote::Type type, float fSong
 	case TapNote::tap:		iWifeType = WIFE_TYPE_TAP;		break;
 	case TapNote::hold_head:	iWifeType = WIFE_TYPE_HOLD_HEAD;	iSubType = WIFE_SUBTYPE_HOLD;	break;
 	case TapNote::mine:		iWifeType = WIFE_TYPE_MINE;		break;
+	default:
+		break;
 	}
 
 	/* A mine that was crossed while held isn't a key press. */
@@ -1041,6 +1047,8 @@ void PlayerMinus::OnRowCompletelyJudged( int iIndexThatWasSteppedOn )
 					bool bBright = g_CurStageStats.iCurCombo[m_PlayerNumber]>(int)BRIGHT_GHOST_COMBO_THRESHOLD;
 					m_pNoteField->DidTapNote( c, score, bBright );
 				}
+				break;
+			default:
 				break;
 			}
 		}

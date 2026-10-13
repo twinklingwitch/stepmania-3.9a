@@ -406,6 +406,8 @@ RageColor SongManager::GetSongColor( const Song* pSong )
 		case DIFFICULTY_CHALLENGE:
 		case DIFFICULTY_EDIT:
 			continue;
+		default:
+			break;
 		}
 
 //		if(pSteps->m_StepsType != nt)

@@ -112,6 +112,8 @@ ScreenSelectStyle::ScreenSelectStyle( CString sClassName ) : ScreenSelect( sClas
 		m_sprPremium.Load( THEME->GetPathToG(m_sName + " joint premium") );
 		this->AddChild( &m_sprPremium );
 		break;
+	default:
+		break;
 	}
 
 

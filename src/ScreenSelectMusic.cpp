@@ -996,6 +996,8 @@ void ScreenSelectMusic::Input( const DeviceInput& DeviceI, InputEventType type, 
 					m_MusicWheel.Move( -1 );
 			}
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -1021,6 +1023,8 @@ void ScreenSelectMusic::Input( const DeviceInput& DeviceI, InputEventType type, 
 	// Do the default handler for Start after detecting codes.
 //	case MENU_BUTTON_START:	this->MenuStart( MenuI.player, type );	break;
 	case MENU_BUTTON_COIN:	this->MenuCoin( MenuI.player, type );	break;
+	default:
+		break;
 	}
 
 
@@ -1082,6 +1086,8 @@ void ScreenSelectMusic::Input( const DeviceInput& DeviceI, InputEventType type, 
 	switch( MenuI.button )
 	{
 	case MENU_BUTTON_START:	Screen::MenuStart( MenuI.player, type );	break;
+	default:
+		break;
 	}
 }
 
@@ -1167,13 +1173,15 @@ void ScreenSelectMusic::ChangeDifficulty( PlayerNumber pn, int dir )
 			}
 		}
 		break;
+	default:
+		break;
 	}
 }
 
 
 void ScreenSelectMusic::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_AllowOptionsMenuRepeat:
 		m_bAllowOptionsMenuRepeat = true;
@@ -1618,6 +1626,8 @@ void ScreenSelectMusic::AfterMusicChange()
 				case SORT_MODE_MENU:
 					m_Banner.LoadMode();
 					break;
+				default:
+					break;
 				}
 				m_sSampleMusicToPlay = THEME->GetPathS(m_sName,"sort music");
 				break;
@@ -1864,6 +1874,8 @@ void ScreenSelectMusic::AfterMusicChange()
 	{
 	case TYPE_COURSE:
 		m_CourseContentsFrame.TweenInAfterChangedCourse();
+		break;
+	default:
 		break;
 	}
 }

@@ -636,6 +636,8 @@ void ScreenOptionsMaster::RefreshIcons()
 					break;
 				case ROW_CONFIG:
 					break;
+				default:
+					break;
 				}
 			}
 			

@@ -117,7 +117,7 @@ void ScreenSetTime::Input( const DeviceInput& DeviceI, const InputEventType type
 
 void ScreenSetTime::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GoToNextScreen:
 	case SM_GoToPrevScreen:

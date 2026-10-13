@@ -356,7 +356,7 @@ void ScreenNameEntry::Input( const DeviceInput& DeviceI, const InputEventType ty
 
 void ScreenNameEntry::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_MenuTimer:
 		if( !m_Out.IsTransitioning() )

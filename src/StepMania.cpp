@@ -931,6 +931,8 @@ bool HandleGlobalInputs( DeviceInput DeviceI, InputEventType type, GameInput Gam
 		}
 		InsertCoin();
 		return false;	// Attract need to know because they go to TitleMenu on > 1 credit
+	default:
+		break;
 	}
 
 	if(DeviceI == DeviceInput(DEVICE_KEYBOARD, KEY_F2))

@@ -62,6 +62,8 @@ void ScreenCenterImage::Input( const DeviceInput& DeviceI, const InputEventType 
 			SCREENMAN->PlayBackSound();
 			StartTransitioning( SM_GoToPrevScreen );		
 			return;
+		default:
+			break;
 		}
 	}
 
@@ -123,6 +125,8 @@ void ScreenCenterImage::Input( const DeviceInput& DeviceI, const InputEventType 
 		{
 		case IET_SLOW_REPEAT:	fScale *= 4;	break;
 		case IET_FAST_REPEAT:	fScale *= 16;	break;
+		default:
+			break;
 		}
 
 		if( !bIncrease )
@@ -178,7 +182,7 @@ void ScreenCenterImage::Update( float fDeltaTime )
 
 void ScreenCenterImage::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GoToPrevScreen:
 	case SM_GoToNextScreen:

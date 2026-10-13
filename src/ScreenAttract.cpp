@@ -107,6 +107,8 @@ void ScreenAttract::AttractInput( const DeviceInput& DeviceI, const InputEventTy
 				ASSERT(0);
 			}
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -120,6 +122,8 @@ void ScreenAttract::AttractInput( const DeviceInput& DeviceI, const InputEventTy
 		case MENU_BUTTON_LEFT:
 		case MENU_BUTTON_RIGHT:
 			SCREENMAN->PostMessageToTopScreen( SM_BeginFadingOut, 0 );
+			break;
+		default:
 			break;
 		}
 	}
@@ -141,7 +145,7 @@ void ScreenAttract::Update( float fDelta )
 
 void ScreenAttract::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_BeginFadingOut:
 		if( !m_Out.IsTransitioning() )

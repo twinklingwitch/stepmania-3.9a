@@ -44,7 +44,7 @@ ScreenEditMenu::ScreenEditMenu( CString sName ) : ScreenWithMenuElements( sName 
 
 void ScreenEditMenu::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_RefreshSelector:
 		m_Selector.RefreshNotes();

@@ -32,6 +32,8 @@ CString SongOptions::GetString() const
 	case LIFE_BATTERY:
 		sReturn	+= ssprintf( "%dLives, ", m_iBatteryLives );
 		break;
+	default:
+		break;
 	}
 
 

@@ -403,6 +403,8 @@ void LifeMeterBar::ChangeLife( float fDeltaLife )
 		else
 			fDeltaLife /= m_fLifeDifficulty;
 		break;
+	default:
+		break;
 	}
 
 	// check if this step would cause a fail

@@ -268,7 +268,7 @@ void ScreenSelectMaster::HandleScreenMessage( const ScreenMessage SM )
 {
 	ScreenSelect::HandleScreenMessage( SM );
 
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_PlayPostSwitchPage:
 		{

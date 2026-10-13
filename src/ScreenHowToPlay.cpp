@@ -270,7 +270,7 @@ void ScreenHowToPlay::Update( float fDelta )
 
 void ScreenHowToPlay::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GainFocus:
 		/* We do this ourself. */

@@ -243,9 +243,13 @@ void PaneDisplay::SetContent( PaneContents c )
 			break;
 
 		case COURSE_PROFILE_RANK:
+			{
 			const vector<Course*> best = SONGMAN->GetBestCourses( PlayerMemCard(m_PlayerNumber) );
 			val = (float) FindIndex( best.begin(), best.end(), pCourse );
 			val += 1;
+			break;
+			}
+		default:
 			break;
 		};
 
@@ -263,6 +267,8 @@ void PaneDisplay::SetContent( PaneContents c )
 			val = roundf( SCALE( val, 0, 1, 0, 10 ) );
 			val = clamp( val, 0, 10 );
 			str = ssprintf( "%.0f", val );
+			break;
+		default:
 			break;
 		}
 
@@ -301,6 +307,9 @@ void PaneDisplay::SetContent( PaneContents c )
 		case SONG_PROFILE_RANK:
 		case COURSE_PROFILE_RANK:
 			str = ssprintf( "%.0f", val );
+			break;
+		default:
+			break;
 		}
 	}
 
@@ -399,6 +408,8 @@ bool PaneDisplay::PaneIsValid( PaneTypes p ) const
 	case PANE_COURSE_PROFILE_SCORES:
 		if( !PROFILEMAN->IsUsingProfile( m_PlayerNumber ) )
 			return false;
+	default:
+		break;
 	}
 
 	return true;

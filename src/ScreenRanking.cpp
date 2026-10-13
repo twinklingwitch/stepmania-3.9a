@@ -375,7 +375,7 @@ ScreenRanking::~ScreenRanking()
 
 void ScreenRanking::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_ShowNextPage:
 		if( m_vPagesToShow.size() > 0 )

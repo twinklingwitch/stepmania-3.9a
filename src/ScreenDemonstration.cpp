@@ -60,7 +60,7 @@ ScreenDemonstration::ScreenDemonstration( CString sName ) : ScreenJukebox( sName
 
 void ScreenDemonstration::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_NotesEnded:
 	case SM_BeginFadingOut:

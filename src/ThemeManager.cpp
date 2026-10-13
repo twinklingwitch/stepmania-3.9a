@@ -344,6 +344,8 @@ try_element_again:
 			goto try_element_again;
 		case Dialog::ignore:
 			break;
+		default:
+			break;
 		}
 	}
 

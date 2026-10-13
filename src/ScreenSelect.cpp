@@ -185,7 +185,7 @@ void ScreenSelect::FinalizeChoices()
 
 void ScreenSelect::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	/* Screen is starting to tween out. */
 	case SM_BeginFadingOut:

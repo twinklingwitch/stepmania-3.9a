@@ -164,6 +164,8 @@ void ScreenGameplay::Init()
 			}
 		}
 		break;
+	default:
+		break;
 	}
 
 
@@ -258,6 +260,8 @@ void ScreenGameplay::Init()
 		{
 		case PLAY_MODE_RAVE:
 			m_pSecondaryScoreKeeper[p] = new ScoreKeeperRave( p );
+			break;
+		default:
 			break;
 		}
 	}
@@ -380,6 +384,8 @@ void ScreenGameplay::Init()
 		SET_XY( *m_pCombinedLifeMeter );
 		this->AddChild( m_pCombinedLifeMeter );		
 		break;
+	default:
+		break;
 	}
 
 	//
@@ -426,6 +432,8 @@ void ScreenGameplay::Init()
 		break;
 	case PLAY_MODE_BATTLE:
 	case PLAY_MODE_RAVE:
+		break;
+	default:
 		break;
 	}
 
@@ -518,6 +526,8 @@ void ScreenGameplay::Init()
 		{
 		case PLAY_MODE_RAVE:
 			m_pSecondaryScoreDisplay[p] = new ScoreDisplayRave;
+			break;
+		default:
 			break;
 		}
 
@@ -691,6 +701,8 @@ void ScreenGameplay::Init()
 			m_Draw.Load( THEME->GetPathB(m_sName,"draw") );
 			this->AddChild( &m_Draw );
 			break;
+		default:
+			break;
 		}
 
 		m_textDebug.LoadFromFont( THEME->GetPathF("Common","normal") );
@@ -742,6 +754,8 @@ void ScreenGameplay::Init()
 			m_soundBattleTrickLevel1.Load(	THEME->GetPathS(m_sName,"battle trick level1"), true );
 			m_soundBattleTrickLevel2.Load(	THEME->GetPathS(m_sName,"battle trick level2"), true );
 			m_soundBattleTrickLevel3.Load(	THEME->GetPathS(m_sName,"battle trick level3"), true );
+			break;
+		default:
 			break;
 		}
 	}
@@ -1305,6 +1319,10 @@ void ScreenGameplay::Update( float fDeltaTime )
 
 	switch( m_DancingState )
 	{
+	case STATE_INTRO:
+	case STATE_OUTRO:
+	case NUM_DANCING_STATES:
+		break;
 	case STATE_DANCING:
 		/* Set g_CurStageStats.bFailed for failed players.  In, FAIL_IMMEDIATE, send
 		* SM_BeginFailed if all players failed, and kill dead Oni players. */
@@ -1362,6 +1380,8 @@ void ScreenGameplay::Update( float fDeltaTime )
 		case SongOptions::FAIL_COMBO_OF_30_MISSES:
 			if( GAMESTATE->AllHaveComboOf30OrMoreMisses() )
 				bBeginFailed = true;
+			break;
+		default:
 			break;
 		}
 
@@ -1468,6 +1488,9 @@ void ScreenGameplay::Update( float fDeltaTime )
 		case SongOptions::FAIL_END_OF_SONG:
             FOREACH_EnabledPlayer(pn)
 				g_CurStageStats.bFailed[pn] = true;	// fail
+			break;
+		default:
+			break;
 		}
 
 		this->PostScreenMessage( SM_NotesEnded, 0 );
@@ -1791,6 +1814,8 @@ void ScreenGameplay::Input( const DeviceInput& DeviceI, const InputEventType typ
 				{
 				case IET_SLOW_REPEAT:	fOffsetDelta *= 10;	break;
 				case IET_FAST_REPEAT:	fOffsetDelta *= 40;	break;
+				default:
+					break;
 				}
 
 				GAMESTATE->m_pCurSong->m_Timing.m_fBeat0OffsetInSeconds += fOffsetDelta;
@@ -1975,7 +2000,7 @@ void ScreenGameplay::StageFinished( bool bBackedOut )
 void ScreenGameplay::HandleScreenMessage( const ScreenMessage SM )
 {
 	CHECKPOINT_M( ssprintf("HandleScreenMessage(%i)", SM) );
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_PlayReady:
 		SOUND->PlayOnceFromAnnouncer( "gameplay ready" );

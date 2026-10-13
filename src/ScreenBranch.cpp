@@ -35,7 +35,7 @@ ScreenBranch::ScreenBranch( CString sClassName ) : Screen( sClassName )
 
 void ScreenBranch::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GoToNextScreen:
 		{

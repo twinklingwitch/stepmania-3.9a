@@ -138,6 +138,8 @@ static float GetArcadePoints( const Profile *pProfile )
 		case PLAY_MODE_ENDLESS:
 			fAP += pProfile->m_iNumSongsPlayedByPlayMode[pm];
 			break;
+		default:
+			break;
 		}
 
 	}
@@ -164,6 +166,8 @@ static float GetSongPoints( const Profile *pProfile )
 		case GRADE_NO_DATA:
 			;	// no points
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -175,6 +179,8 @@ static float GetSongPoints( const Profile *pProfile )
 		case PLAY_MODE_ONI:
 		case PLAY_MODE_ENDLESS:
 			fSP += pProfile->m_iNumSongsPlayedByPlayMode[pm];
+			break;
+		default:
 			break;
 		}
 

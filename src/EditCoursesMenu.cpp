@@ -231,6 +231,8 @@ void EditCoursesMenu::Left()
 		case ROW_ENTRY_TYPE:	
 			GetSelectedEntry()->type = GetSelectedEntryType();
 			break;
+		default:
+			break;
 		}
 
 		OnRowValueChanged( m_SelectedRow );
@@ -254,6 +256,8 @@ void EditCoursesMenu::Right()
 		{
 		case ROW_ENTRY_TYPE:	
 			GetSelectedEntry()->type = GetSelectedEntryType();
+			break;
+		default:
 			break;
 		}
 
@@ -349,7 +353,7 @@ void EditCoursesMenu::HandleScreenMessage( const ScreenMessage SM )
 	Course* pCourse = GetSelectedCourse();
 	CourseEntry* pEntry = GetSelectedEntry();
 
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_BackFromCourseOptionsMenu:
 		pCourse->m_bRepeat = !!ScreenMiniMenu::s_iLastAnswers[repeat];

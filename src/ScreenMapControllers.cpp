@@ -301,7 +301,7 @@ void ScreenMapControllers::Input( const DeviceInput& DeviceI, const InputEventTy
 
 void ScreenMapControllers::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GoToNextScreen:
 		SCREENMAN->SetNewScreen( "ScreenOptionsMenu" );

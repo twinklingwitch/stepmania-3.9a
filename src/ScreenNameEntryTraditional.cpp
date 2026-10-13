@@ -522,7 +522,7 @@ void ScreenNameEntryTraditional::HandleScreenMessage( const ScreenMessage SM )
 {
 	LOG->Trace( "ScreenNameEntryTraditional::HandleScreenMessage( %d )", SM );
 
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_MenuTimer:
 		if( !m_Out.IsTransitioning() )

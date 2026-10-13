@@ -158,7 +158,7 @@ void ScreenTextEntry::Input( const DeviceInput& DeviceI, const InputEventType ty
 
 void ScreenTextEntry::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_DoneClosingWipingLeft:
 		break;

@@ -862,6 +862,8 @@ void ScreenEvaluation::Init()
 	case GRADE_TIER_3:	
 		this->PostScreenMessage( SM_PlayCheer, CHEER_DELAY_SECONDS );	
 		break;
+	default:
+		break;
 	}
 
 	this->SortByDrawOrder();
@@ -996,6 +998,8 @@ void ScreenEvaluation::CommitScores(
 	case PLAY_MODE_BATTLE:
 	case PLAY_MODE_RAVE:
 		return; /* don't save scores in battle */
+	default:
+		break;
 	}
 
 	if( PREFSMAN->m_bScreenTestMode )
@@ -1183,6 +1187,9 @@ void ScreenEvaluation::CommitScores(
 					if( fPercentGreats >= 1.f )
 						vPdas.push_back( AWARD_GREATS_100_PERCENT );
 				}
+				break;
+			default:
+				break;
 			}
 
 			// Max one PDA per stage
@@ -1488,7 +1495,7 @@ void ScreenEvaluation::Input( const DeviceInput& DeviceI, const InputEventType t
 
 void ScreenEvaluation::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_MenuTimer:
 		EndScreen();
@@ -1590,6 +1597,8 @@ void ScreenEvaluation::EndScreen()
 				 * tween out). */
 				TweenOffScreen();
 			}
+			break;
+		default:
 			break;
 		}
 	}

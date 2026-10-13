@@ -126,7 +126,7 @@ void ScreenSelectDifficulty::HandleScreenMessage( const ScreenMessage SM )
 {
 	ScreenSelect::HandleScreenMessage( SM );
 
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_BeginFadingOut:
 		TweenOffScreen();
@@ -178,6 +178,8 @@ static bool BothPlayersModeChoice( const ModeChoice &mc )
 	case PLAY_MODE_ENDLESS:
 	case PLAY_MODE_RAVE:
 		return true;
+	default:
+		break;
 	}
 
 	return false;

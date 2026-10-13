@@ -351,7 +351,7 @@ void ScreenEz2SelectMusic::HandleScreenMessage( const ScreenMessage SM )
 {
 	Screen::HandleScreenMessage( SM );
 
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GoToPrevScreen:
 		SCREENMAN->SetNewScreen( "ScreenTitleMenu" );

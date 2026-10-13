@@ -76,7 +76,7 @@ void ScreenTestLights::Input( const DeviceInput& DeviceI, const InputEventType t
 
 void ScreenTestLights::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GoToNextScreen:
 	case SM_GoToPrevScreen:

@@ -174,7 +174,7 @@ void ScreenSelectCharacter::DrawPrimitives()
 
 void ScreenSelectCharacter::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_BeginFadingOut:
 		StartTransitioning( SM_GoToNextScreen );
@@ -214,6 +214,8 @@ void ScreenSelectCharacter::BeforeRowChange( PlayerNumber pn )
 	case CHOOSING_HUMAN_CHARACTER:
 		m_sprCardArrows[pnAffected].SetEffectNone();
 		break;
+	default:
+		break;
 	}
 }
 
@@ -225,6 +227,8 @@ void ScreenSelectCharacter::AfterRowChange( PlayerNumber pn )
 	case CHOOSING_CPU_CHARACTER:
 	case CHOOSING_HUMAN_CHARACTER:
 		m_sprCardArrows[pnAffected].SetEffectGlowShift();
+		break;
+	default:
 		break;
 	}
 }
@@ -301,12 +305,16 @@ void ScreenSelectCharacter::Move( PlayerNumber pn, int deltaValue )
 	{
 	case CHOOSING_CPU_CHARACTER:
 	case CHOOSING_HUMAN_CHARACTER:
-		vector<Character*> apCharacters;
-		GAMESTATE->GetCharacters( apCharacters );
-		m_iSelectedCharacter[pnAffected] += deltaValue;
-		wrap( m_iSelectedCharacter[pnAffected], apCharacters.size() );
-		AfterValueChange(pn);
-		m_soundChange.PlayRandom();
+		{
+			vector<Character*> apCharacters;
+			GAMESTATE->GetCharacters( apCharacters );
+			m_iSelectedCharacter[pnAffected] += deltaValue;
+			wrap( m_iSelectedCharacter[pnAffected], apCharacters.size() );
+			AfterValueChange(pn);
+			m_soundChange.PlayRandom();
+		}
+		break;
+	default:
 		break;
 	}
 }
@@ -334,6 +342,8 @@ void ScreenSelectCharacter::MenuStart( PlayerNumber pn )
 		break;
 	case CHOOSING_CPU_CHARACTER:
 		m_SelectionRow[pn] = FINISHED_CHOOSING;
+		break;
+	default:
 		break;
 	}
 	AfterRowChange(pn);

@@ -149,7 +149,7 @@ void ScreenMiniMenu::Input( const DeviceInput& DeviceI, const InputEventType typ
 
 void ScreenMiniMenu::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GoToOK:
 		SCREENMAN->PopTopScreen( m_SMSendOnOK );

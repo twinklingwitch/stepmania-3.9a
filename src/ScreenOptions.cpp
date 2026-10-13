@@ -891,6 +891,9 @@ void ScreenOptions::Input( const DeviceInput& DeviceI, const InputEventType type
 			INPUTMAPPER->ResetKeyRepeat( MenuInput(MenuI.player, MENU_BUTTON_START) );
 			INPUTMAPPER->ResetKeyRepeat( MenuInput(MenuI.player, MENU_BUTTON_RIGHT) );
 			INPUTMAPPER->ResetKeyRepeat( MenuInput(MenuI.player, MENU_BUTTON_LEFT) );
+			break;
+		default:
+			break;
 		}
 	}
 
@@ -900,7 +903,7 @@ void ScreenOptions::Input( const DeviceInput& DeviceI, const InputEventType type
 
 void ScreenOptions::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_MenuTimer:
 		StartGoToNextState();
@@ -1170,6 +1173,9 @@ void ScreenOptions::MenuStart( PlayerNumber pn, const InputEventType type )
 				return;
 			}
 		}
+		break;
+	default:
+		break;
 	}
 
 
@@ -1419,6 +1425,9 @@ void ScreenOptions::MoveRow( PlayerNumber pn, int dir, bool Repeat )
 				}
 				m_Rows[row]->m_iChoiceWithFocus[p] = min( iOldSelection, m_Rows[row]->m_textItems.size()-1 );
 			}
+			break;
+		default:
+			break;
 		}
 
 		OnChange( (PlayerNumber)p );

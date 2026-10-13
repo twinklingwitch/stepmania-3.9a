@@ -62,7 +62,7 @@ void ScreenBookkeeping::Input( const DeviceInput& DeviceI, const InputEventType 
 
 void ScreenBookkeeping::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GoToNextScreen:
 	case SM_GoToPrevScreen:

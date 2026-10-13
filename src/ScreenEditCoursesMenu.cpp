@@ -44,7 +44,7 @@ void ScreenEditCoursesMenu::HandleScreenMessage( const ScreenMessage SM )
 {
 	m_Selector.HandleScreenMessage( SM );
 
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_GoToPrevScreen:
 	case SM_GoToNextScreen:

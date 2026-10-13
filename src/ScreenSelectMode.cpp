@@ -240,7 +240,7 @@ void ScreenSelectMode::UpdateSelectableChoices()
 
 void ScreenSelectMode::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_MenuTimer:
 		{

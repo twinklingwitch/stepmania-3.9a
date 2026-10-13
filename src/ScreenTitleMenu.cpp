@@ -90,6 +90,8 @@ ScreenTitleMenu::ScreenTitleMenu( CString sClassName ) : ScreenSelect( sClassNam
 			m_Premium.LoadFromAniDir( THEME->GetPathToB("ScreenTitleMenu joint premium") );
 			this->AddChild( &m_Premium );
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -245,22 +247,27 @@ void ScreenTitleMenu::Input( const DeviceInput& DeviceI, const InputEventType ty
 			Back( SM_GoToAttractLoop );
 			break;
 		case MENU_BUTTON_START:
-			/* return if the choice is invalid */
-			const ModeChoice &mc = m_aModeChoices[m_Choice];
-			CString why;
-			if( !mc.IsPlayable( &why ) )
 			{
-				SCREENMAN->PlayInvalidSound();
-				if( why != "" )
-					SCREENMAN->SystemMessage( why );
-				return;
+				/* return if the choice is invalid */
+				const ModeChoice &mc = m_aModeChoices[m_Choice];
+				CString why;
+				if( !mc.IsPlayable( &why ) )
+				{
+					SCREENMAN->PlayInvalidSound();
+					if( why != "" )
+						SCREENMAN->SystemMessage( why );
+					return;
+				}
+
+				if( !Screen::JoinInput( DeviceI, type, GameI, MenuI, StyleI ) )
+					return;
+
+				if( !m_Out.IsTransitioning() )
+					StartTransitioning( SM_GoToNextScreen );
 			}
-
-			if( !Screen::JoinInput( DeviceI, type, GameI, MenuI, StyleI ) )
-				return;
-
-			if( !m_Out.IsTransitioning() )
-				StartTransitioning( SM_GoToNextScreen );
+			break;
+		default:
+			break;
 		}
 	}
 
@@ -332,7 +339,7 @@ void ScreenTitleMenu::Update( float fDelta )
 
 void ScreenTitleMenu::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_PlayComment:
 		SOUND->PlayOnceFromAnnouncer( "title menu attract" );

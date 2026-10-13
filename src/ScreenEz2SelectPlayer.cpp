@@ -136,7 +136,7 @@ void ScreenEz2SelectPlayer::HandleScreenMessage( const ScreenMessage SM )
 {
 	Screen::HandleScreenMessage( SM );
 
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_MenuTimer:
 		if( GAMESTATE->GetNumSidesJoined() == 0 )

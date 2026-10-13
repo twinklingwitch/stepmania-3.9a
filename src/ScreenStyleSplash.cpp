@@ -54,7 +54,7 @@ void ScreenStyleSplash::Input( const DeviceInput& DeviceI, const InputEventType 
 
 void ScreenStyleSplash::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_StartClosing:
 		if( !IsTransitioning() )

@@ -283,6 +283,8 @@ void ScreenEnding::Input( const DeviceInput& DeviceI, const InputEventType type,
 		case MENU_BUTTON_START:
 			SCREENMAN->PostMessageToTopScreen( SM_BeginFadingOut, 0 );
 			break;
+		default:
+			break;
 		}
 	}
 

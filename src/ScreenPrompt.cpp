@@ -106,7 +106,7 @@ void ScreenPrompt::Input( const DeviceInput& DeviceI, const InputEventType type,
 
 void ScreenPrompt::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_DoneClosingWipingLeft:
 		break;

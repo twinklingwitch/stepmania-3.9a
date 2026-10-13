@@ -73,6 +73,8 @@ SoundReader_FileReader *SoundReader_FileReader::TryOpenFile( CString filename, C
 		bKeepTrying = false;
 		error = err;
 		break;
+	default:
+		break;
 	}
 
 	return NULL;

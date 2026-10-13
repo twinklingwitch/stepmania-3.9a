@@ -141,6 +141,8 @@ DancingCharacters::DancingCharacters()
 		case PLAY_MODE_RAVE:
 			m_pCharacter[p]->SetRotationY( MODEL_ROTATIONY_TWO_PLAYERS[p] );
 			break;
+		default:
+			break;
 		}
 
 		m_pCharacter[p]->LoadMilkshapeAscii( pChar->GetModelPath() );

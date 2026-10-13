@@ -137,7 +137,7 @@ void ScreenPlayerOptions::HandleScreenMessage( const ScreenMessage SM )
 {
 	if( m_bAskOptionsMessage )
 	{
-		switch( SM )
+		switch( (int)SM )
 		{
 		case SM_BeginFadingOut: // when the user accepts the page of options
 			{

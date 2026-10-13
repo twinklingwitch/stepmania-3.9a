@@ -281,6 +281,8 @@ void ModeSwitcher::ChangeMode(PlayerNumber pn, int dir)
 					case DIFFICULTY_EASY: GAMESTATE->m_PreferredDifficulty[pn] = DIFFICULTY_MEDIUM; break;
 					case DIFFICULTY_MEDIUM: GAMESTATE->m_PreferredDifficulty[pn] = DIFFICULTY_HARD; break;
 					case DIFFICULTY_HARD: GAMESTATE->m_PreferredDifficulty[pn] = DIFFICULTY_CHALLENGE; break;
+					default:
+						break;
 				}
 				m_Stylename.SetText(GetStyleName());
 				m_Nextmode.SetText(GetNextStyleName());

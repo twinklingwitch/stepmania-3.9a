@@ -277,6 +277,8 @@ static bool AreStyleAndPlayModeCompatible( const Style *style, PlayMode pm )
 		/* Don't allow battle modes if the style takes both sides. */
 		if( style->m_StyleType==Style::ONE_PLAYER_TWO_CREDITS )
 			return false;
+	default:
+		break;
 	}
 
 	return true;

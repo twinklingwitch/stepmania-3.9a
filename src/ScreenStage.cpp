@@ -103,7 +103,7 @@ ScreenStage::ScreenStage( CString sClassName ) : Screen( sClassName )
 
 void ScreenStage::HandleScreenMessage( const ScreenMessage SM )
 {
-	switch( SM )
+	switch( (int)SM )
 	{
 	case SM_PrepScreen:
 		/* Start fading out in after MINIMUM_DELAY seconds.  Loading the screen
