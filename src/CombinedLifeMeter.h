@@ -24,7 +24,6 @@ public:
 	virtual bool IsInDanger( PlayerNumber pn ) = 0;
 	virtual bool IsHot( PlayerNumber pn ) = 0;
 	virtual bool IsFailing( PlayerNumber pn ) = 0;
-	virtual void OnTaunt() {};
 };
 
 
