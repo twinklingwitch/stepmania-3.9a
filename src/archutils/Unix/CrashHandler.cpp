@@ -71,8 +71,8 @@ static void GetExecutableName( char *buf, int bufsize )
 
 		strncpy( buf, g_pCrashHandlerArgv0, bufsize-1 );
 		buf[bufsize-1] = 0;
+		return;
 	}
-
 
 	buf[got] = 0;
 }
