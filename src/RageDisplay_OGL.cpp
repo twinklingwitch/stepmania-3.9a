@@ -303,12 +303,126 @@ static void FlushGLErrors()
 	ASSERT_M( error == GL_NO_ERROR, GLToString(error) ) \
 }
 
+/*
+ * The GL state we set over and over: almost every actor sets the same states
+ * before it draws, and every draw sends the same arrays and matrices.  Remember
+ * what we last set, so the driver only hears about changes.  An entry of -1 (or
+ * false for the "valid" flags) means unknown, and the next call goes through;
+ * anything that changes one of these states without going through the cache
+ * has to forget it.  Everything is forgotten when the context is (re)created.
+ *
+ * Blending (GL_BLEND, glBlendFunc, glDepthRange) is not cached.
+ */
+namespace
+{
+	enum { ARRAY_VERTEX, ARRAY_COLOR, ARRAY_TEXCOORD, ARRAY_NORMAL, NUM_ARRAYS };
+	enum { TEXENV_MODULATE, TEXENV_ADD, TEXENV_GLOW_WHITEN };
+
+	struct GLStateCache
+	{
+		bool bBuffersUnbound;	// no buffer object bound to GL_ARRAY_BUFFER or GL_ELEMENT_ARRAY_BUFFER
+		int iArrayEnabled[NUM_ARRAYS];
+		const void *pArray[NUM_ARRAYS];	// where SetupVertices pointed the array, or NULL
+
+		int iMatrixMode;
+		bool bMatricesSent;	// SendCurrentMatrices has run in this context (kept by Invalidate)
+		bool bProjectionValid, bModelViewValid, bTextureMatrixValid[MAX_TEXTURE_UNITS];
+		RageMatrix Projection, ModelView, TextureMatrix[MAX_TEXTURE_UNITS];
+
+		int iActiveUnit;
+		int iTexture2D[MAX_TEXTURE_UNITS];
+		int64_t iBoundTexture[MAX_TEXTURE_UNITS];
+		int iTexEnv[MAX_TEXTURE_UNITS];
+
+		/* Wrap mode of each texture object, indexed by texture name: -1 unknown,
+		 * 0 clamped, 1 repeating. */
+		vector<signed char> TextureWrap;
+
+		int iZWrite, iDepthTest, iDepthFunc, iCullFace, iCullMode;
+
+		GLStateCache(): bMatricesSent( false ) { Invalidate(); }
+
+		void Invalidate()
+		{
+			bBuffersUnbound = false;
+			InvalidateArrays();
+			iMatrixMode = -1;
+			bProjectionValid = bModelViewValid = false;
+			iActiveUnit = -1;
+			for( int i = 0; i < MAX_TEXTURE_UNITS; ++i )
+			{
+				bTextureMatrixValid[i] = false;
+				iTexture2D[i] = -1;
+				iBoundTexture[i] = -1;
+				iTexEnv[i] = -1;
+			}
+			TextureWrap.clear();
+			iZWrite = iDepthTest = iDepthFunc = iCullFace = iCullMode = -1;
+		}
+
+		/* Forget the client array state, after something else set it. */
+		void InvalidateArrays()
+		{
+			for( int i = 0; i < NUM_ARRAYS; ++i )
+			{
+				iArrayEnabled[i] = -1;
+				pArray[i] = NULL;
+			}
+		}
+
+		/* The texture unit that unit-specific calls apply to, or -1. */
+		int ActiveUnit() const { return GLExt.glActiveTextureARB? iActiveUnit: 0; }
+
+		/* The texture bound to the active unit, or -1. */
+		int64_t ActiveTexture() const
+		{
+			const int iUnit = ActiveUnit();
+			return iUnit == -1? -1: iBoundTexture[iUnit];
+		}
+
+		signed char &Wrap( unsigned uTexHandle )
+		{
+			if( uTexHandle >= TextureWrap.size() )
+				TextureWrap.resize( uTexHandle+1, -1 );
+			return TextureWrap[uTexHandle];
+		}
+	};
+
+	GLStateCache g_State;
+}
+
+static void SetClientState( int iArray, GLenum array, bool bOn )
+{
+	if( g_State.iArrayEnabled[iArray] == int(bOn) )
+		return;
+	if( bOn )
+		glEnableClientState( array );
+	else
+		glDisableClientState( array );
+	g_State.iArrayEnabled[iArray] = bOn;
+}
+
+static void SetMatrixMode( GLenum mode )
+{
+	if( g_State.iMatrixMode == int(mode) )
+		return;
+	glMatrixMode( mode );
+	g_State.iMatrixMode = mode;
+}
+
+/* Note that a buffer object may now be bound. */
+static void BufferBound()
+{
+	g_State.bBuffersUnbound = false;
+}
+
 static void TurnOffHardwareVBO()
 {
-	if( GLExt.glBindBufferARB )
+	if( GLExt.glBindBufferARB && !g_State.bBuffersUnbound )
 	{
 		GLExt.glBindBufferARB( GL_ARRAY_BUFFER_ARB, 0 );
 		GLExt.glBindBufferARB( GL_ELEMENT_ARRAY_BUFFER_ARB, 0 );
+		g_State.bBuffersUnbound = true;
 	}
 }
 
@@ -573,6 +687,11 @@ CString RageDisplay_OGL::TryVideoMode( VideoModeParams p, bool &bNewDeviceOut )
 	if( err != "" )
 		return err;	// failed to set video mode
 
+	/* We may have a new context. */
+	g_State.Invalidate();
+	if( bNewDeviceOut )
+		g_State.bMatricesSent = false;
+
 	if( bNewDeviceOut )
 	{
 		/* We have a new OpenGL context, so we have to tell our textures that
@@ -590,6 +709,9 @@ CString RageDisplay_OGL::TryVideoMode( VideoModeParams p, bool &bNewDeviceOut )
 	/* Now that we've initialized, we can search for extensions (some of which
 	 * we may need to set up the video mode). */
 	SetupExtensions();
+
+	/* Which units we track depends on the extensions. */
+	g_State.Invalidate();
 
 	/* Set vsync the Windows way, if we can.  (What other extensions are there
 	 * to do this, for other archs?) */
@@ -696,30 +818,66 @@ static void SetupVertices( const RageSpriteVertex v[], int iNumVerts )
 		Normal[i*3+1] = v[i].n[1];
 		Normal[i*3+2] = v[i].n[2];
 	}
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(3, GL_FLOAT, 0, Vertex);
+	/* The arrays only move when they grow, and the pointers are only replaced
+	 * by the compiled geometry, which forgets them; the driver reads through
+	 * them at draw time, so only point them again if they've changed. */
+	SetClientState( ARRAY_VERTEX, GL_VERTEX_ARRAY, true );
+	if( g_State.pArray[ARRAY_VERTEX] != Vertex )
+	{
+		glVertexPointer(3, GL_FLOAT, 0, Vertex);
+		g_State.pArray[ARRAY_VERTEX] = Vertex;
+	}
 
-	glEnableClientState(GL_COLOR_ARRAY);
-	glColorPointer(4, GL_UNSIGNED_BYTE, 0, Color);
+	SetClientState( ARRAY_COLOR, GL_COLOR_ARRAY, true );
+	if( g_State.pArray[ARRAY_COLOR] != Color )
+	{
+		glColorPointer(4, GL_UNSIGNED_BYTE, 0, Color);
+		g_State.pArray[ARRAY_COLOR] = Color;
+	}
 
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	glTexCoordPointer(2, GL_FLOAT, 0, Texture);
+	SetClientState( ARRAY_TEXCOORD, GL_TEXTURE_COORD_ARRAY, true );
+	if( g_State.pArray[ARRAY_TEXCOORD] != Texture )
+	{
+		glTexCoordPointer(2, GL_FLOAT, 0, Texture);
+		g_State.pArray[ARRAY_TEXCOORD] = Texture;
+	}
 
-	glEnableClientState(GL_NORMAL_ARRAY);
-	glNormalPointer(GL_FLOAT, 0, Normal);
+	SetClientState( ARRAY_NORMAL, GL_NORMAL_ARRAY, true );
+	if( g_State.pArray[ARRAY_NORMAL] != Normal )
+	{
+		glNormalPointer(GL_FLOAT, 0, Normal);
+		g_State.pArray[ARRAY_NORMAL] = Normal;
+	}
+}
+
+static void LoadMatrix( GLenum mode, const RageMatrix &m, bool &bValid, RageMatrix &last )
+{
+	if( bValid && !memcmp(&last, &m, sizeof(m)) )
+		return;
+	SetMatrixMode( mode );
+	glLoadMatrixf( (const float*)&m );
+	bValid = true;
+	last = m;
 }
 
 void RageDisplay_OGL::SendCurrentMatrices()
 {
-	glMatrixMode( GL_PROJECTION );
-	glLoadMatrixf( (const float*)GetProjectionTop() );
+	LoadMatrix( GL_PROJECTION, *GetProjectionTop(), g_State.bProjectionValid, g_State.Projection );
 	RageMatrix modelView;
 	RageMatrixMultiply( &modelView, GetCentering(), GetViewTop() );
 	RageMatrixMultiply( &modelView, &modelView, GetWorldTop() );
-	glMatrixMode( GL_MODELVIEW );
-	glLoadMatrixf( (const float*)&modelView );
-	glMatrixMode( GL_TEXTURE  );
-	glLoadMatrixf( (const float*)GetTextureTop() );
+	LoadMatrix( GL_MODELVIEW, modelView, g_State.bModelViewValid, g_State.ModelView );
+
+	/* The texture matrix belongs to the active texture unit. */
+	const int iUnit = g_State.ActiveUnit();
+	if( iUnit == -1 )
+	{
+		SetMatrixMode( GL_TEXTURE );
+		glLoadMatrixf( (const float*)GetTextureTop() );
+	}
+	else
+		LoadMatrix( GL_TEXTURE, *GetTextureTop(), g_State.bTextureMatrixValid[iUnit], g_State.TextureMatrix[iUnit] );
+	g_State.bMatricesSent = true;
 }
 
 class RageCompiledGeometrySWOGL : public RageCompiledGeometry
@@ -779,6 +937,8 @@ public:
 			meshInfo.iTriangleCount*3, 
 			GL_UNSIGNED_SHORT, 
 			&m_vTriangles[0]+meshInfo.iTriangleStart );
+
+		g_State.InvalidateArrays();
 	}
 
 protected:
@@ -905,6 +1065,7 @@ void RageCompiledGeometryHWOGL::UploadData()
 		&m_vTriangles[0], 
 		GL_STATIC_DRAW_ARB );
 //		AssertNoGLError();
+	BufferBound();
 }
 
 void RageCompiledGeometryHWOGL::Invalidate()
@@ -918,6 +1079,7 @@ void RageCompiledGeometryHWOGL::Invalidate()
 void RageCompiledGeometryHWOGL::Allocate( const vector<msMesh> &vMeshes )
 {
 	RageCompiledGeometrySWOGL::Allocate( vMeshes );
+	BufferBound();
 	
 	GLExt.glBindBufferARB( GL_ARRAY_BUFFER_ARB, m_nPositions );
 	GLExt.glBufferDataARB( 
@@ -967,6 +1129,8 @@ void RageCompiledGeometryHWOGL::Draw( int iMeshIndex ) const
 	if( !meshInfo.iVertexCount || !meshInfo.iTriangleCount )
 		return;
 
+	BufferBound();
+	g_State.InvalidateArrays();
 	glEnableClientState(GL_VERTEX_ARRAY);
 	GLExt.glBindBufferARB( GL_ARRAY_BUFFER_ARB, m_nPositions );
 	AssertNoGLError();
@@ -1053,9 +1217,6 @@ void RageDisplay_OGL::DrawQuadStripInternal( const RageSpriteVertex v[], int iNu
 void RageDisplay_OGL::DrawFanInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	TurnOffHardwareVBO();
-
-	glMatrixMode( GL_PROJECTION );
-
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
@@ -1158,15 +1319,48 @@ void RageDisplay_OGL::DrawLineStripInternal( const RageSpriteVertex v[], int iNu
 	glDisable(GL_POINT_SMOOTH);
 }
 
+static void SetActiveTextureUnit( int iUnit )
+{
+	if( g_State.iActiveUnit == iUnit )
+		return;
+	GLExt.glActiveTextureARB( iUnit == 0? GL_TEXTURE0_ARB: GL_TEXTURE1_ARB );
+	g_State.iActiveUnit = iUnit;
+}
+
+/* Bind a texture to the active unit. */
+static void BindTexture( unsigned uTexHandle )
+{
+	const int iUnit = g_State.ActiveUnit();
+	if( iUnit != -1 && g_State.iBoundTexture[iUnit] == int64_t(uTexHandle) )
+		return;
+	glBindTexture( GL_TEXTURE_2D, uTexHandle );
+	if( iUnit != -1 )
+		g_State.iBoundTexture[iUnit] = uTexHandle;
+}
+
+/* Returns false if the texture env mode of the active unit is already iMode. */
+static bool SetTexEnvState( int iMode )
+{
+	const int iUnit = g_State.ActiveUnit();
+	if( iUnit == -1 )
+		return true;
+	if( g_State.iTexEnv[iUnit] == iMode )
+		return false;
+	g_State.iTexEnv[iUnit] = iMode;
+	return true;
+}
+
 void RageDisplay_OGL::ClearAllTextures()
 {
+	/* Units that are already off don't need to be made active to turn them off. */
 	for( int i=0; i<MAX_TEXTURE_UNITS; i++ )
-		SetTexture( i, NULL );
+		if( g_State.iTexture2D[i] != 0 )
+			SetTexture( i, NULL );
 
 	// HACK:  Reset the active texture to 0.
 	// TODO:  Change all texture functions to take a stage number.
 	if( GLExt.glActiveTextureARB )
-		GLExt.glActiveTextureARB(GL_TEXTURE0_ARB);
+		SetActiveTextureUnit( 0 );
 }
 
 void RageDisplay_OGL::SetTexture( int iTextureUnitIndex, RageTexture* pTexture )
@@ -1182,29 +1376,31 @@ void RageDisplay_OGL::SetTexture( int iTextureUnitIndex, RageTexture* pTexture )
 		switch( iTextureUnitIndex )
 		{
 		case 0:
-			GLExt.glActiveTextureARB(GL_TEXTURE0_ARB);
-			break;
 		case 1:
-			GLExt.glActiveTextureARB(GL_TEXTURE1_ARB);
+			SetActiveTextureUnit( iTextureUnitIndex );
 			break;
 		default:
 			ASSERT(0);
 		}
 	}
 
+	const int bOn = pTexture != NULL;
+	if( g_State.iTexture2D[iTextureUnitIndex] != bOn )
+	{
+		if( bOn )
+			glEnable( GL_TEXTURE_2D );
+		else
+			glDisable( GL_TEXTURE_2D );
+		g_State.iTexture2D[iTextureUnitIndex] = bOn;
+	}
+
 	if( pTexture )
-	{
-		glEnable( GL_TEXTURE_2D );
-		glBindTexture( GL_TEXTURE_2D, pTexture->GetTexHandle() );
-	}
-	else
-	{
-		glDisable( GL_TEXTURE_2D );
-	}
+		BindTexture( pTexture->GetTexHandle() );
 }
 void RageDisplay_OGL::SetTextureModeModulate()
 {
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	if( SetTexEnvState(TEXENV_MODULATE) )
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 }
 
 void RageDisplay_OGL::SetTextureModeGlow(GlowMode m)
@@ -1219,6 +1415,9 @@ void RageDisplay_OGL::SetTextureModeGlow(GlowMode m)
 		return;
 
 	case GLOW_WHITEN:
+		if( !SetTexEnvState(TEXENV_GLOW_WHITEN) )
+			return;
+
 		/* Source color is the diffuse color only: */
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_EXT);
 		glTexEnvi(GL_TEXTURE_ENV, GLenum(GL_COMBINE_RGB_EXT), GL_REPLACE);
@@ -1236,7 +1435,8 @@ void RageDisplay_OGL::SetTextureModeGlow(GlowMode m)
 
 void RageDisplay_OGL::SetTextureModeAdd()
 {
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_ADD);
+	if( SetTexEnvState(TEXENV_ADD) )
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_ADD);
 }
 
 void RageDisplay_OGL::SetTextureFiltering( bool b )
@@ -1280,6 +1480,8 @@ void RageDisplay_OGL::SetBlending( bool b )
 
 bool RageDisplay_OGL::IsZWriteEnabled() const
 {
+	if( g_State.iZWrite != -1 )
+		return g_State.iZWrite != 0;
 	bool a;
 	glGetBooleanv( GL_DEPTH_WRITEMASK, (unsigned char*)&a );
 	return a;
@@ -1287,6 +1489,8 @@ bool RageDisplay_OGL::IsZWriteEnabled() const
 
 bool RageDisplay_OGL::IsZTestEnabled() const
 {
+	if( g_State.iDepthFunc != -1 )
+		return g_State.iDepthFunc != GL_ALWAYS;
 	GLenum a;
 	glGetIntegerv( GL_DEPTH_FUNC, (GLint*)&a );
 	return a != GL_ALWAYS;
@@ -1302,26 +1506,45 @@ void RageDisplay_OGL::ClearZBuffer()
 
 void RageDisplay_OGL::SetZWrite( bool b )
 {
+	if( g_State.iZWrite == int(b) )
+		return;
 	glDepthMask( b );
+	g_State.iZWrite = b;
 }
 
 void RageDisplay_OGL::SetZTestMode( ZTestMode mode )
 {
-	glEnable( GL_DEPTH_TEST );
+	if( g_State.iDepthTest != 1 )
+	{
+		glEnable( GL_DEPTH_TEST );
+		g_State.iDepthTest = 1;
+	}
+	GLenum func;
 	switch( mode )
 	{
-	case ZTEST_OFF:				glDepthFunc( GL_ALWAYS );	break;
-	case ZTEST_WRITE_ON_PASS:	glDepthFunc( GL_LEQUAL );	break;
-	case ZTEST_WRITE_ON_FAIL:	glDepthFunc( GL_GREATER );	break;
-	default:	ASSERT( 0 );
+	case ZTEST_OFF:				func = GL_ALWAYS;	break;
+	case ZTEST_WRITE_ON_PASS:	func = GL_LEQUAL;	break;
+	case ZTEST_WRITE_ON_FAIL:	func = GL_GREATER;	break;
+	default:	ASSERT( 0 );	return;
 	}
+	if( g_State.iDepthFunc == int(func) )
+		return;
+	glDepthFunc( func );
+	g_State.iDepthFunc = func;
 }
 
 void RageDisplay_OGL::SetTextureWrapping( bool b )
 {
+	/* This sets the wrap mode of the texture bound to the active unit. */
+	const int64_t iTexture = g_State.ActiveTexture();
+	if( iTexture != -1 && g_State.Wrap(unsigned(iTexture)) == int(b) )
+		return;
+
 	GLenum mode = b ? GL_REPEAT : GL_CLAMP_TO_EDGE;
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, mode );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, mode );
+	if( iTexture != -1 )
+		g_State.Wrap(unsigned(iTexture)) = b;
 }
 
 void RageDisplay_OGL::SetMaterial( 
@@ -1373,6 +1596,10 @@ void RageDisplay_OGL::SetLightDirectional(
 {
 	// Light coordinates are transformed by the modelview matrix, but
 	// we are being passed in world-space coords.
+	/* (SendCurrentMatrices used to always leave GL_TEXTURE current, so this
+	 * has really always pushed the texture matrix.) */
+	if( g_State.bMatricesSent )
+		SetMatrixMode( GL_TEXTURE );
 	glPushMatrix();
 	glLoadIdentity();
 
@@ -1391,15 +1618,27 @@ void RageDisplay_OGL::SetCullMode( CullMode mode )
 	switch( mode )
 	{
 	case CULL_BACK:
-		glEnable( GL_CULL_FACE );
-		glCullFace( GL_BACK );
-		break;
 	case CULL_FRONT:
-		glEnable( GL_CULL_FACE );
-		glCullFace( GL_FRONT );
+	{
+		if( g_State.iCullMode != 1 )
+		{
+			glEnable( GL_CULL_FACE );
+			g_State.iCullMode = 1;
+		}
+		const GLenum face = mode == CULL_BACK? GL_BACK: GL_FRONT;
+		if( g_State.iCullFace != int(face) )
+		{
+			glCullFace( face );
+			g_State.iCullFace = face;
+		}
 		break;
+	}
 	case CULL_NONE:
-        glDisable( GL_CULL_FACE );
+		if( g_State.iCullMode != 0 )
+		{
+			glDisable( GL_CULL_FACE );
+			g_State.iCullMode = 0;
+		}
 		break;
 	default:
 		ASSERT(0);
@@ -1418,6 +1657,14 @@ void RageDisplay_OGL::DeleteTexture( unsigned uTexHandle )
 
 	FlushGLErrors();
 	glDeleteTextures(1,reinterpret_cast<GLuint*>(&uTexID));
+
+	/* Units the texture was bound to are now bound to texture 0, and the name
+	 * may be reused. */
+	for( int i = 0; i < MAX_TEXTURE_UNITS; ++i )
+		if( g_State.iBoundTexture[i] == int64_t(uTexHandle) )
+			g_State.iBoundTexture[i] = 0;
+	if( uTexHandle < g_State.TextureWrap.size() )
+		g_State.TextureWrap[uTexHandle] = -1;
 
 	AssertNoGLError();
 }
@@ -1492,8 +1739,9 @@ unsigned RageDisplay_OGL::CreateTexture(
 	unsigned int uTexHandle;
 	glGenTextures(1, reinterpret_cast<GLuint*>(&uTexHandle));
 	ASSERT(uTexHandle);
+	g_State.Wrap( uTexHandle ) = -1;
 	
-	glBindTexture( GL_TEXTURE_2D, uTexHandle );
+	BindTexture( uTexHandle );
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	GLint minFilter;
 	if( bGenerateMipMaps )
@@ -1629,7 +1877,7 @@ void RageDisplay_OGL::UpdateTexture(
 	RageSurface* img,
 	int xoffset, int yoffset, int width, int height )
 {
-	glBindTexture( GL_TEXTURE_2D, uTexHandle );
+	BindTexture( uTexHandle );
 
 	bool FreeImg;
 	PixelFormat pixfmt = GetImgPixelFormat( img, FreeImg, width, height );
