@@ -63,6 +63,8 @@ const int NUM_SKIPS_TO_SHOW = 5;
 class ScreenSystemLayer: public Screen
 {
 	BitmapText m_textStats;
+	int m_iStatsFPS, m_iStatsCumFPS, m_iStatsVPF;	// what m_sStats shows
+	CString m_sStats;
 	BitmapText m_textMessage;
 	BitmapText m_textCredits[NUM_PLAYERS];
 	BitmapText m_textTime;
@@ -104,6 +106,7 @@ ScreenSystemLayer::ScreenSystemLayer() : Screen("ScreenSystemLayer")
 	 * the time in the log.  Put a dim quad behind it to make it easier to
 	 * read. */
 	m_LastSkip = 0;
+	m_iStatsFPS = m_iStatsCumFPS = m_iStatsVPF = -1;
 	const float SKIP_LEFT = 320.0f, SKIP_TOP = 60.0f, 
 		SKIP_WIDTH = 160.0f, SKIP_Y_DIST = 16.0f;
 
@@ -335,10 +338,19 @@ void ScreenSystemLayer::Update( float fDeltaTime )
 
 		/* If FPS == 0, we don't have stats yet. */
 		if(DISPLAY->GetFPS())
-			m_textStats.SetText( ssprintf(
-				"%i FPS\n%i av FPS\n%i VPF",
-				DISPLAY->GetFPS(), DISPLAY->GetCumFPS(), 
-				DISPLAY->GetVPF()) );
+		{
+			/* The stats change once a second; only format them when they do. */
+			const int iFPS = DISPLAY->GetFPS(), iCumFPS = DISPLAY->GetCumFPS(), iVPF = DISPLAY->GetVPF();
+			if( iFPS != m_iStatsFPS || iCumFPS != m_iStatsCumFPS || iVPF != m_iStatsVPF ||
+				m_textStats.GetText() != m_sStats )
+			{
+				m_sStats = ssprintf( "%i FPS\n%i av FPS\n%i VPF", iFPS, iCumFPS, iVPF );
+				m_iStatsFPS = iFPS;
+				m_iStatsCumFPS = iCumFPS;
+				m_iStatsVPF = iVPF;
+				m_textStats.SetText( m_sStats );
+			}
+		}
 		else
 			m_textStats.SetText( "-- FPS\n-- av FPS\n-- VPF" );
 	} else
