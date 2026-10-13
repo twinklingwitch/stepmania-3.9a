@@ -16,9 +16,6 @@
 #include "Course.h"
 
 
-const int NUM_ACTION_MENU_ITEMS = 23;
-const int NUM_NAMING_MENU_ITEMS = 6;
-
 
 class ScreenEdit : public Screen
 {

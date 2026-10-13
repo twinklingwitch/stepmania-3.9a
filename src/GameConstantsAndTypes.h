@@ -140,7 +140,6 @@ enum SortOrder {
 	NUM_SORT_ORDERS,
 	SORT_INVALID
 };
-const SortOrder MAX_SELECTABLE_SORT = (SortOrder)(SORT_ROULETTE-1);
 #define FOREACH_SortOrder( so ) FOREACH_ENUM( SortOrder, NUM_SORT_ORDERS, so )
 const CString& SortOrderToString( SortOrder so );
 SortOrder StringToSortOrder( const CString& str );
@@ -249,10 +248,6 @@ enum PlayerController
 	NUM_PLAYER_CONTROLLERS
 };
 
-const int MIN_SKILL = 0;
-const int MAX_SKILL = 10;
-
-
 enum StageResult
 {
 	RESULT_WIN,
@@ -272,7 +267,6 @@ enum AttackLevel
 	NUM_ATTACK_LEVELS
 };
 const int NUM_ATTACKS_PER_LEVEL	= 3;
-const int ITEM_NONE = -1;
 
 
 #define BG_ANIMS_DIR		CString("BGAnimations/")

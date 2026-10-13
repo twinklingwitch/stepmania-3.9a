@@ -62,7 +62,6 @@ CachedThemeMetricF	 TICK_EARLY_SECONDS		("ScreenGameplay","TickEarlySeconds");
 const ScreenMessage SM_BackFromMainMenu				= (ScreenMessage)(SM_User+1);
 const ScreenMessage SM_BackFromAreaMenu				= (ScreenMessage)(SM_User+2);
 const ScreenMessage SM_BackFromEditNotesStatistics	= (ScreenMessage)(SM_User+3);
-const ScreenMessage SM_BackFromEditOptions			= (ScreenMessage)(SM_User+4);
 const ScreenMessage SM_BackFromEditSongInfo			= (ScreenMessage)(SM_User+5);
 const ScreenMessage SM_BackFromBGChange				= (ScreenMessage)(SM_User+6);
 const ScreenMessage SM_BackFromPlayerOptions		= (ScreenMessage)(SM_User+7);

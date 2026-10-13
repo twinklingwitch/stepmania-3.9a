@@ -77,8 +77,6 @@ const ScreenMessage	SM_BeginFailed			= ScreenMessage(SM_User+30);
 const ScreenMessage	SM_GoToScreenAfterFail	= ScreenMessage(SM_User+31);
 
 // received while STATE_INTRO
-const ScreenMessage	SM_StartHereWeGo		= ScreenMessage(SM_User+40);
-const ScreenMessage	SM_StopHereWeGo			= ScreenMessage(SM_User+41);
 
 
 ScreenGameplay::ScreenGameplay( CString sName, bool bDemonstration ) : Screen(sName)
