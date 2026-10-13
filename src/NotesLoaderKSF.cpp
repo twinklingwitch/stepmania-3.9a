@@ -8,57 +8,6 @@
 #include "NoteData.h"
 #include "NoteTypes.h"
 
-#if 0
-void KSFLoader::RemoveHoles( NoteData &out, const Song &song )
-{
-	/* Start at the second BPM segment; the first one is already aligned. */
-	for( unsigned seg = 1; seg < song.m_Timing.m_BPMSegments.size(); ++seg )
-	{
-//		const float FromBeat = song.m_Timing.m_BPMSegments[seg].m_fStartBeat;
-		const float FromBeat = song.m_Timing.m_BPMSegments[seg].m_fStartBeat * song.m_BPMSegments[seg].m_fBPM / song.m_BPMSegments[0].m_fBPM;
-		const int FromRow = (int) BeatToNoteRow(FromBeat);
-		const int ToRow = (int) BeatToNoteRow(song.m_Timing.m_BPMSegments[seg].m_fStartBeat);
-
-		LOG->Trace("from %f (%i) to (%i)", FromBeat, FromRow, ToRow);
-//		const int ToRow = (int) roundf(FromRow * song.m_Timing.m_BPMSegments[0].m_fBPM / song.m_BPMSegments[seg].m_fBPM);
-//		const int Rows = out.GetLastRow() - FromRow + 1;
-//		int LastRow;
-//		if(seg+1 < song.m_Timing.m_BPMSegments().size())
-//			LastRow = (int) NoteRowToBeat( song.m_Timing.m_BPMSegments[seg+1].m_fStartBeat ) - 1;
-//		else
-//			LastRow = out.GetLastRow();
-		NoteData tmp;
-		tmp.SetNumTracks(out.GetNumTracks());
-		tmp.CopyRange( &out, FromRow, out.GetLastRow() );
-		out.ClearRange( FromRow, out.GetLastRow() );
-		out.CopyRange( &tmp, 0, tmp.GetLastRow(), ToRow );
-	}
-
-/*
-	out.ConvertHoldNotesTo2sAnd3s();
-	for( t = 0; t < notedata.GetNumTracks(); ++t )
-	{
-		const float CurBPM = song.GetBPMAtBeat( NoteRowToBeat(row) );
-		song.m_Timing.m_BPMSegments.size()
-		for( int row = 0; row <= notedata.GetLastRow(); ++row )
-		{
-			TapNote tn = notedata.GetTapNote(t, row);
-			if( tn == TAP_EMPTY )
-				continue;
-
-			const int RealRow = (int) roundf(row * OrigBPM / CurBPM);
-			if( RealRow == row )
-				continue;
-			LOG->Trace("from %i to %i", row, RealRow);
-			notedata.SetTapNote( t, RealRow, tn );
-			notedata.SetTapNote( t, row, TAP_EMPTY );
-		}
-	}
-	out.Convert2sAnd3sToHoldNotes();
-*/
-}
-#endif
-
 bool KSFLoader::LoadFromKSFFile( const CString &sPath, Steps &out, const Song &song )
 {
 	LOG->Trace( "Steps::LoadFromKSFFile( '%s' )", sPath.c_str() );
@@ -209,10 +158,6 @@ bool KSFLoader::LoadFromKSFFile( const CString &sPath, Steps &out, const Song &s
 			notedata.SetTapNote(t, row, tap);
 		}
 	}
-
-	/* We need to remove holes where the BPM increases. */
-//	if( song.m_Timing.m_BPMSegments.size() > 1 )
-//		RemoveHoles( notedata, song );
 
 	out.SetNoteData(&notedata);
 

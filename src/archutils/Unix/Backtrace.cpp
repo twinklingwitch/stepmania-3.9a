@@ -324,19 +324,7 @@ static void do_backtrace( const void **buf, size_t size, const BacktraceContext 
 			buf[i++] = p;
 	}
 
-#if 0
-	/* ebp is usually the frame pointer. */
-	const StackFrame *frame = (StackFrame *) ctx->bp;
-
-	/* If ebp doesn't point to a valid stack frame, we're probably in
-	 * -fomit-frame-pointer code.  Ignore it; use esp instead.  It probably
-	 * won't point to a stack frame, but it should at least give us a starting
-	 * point in the stack. */
-	if( !IsValidFrame( frame ) )
-		frame = (StackFrame *) ctx->sp;
-#endif
-
-	/* Actually, let's just use esp.  Even if ebp points to a valid stack frame, there might be
+	/* Use esp, not ebp.  Even if ebp points to a valid stack frame, there might be
 	 * -fomit-frame-pointer calls in front of it, and we want to get those. */
 	const StackFrame *frame = (StackFrame *) ctx->sp;
 

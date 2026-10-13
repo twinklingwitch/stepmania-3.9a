@@ -11,7 +11,6 @@ class KSFLoader: public NotesLoader
 {
 	bool LoadFromKSFFile( const CString &sPath, Steps &out, const Song &song );
 	bool LoadGlobalData( const CString &sPath, Song &out );
-	void RemoveHoles( NoteData &out, const Song &song );
 	void LoadTags( const CString &str, Song &out );
 
 public:

@@ -1944,32 +1944,6 @@ void NoteDataUtil::AddTapAttacks( NoteData &nd, Song* pSong )
 	}
 }
 
-#if 0 // undo this if ScaleRegion breaks more things than it fixes
-void NoteDataUtil::Scale( NoteData &nd, float fScale )
-{
-	ASSERT( fScale > 0 );
-
-	NoteData temp;
-	temp.CopyAll( &nd );
-	nd.ClearAll();
-
-	for( int r=0; r<=temp.GetLastRow(); r++ )
-	{
-		for( int t=0; t<temp.GetNumTracks(); t++ )
-		{
-			TapNote tn = temp.GetTapNote( t, r );
-			if( tn != TAP_EMPTY )
-			{
-				temp.SetTapNote( t, r, TAP_EMPTY );
-
-				int new_row = int(r*fScale);
-				nd.SetTapNote( t, new_row, tn );
-			}
-		}
-	}
-}
-#endif
-
 // added to fix things in the editor - make sure that you're working off data that is 
 // either in 4s or in 2s and 3s.
 void NoteDataUtil::ScaleRegion( NoteData &nd, float fScale, float fStartBeat, float fEndBeat)

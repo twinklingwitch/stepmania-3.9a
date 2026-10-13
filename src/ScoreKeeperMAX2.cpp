@@ -182,17 +182,8 @@ static int GetScore(int p, int B, int S, int n)
 	 * changes the scoring rules slightly.
 	 */
 
-#if 0
-	/* This is the actual method described below. */
-	return p * (B / S) * n;
-#elif 1
-	/* This doesn't round down B/S. */
+	/* The method described below is p * (B / S) * n; this doesn't round down B/S. */
 	return int(int64_t(p) * n * B / S);
-#else
-	/* This also doesn't round down B/S. Use this if you don't have 64-bit ints. */
-	return int(p * n * (float(B) / S));
-#endif
-
 }
 
 void ScoreKeeperMAX2::AddScore( TapNoteScore score )

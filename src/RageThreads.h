@@ -60,12 +60,8 @@ class RageMutex
 	MutexImpl *m_pMutex;
 	CString m_sName;
 
-	int m_UniqueID;
-	
 	uint64_t m_LockedBy;
 	int m_LockCnt;
-
-	void MarkLockedMutex();
 
 public:
 	CString GetName() const { return m_sName; }
@@ -101,24 +97,6 @@ public:
 	void Unlock();
 };
 
-
-/* Double-abstracting __LINE__ lets us append it to other text, to generate
- * locally unique variable names.  (Otherwise we get "LocalLock__LINE__".) I'm
- * not sure why this works, but it does. */
-
-#if 0
-#ifdef DEBUG
-/* Use the debug version, which logs if something holds a lock for a long time.
- * __FUNCTION__ is nonstandard, but both GCC and VC support it; VC doesn't
- * support the standard, __func__. */
-#define LockMutL2(m, l) LockMutex LocalLock ## l (m, __FUNCTION__, __LINE__)
-#else
-#define LockMutL2(m, l) LockMutex LocalLock ## l (m)
-#endif
-
-#define LockMutL(m, l) LockMutL2(m, l)
-#define LockMut(m) LockMutL(m, __LINE__)
-#endif
 
 /* This can only be used once per function.  If you need more than that,
  * declare LockMutexes yourself. */

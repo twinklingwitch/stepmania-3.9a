@@ -531,52 +531,6 @@ int RageSoundReader_MP3::seek_stream_to_byte( int byte )
 }
 
 
-#if 0
-/* Call this after seeking the stream.  We'll back up a bit and reread
- * frames until we're back where we started, so the next read is aligned
- * to a frame and synced.  This must never leave the position ahead of where
- * it way, since that can confuse the seek optimizations. */
-int RageSoundReader_MP3::resync()
-{
-	/* Save the timer; decoding will change it, and we need to put it back. */
-	mad_timer_t orig = mad->Timer;
-
-	/* Seek backwards up to 4k. */
-	const int origpos = mad->inbuf_filepos;
-	const int seekpos = max( 0, origpos - 1024*4 );
-	seek_stream_to_byte( seekpos );
-
-	/* Agh.  This is annoying.  We want to decode enough so that the next frame
-	 * read will be the first frame after the current file pointer.  If we just
-	 * read until the file pointer is >= what it was, we've passed it already.
-	 * So, read until it's >= what it was, counting the number of times we had
-	 * to read; then back up again and read n-1 times.  Gross. */
-	int reads = 0;
-	do
-	{
-		if( do_mad_frame_decode() <= 0 ) /* XXX eof */
-			return -1; /* it set the error */
-
-		reads++;
-	} while( get_this_frame_byte(mad) < origpos );
-
-	seek_stream_to_byte( seekpos );
-
-	reads--;
-	while( reads-- > 0 )
-	{
-		if( do_mad_frame_decode() <= 0 ) /* XXX eof */
-			return -1; /* it set the error */
-	}
-
-	/* Restore the timer. */
-	mad->Timer = orig;
-	mad->outpos = mad->outleft = 0;
-
-	return 1;
-}
-#endif
-
 RageSoundReader_MP3::RageSoundReader_MP3()
 {
 	mad = new madlib_t;
@@ -673,10 +627,6 @@ SoundReader *RageSoundReader_MP3::Copy() const
 	ret->mad->framelength = mad->framelength;
 	ret->Channels = Channels;
 	ret->mad->length = mad->length;
-
-//	int n = ret->do_mad_frame_decode();
-//	ASSERT( n > 0 );
-//	ret->synth_output();
 
 	return ret;
 }

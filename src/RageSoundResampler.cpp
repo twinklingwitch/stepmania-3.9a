@@ -43,29 +43,6 @@ void RageSoundResampler::write(const void *data_, int bytes)
 		return;
 	}
 
-#if 0
-	/* Much higher quality for 44100->48000 resampling, but way too slow. */
-	const int upsamp = 8;
-	const float div = float(InputRate*upsamp) / OutputRate;
-	for(unsigned f = 0; f < frames; ++f)
-	{
-		for(int u = 0; u < upsamp; ++u)
-		{
-			int ipos_begin = (int) roundf(ipos / div);
-			int ipos_end = (int) roundf((ipos+1) / div);
-
-			for(int c = 0; c < Channels; ++c)
-			{
-				const float f = 0.5f;
-				prev[c] = int16_t(prev[c] * (f) + data[c] * (1-f));
-				for(int i = ipos_begin; i < ipos_end; ++i)
-					outbuf.push_back(prev[c]);
-			}
-			ipos++;
-		}
-		data += Channels;
-	}
-#else
 	/* Lerp. */
 	const float div = float(InputRate) / OutputRate;
 	for(unsigned f = 0; f < frames; ++f)
@@ -86,7 +63,6 @@ void RageSoundResampler::write(const void *data_, int bytes)
 		ipos++;
 		data += Channels;
 	}
-#endif
 }
 
 

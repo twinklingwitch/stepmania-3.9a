@@ -17,7 +17,6 @@
 #include "RageUtil.h"
 
 #include <cerrno>
-#include <set>
 
 #include "arch/Threads/Threads.h"
 #include "arch/Dialog/Dialog.h"
@@ -32,7 +31,6 @@
 bool RageThread::m_bSystemSupportsTLS = false;
 
 #define MAX_THREADS 128
-//static vector<RageMutex*> *g_MutexList = NULL; /* watch out for static initialization order problems */
 
 struct ThreadSlot
 {
@@ -421,133 +419,17 @@ const char *Checkpoints::GetLogs( const char *delim )
  * to yank the scheduler away from a thread that locks a mutex that it already owns.
  */
 
-#if 0
-static const int MAX_MUTEXES = 256;
-
-/* g_MutexesBefore[n] is a list of mutex IDs which must be locked before n (if at all). 
- * The array g_MutexesBefore[n] is locked for writing by locking mutex n, so lock that
- * mutex *before* calling MarkLockedMutex(). */
-bool g_MutexesBefore[MAX_MUTEXES][MAX_MUTEXES];
-
-void RageMutex::MarkLockedMutex()
-{
-	/* This only makes locking take about 25% longer, and we generally don't lock in
-	 * inner loops, so this is enabled by default for now. */
-//	if( !g_bEnableMutexOrderChecking )
-//		return;
-
-	const int ID = this->m_UniqueID;
-	ASSERT( ID < MAX_MUTEXES );
-
-	/* This is a queue of all mutexes that must be locked before ID, if at all. */
-	vector<const RageMutex *> before;
-
-	/* Iterate over all locked mutexes that are locked by this thread. */
-	unsigned i;
-	for( i = 0; i < g_MutexList->size(); ++i )
-	{
-		const RageMutex *mutex = (*g_MutexList)[i];
-		
-		if( mutex->m_UniqueID == this->m_UniqueID )
-			continue;
-
-		if( !mutex->IsLockedByThisThread() )
-			continue;
-
-		/* mutex must be locked before this.  If we've previously marked the opposite,
-		 * then we have an inconsistent lock order. */
-		if( g_MutexesBefore[mutex->m_UniqueID][this->m_UniqueID] )
-		{
-			LOG->Warn( "Mutex lock inconsistency: mutex \"%s\" must be locked before \"%s\"",
-				this->GetName().c_str(), mutex->GetName().c_str() );
-			
-			break;
-		}
-		
-		/* Optimization: don't add it to the queue if it's already been done. */
-		if( !g_MutexesBefore[this->m_UniqueID][mutex->m_UniqueID] )
-			before.push_back( mutex );
-	}
-	
-	while( before.size() )
-	{
-		const RageMutex *mutex = before.back();
-		before.pop_back();
-		
-		g_MutexesBefore[this->m_UniqueID][mutex->m_UniqueID] = 1;
-
-		/* All IDs which must be locked before mutex must also be locked before
-		 * this.  That is, if A < mutex, because mutex < this, mark A < this. */
-		for( i = 0; i < g_MutexList->size(); ++i )
-		{
-			const RageMutex *mutex2 = (*g_MutexList)[i];
-			if( g_MutexesBefore[mutex->m_UniqueID][mutex2->m_UniqueID] )
-				before.push_back( mutex2 );
-		}
-	}
-}
-
-/* XXX: How can g_FreeMutexIDs and g_MutexList be threadsafed? */
-static set<int> *g_FreeMutexIDs = NULL;
-#endif
-
 RageMutex::RageMutex( const CString name ):
 	m_sName( name )
 {
 	m_pMutex = MakeMutex( this );
 	m_LockedBy = GetInvalidThreadId();
 	m_LockCnt = 0;
-
-
-/*	if( g_FreeMutexIDs == NULL )
-	{
-		g_FreeMutexIDs = new set<int>;
-		for( int i = 0; i < MAX_MUTEXES; ++i )
-			g_FreeMutexIDs->insert( i );
-	}
-
-	if( g_FreeMutexIDs->empty() )
-	{
-		ASSERT_M( g_MutexList, "!g_FreeMutexIDs but !g_MutexList?" ); // doesn't make sense to be out of mutexes yet never created any
-		CString s;
-		for( unsigned i = 0; i < g_MutexList->size(); ++i )
-		{
-			if( i )
-				s += ", ";
-			s += ssprintf( "\"%s\"", (*g_MutexList)[i]->GetName().c_str() );
-		}
-		LOG->Trace( "%s", s.c_str() );
-		FAIL_M( ssprintf("MAX_MUTEXES exceeded creating \"%s\"", name.c_str() ) );
-	}
-
-	m_UniqueID = *g_FreeMutexIDs->begin();
-
-	g_FreeMutexIDs->erase( g_FreeMutexIDs->begin() );
-
-	if( g_MutexList == NULL )
-		g_MutexList = new vector<RageMutex*>;
-
-	g_MutexList->push_back( this );
-*/
 }
 
 RageMutex::~RageMutex()
 {
 	delete m_pMutex;
-/*
-	vector<RageMutex*>::iterator it = find( g_MutexList->begin(), g_MutexList->end(), this );
-	ASSERT( it != g_MutexList->end() );
-	g_MutexList->erase( it );
-	if( g_MutexList->empty() )
-	{
-		delete g_MutexList;
-		g_MutexList = NULL;
-	}
-
-	delete m_pMutex;
-
-	g_FreeMutexIDs->insert( m_UniqueID );
-*/
 }
 
 void RageMutex::Lock()
@@ -586,10 +468,6 @@ void RageMutex::Lock()
 	}
 
 	m_LockedBy = GetThisThreadId();
-
-	/* This has internal thread safety issues itself (eg. one thread may delete
-	 * a mutex while another locks one); disable for now. */
-//	MarkLockedMutex();
 }
 
 bool RageMutex::TryLock()

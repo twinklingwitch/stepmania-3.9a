@@ -28,7 +28,6 @@ public:
 
 	int fill_buffer();
 	int do_mad_frame_decode( bool headers_only=false );
-	int resync();
 	void synth_output();
 	int seek_stream_to_byte( int byte );
 	bool handle_first_frame();
