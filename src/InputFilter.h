@@ -48,6 +48,10 @@ class InputFilter
 	};
 	ButtonState m_ButtonState[NUM_INPUT_DEVICES][MAX_DEVICE_BUTTONS];
 
+	/* False if no button on the device is held or has a level change that
+	 * Update hasn't seen, so Update has nothing to do for it. */
+	bool m_bDeviceActive[NUM_INPUT_DEVICES];
+
 	InputEventArray queue;
 	RageMutex *queuemutex;
 

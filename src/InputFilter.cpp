@@ -20,6 +20,7 @@ InputFilter::InputFilter()
 {
 	queuemutex = new RageMutex("InputFilter");
 	memset( m_ButtonState, 0, sizeof(m_ButtonState) );
+	memset( m_bDeviceActive, 0, sizeof(m_bDeviceActive) );
 
 	Reset();
 	ResetRepeatRate();
@@ -56,6 +57,7 @@ void InputFilter::ButtonPressed( DeviceInput di, bool Down )
 	ButtonState &bs = m_ButtonState[di.device][di.button];
 
 	bs.m_Level = di.level;
+	m_bDeviceActive[di.device] = true;
 
 	if( bs.m_BeingHeld == Down )
 		return;
@@ -104,6 +106,10 @@ void InputFilter::Update(float fDeltaTime)
 
 	for( int d=0; d<NUM_INPUT_DEVICES; d++ )	// foreach InputDevice
 	{
+		if( !m_bDeviceActive[d] )
+			continue;
+		bool bActive = false;
+
 		di.device = (InputDevice)d;
 
 		for( int b=0; b < NUM_DEVICE_BUTTONS[d]; b++ )	// foreach button
@@ -122,6 +128,7 @@ void InputFilter::Update(float fDeltaTime)
 			/* Generate IET_FAST_REPEAT and IET_SLOW_REPEAT events. */
 			if( !bs.m_BeingHeld )
 				continue;
+			bActive = true;
 
 			const float fOldHoldTime = bs.m_fSecsHeld;
 			bs.m_fSecsHeld += fDeltaTime;
@@ -147,6 +154,8 @@ void InputFilter::Update(float fDeltaTime)
 				}
 			}
 		}
+
+		m_bDeviceActive[d] = bActive;
 	}
 
 }
