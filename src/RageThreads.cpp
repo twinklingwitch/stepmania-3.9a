@@ -80,8 +80,9 @@ void ThreadSlot::ThreadCheckpoint::Set(const char *File_, int Line_, const char 
 	File=File_;
 	Line=Line_;
 	Message=Message_;
+	/* File is NULL until the checkpoint is first set. */
 	sprintf( FormattedBuf, "        %s:%i %s",
-		File, Line, Message? Message:"" );
+		File? File:"(null)", Line, Message? Message:"" );
 }
 
 const char *ThreadSlot::ThreadCheckpoint::GetFormattedCheckpoint()
@@ -246,8 +247,9 @@ static struct SetupMainThread
 	{
 		LockMut(g_ThreadSlotsLock);
 		int slot = FindEmptyThreadSlot();
-		strcpy( g_ThreadSlots[slot].name, "Main thread" );
-		sprintf( g_ThreadSlots[slot].ThreadFormattedOutput, "Thread: %s", g_ThreadSlots[slot].name );
+		const char *szName = "Main thread";
+		strcpy( g_ThreadSlots[slot].name, szName );
+		sprintf( g_ThreadSlots[slot].ThreadFormattedOutput, "Thread: %s", szName );
 		g_ThreadSlots[slot].pImpl = MakeThisThread();
 		g_ThreadSlots[slot].id = RageThread::GetCurrentThreadID();
 	}

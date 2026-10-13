@@ -315,7 +315,7 @@ bool RunTests( SoundReader *snd, const TestFile &tf )
 
 		if( InitialDataSize < (int) sizeof(tf.initial) )
 		{
-			LOG->Warn( "Not enough (%i<%i) data to check after %i frames of silence", InitialDataSize, sizeof(tf.initial), SilentFrames );
+			LOG->Warn( "Not enough (%i<%i) data to check after %i frames of silence", InitialDataSize, (int) sizeof(tf.initial), SilentFrames );
 			return false;
 		}
 		

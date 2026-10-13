@@ -111,8 +111,9 @@ int64_t pos_map_queue::Search( int64_t frame, bool *approximate ) const
 	{
 		last.GetDeltaTime();
 		LOG->Trace( "Approximate sound time: driver frame " LI ", m_Queue frame " LI ".." LI " (dist " LI "), closest position is " LI,
-			frame, m_Queue[closest_block].frameno, m_Queue[closest_block].frameno+m_Queue[closest_block].frames,
-			closest_position_dist, closest_position );
+			(long long) frame, (long long) m_Queue[closest_block].frameno,
+			(long long) (m_Queue[closest_block].frameno+m_Queue[closest_block].frames),
+			(long long) closest_position_dist, (long long) closest_position );
 	}
 
 	if( approximate )

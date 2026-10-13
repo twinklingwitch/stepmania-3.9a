@@ -270,7 +270,7 @@ void TestSeek( bool relative )
 
 	if( ret != int(TestLine.size()+junk.size()) )
 	{
-		LOG->Warn( "%s(%i) failed: got %i", relative? "SeekCur":"Seek", TestLine.size()+junk.size(), ret );
+		LOG->Warn( "%s(%i) failed: got %i", relative? "SeekCur":"Seek", int(TestLine.size()+junk.size()), ret );
 		return;
 	}
 

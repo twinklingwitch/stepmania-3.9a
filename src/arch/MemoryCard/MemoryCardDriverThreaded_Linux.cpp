@@ -259,9 +259,9 @@ void MemoryCardDriverThreaded_Linux::MountThreadDoOneUpdate()
 		{
 			UsbStorageDevice &d = vDisconnects[i];
 			CString sCommand = "umount " + d.sOsMountDir;
-			LOG->Trace( "unmount disconnects %i/%i (%s)", i, vDisconnects.size(), sCommand.c_str() );
+			LOG->Trace( "unmount disconnects %i/%i (%s)", i, (int) vDisconnects.size(), sCommand.c_str() );
 			ExecuteCommand( sCommand );
-			LOG->Trace( "unmount disconnects %i/%i done", i, vDisconnects.size() );
+			LOG->Trace( "unmount disconnects %i/%i done", i, (int) vDisconnects.size() );
 		}
 		
 		// mount all devices that need a write test
@@ -281,14 +281,14 @@ void MemoryCardDriverThreaded_Linux::MountThreadDoOneUpdate()
 			// wasn't unmounted before, then our mount call will fail and the 
 			// mount may contain an out-of-date view of the files on the device.
 			sCommand = "umount " + d.sOsMountDir;
-			LOG->Trace( "unmount old connect %i/%i (%s)", i, vConnects.size(), sCommand.c_str() );
+			LOG->Trace( "unmount old connect %i/%i (%s)", i, (int) vConnects.size(), sCommand.c_str() );
 			ExecuteCommand( sCommand );   // don't care if this fails
-			LOG->Trace( "unmount old connect %i/%i done", i, vConnects.size() );
+			LOG->Trace( "unmount old connect %i/%i done", i, (int) vConnects.size() );
 			
 			sCommand = "mount " + d.sOsMountDir;
-			LOG->Trace( "mount new connect %i/%i (%s)", i, vConnects.size(), sCommand.c_str() );
+			LOG->Trace( "mount new connect %i/%i (%s)", i, (int) vConnects.size(), sCommand.c_str() );
 			bool bMountedSuccessfully = ExecuteCommand( sCommand );
-			LOG->Trace( "mount new connect %i/%i done", i, vConnects.size() );
+			LOG->Trace( "mount new connect %i/%i done", i, (int) vConnects.size() );
 			
 			d.bWriteTestSucceeded = bMountedSuccessfully && TestWrite( d.sOsMountDir );
 			

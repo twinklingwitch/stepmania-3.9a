@@ -219,7 +219,7 @@ void SongManager::LoadStepManiaSongDir( CString sDir, LoadingWindow *ld )
 		GetDirListing( sDir+sGroupDirName + "/*", arraySongDirs, true, true );
 		SortCStringArray( arraySongDirs );
 
-		LOG->Trace("Attempting to load %i songs from \"%s\"", arraySongDirs.size(), (sDir+sGroupDirName).c_str() );
+		LOG->Trace("Attempting to load %i songs from \"%s\"", (int) arraySongDirs.size(), (sDir+sGroupDirName).c_str() );
 		int loaded = 0;
 
 		for( unsigned j=0; j< arraySongDirs.size(); j++ )	// for each song dir
