@@ -489,9 +489,43 @@ char* XNode::Load( const char* pszXml, PARSEINFO *pi /*= &piDefault*/ )
 // Coder    Date                      Desc
 // bro      2002-10-29
 //========================================================
+/* Append a value, converted to references if the options say so.  This is
+ * Entity2Ref without the copies; like it, it stops at a NUL. */
+static void AppendValue( CString &sOut, const CString &sValue, const DISP_OPT *opt )
+{
+	if( !opt->reference_value || !opt->entitys )
+	{
+		sOut += sValue;
+		return;
+	}
+
+	const char *p = sValue.c_str();
+	const char *pRun = p;
+	for( ; *p; ++p )
+	{
+		const XENTITY *ent = opt->entitys->GetEntity( *p );
+		if( ent == NULL )
+			continue;
+		sOut.append( pRun, p-pRun );
+		sOut += ent->ref;
+		pRun = p+1;
+	}
+	sOut.append( pRun, p-pRun );
+}
+
+void XAttr::GetXML( CString &sOut, DISP_OPT *opt /*= &optDefault*/ )
+{
+	sOut += name;
+	sOut += "='";
+	AppendValue( sOut, value, opt );
+	sOut += "' ";
+}
+
 bool XAttr::GetXML( RageFile &f, DISP_OPT *opt /*= &optDefault*/ )
 {
-	return f.Write(name + "='" + (opt->reference_value&&opt->entitys?opt->entitys->Entity2Ref(value):value) + "' ") != -1;
+	CString sOut;
+	GetXML( sOut, opt );
+	return f.Write( sOut ) != -1;
 }
 
 //========================================================
@@ -503,82 +537,75 @@ bool XAttr::GetXML( RageFile &f, DISP_OPT *opt /*= &optDefault*/ )
 // Coder    Date                      Desc
 // bro      2002-10-29
 //========================================================
+/* Build the text in memory and write it at once: a node is written as many
+ * small pieces, and profiles and the catalog have tens of thousands of nodes. */
 bool XNode::GetXML( RageFile &f, DISP_OPT *opt /*= &optDefault*/ )
+{
+	CString sOut;
+	GetXML( sOut, opt );
+	return f.Write( sOut ) != -1;
+}
+
+void XNode::GetXML( CString &sOut, DISP_OPT *opt /*= &optDefault*/ )
 {
 	// tab
 	if( opt && opt->newline )
 	{
-		if( opt && opt->newline )
-			if( f.Write("\r\n") == -1 )
-				return false;
-		if( opt->write_tabs )
-			for( int i = 0 ; i < opt->tab_base ; i++)
-				if( f.Write("\t") == -1 )
-					return false;
+		sOut += "\r\n";
+		if( opt->write_tabs && opt->tab_base > 0 )
+			sOut.append( opt->tab_base, '\t' );
 	}
 
 	// <TAG
-	if( f.Write("<" + name) == -1 )
-		return false;
+	sOut += '<';
+	sOut += name;
 
-	// <TAG Attr1="Val1" 
+	// <TAG Attr1="Val1"
 	if( !attrs.empty() )
-		if( f.Write(" ") == -1 )
-			return false;
+		sOut += ' ';
 	for( unsigned i = 0 ; i < attrs.size(); i++ )
-		if( !attrs[i]->GetXML(f, opt) )
-			return false;
-	
+		attrs[i]->GetXML( sOut, opt );
+
 	if( childs.empty() && value.empty() )
 	{
-		// <TAG Attr1="Val1"/> alone tag 
-		if( f.Write("/>") == -1 )
-			return false;
+		// <TAG Attr1="Val1"/> alone tag
+		sOut += "/>";
 	}
 	else
 	{
 		// <TAG Attr1="Val1"> and get child
-		if( f.Write(">") == -1 )
-			return false;
-			
+		sOut += '>';
+
 		if( opt && opt->newline && !childs.empty() )
 		{
 			opt->tab_base++;
 		}
 
 		for( unsigned i = 0 ; i < childs.size(); i++ )
-			if( !childs[i]->GetXML( f, opt ) )
-				return false;
-		
+			childs[i]->GetXML( sOut, opt );
+
 		// Text Value
 		if( value != ("") )
 		{
 			if( opt && opt->newline && !childs.empty() )
 			{
-				if( opt && opt->newline )
-					if( f.Write("\r\n") == -1 )
-						return false;
-				if( opt->write_tabs )
-					for( int i = 0 ; i < opt->tab_base ; i++)
-						if( f.Write("\t") == -1 )
-							return false;
+				sOut += "\r\n";
+				if( opt->write_tabs && opt->tab_base > 0 )
+					sOut.append( opt->tab_base, '\t' );
 			}
-			if( f.Write((opt->reference_value&&opt->entitys?opt->entitys->Entity2Ref(value):value)) == -1 )
-				return false;
+			AppendValue( sOut, value, opt );
 		}
 
 		// </TAG> CloseTag
 		if( opt && opt->newline && !childs.empty() )
 		{
-			if( f.Write("\r\n") == -1 )
-				return false;
-			if( opt->write_tabs )
-				for( int i = 0 ; i < opt->tab_base-1 ; i++)
-					if( f.Write("\t") == -1 )
-						return false;
+			sOut += "\r\n";
+			if( opt->write_tabs && opt->tab_base > 1 )
+				sOut.append( opt->tab_base-1, '\t' );
 		}
-		if( f.Write("</" + name + ">") == -1 )
-			return false;
+		sOut += "</";
+		sOut += name;
+		sOut += '>';
 
 		if( opt && opt->newline )
 		{
@@ -586,7 +613,6 @@ bool XNode::GetXML( RageFile &f, DISP_OPT *opt /*= &optDefault*/ )
 				opt->tab_base--;
 		}
 	}
-	return true;
 }
 
 //========================================================
