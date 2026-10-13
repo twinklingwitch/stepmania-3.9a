@@ -68,6 +68,9 @@ The few intentional differences:
   "Rate Up" and "Rate Down", so Config Key/Joy has two more rows at the end of
   each game's list, and you can map them to other keys or to pad and joystick
   buttons (see [Music rate keys](#music-rate-keys)).
+- In dance, Player 1's Left, Down, Up and Right are also on `D`, `F`, `J` and `K`
+  by default, besides the arrow keys.  Like the `+` key they go in the second
+  slot of Config Key/Joy, and only if that slot and the key are free.
 - Event Mode is on by default, so you can keep playing songs instead of being
   sent back to the title screen after the last stage.  Turn it off in the coin
   options for the arcade-style stage limit.

@@ -37,10 +37,15 @@ void InputMapper::ClearAllMappings()
 }
 
 /* Rate Up is on = and on + (the + key is the unshifted one on Spanish and Latin
- * American layouts, where there is no = key). */
-static const struct { const char *szButton; int iKey; } g_SecondDefaultKeys[] =
+ * American layouts, where there is no = key).  In dance, player 1's arrows are
+ * also on D F J K, the usual keyboard layout.  A NULL game is every game. */
+static const struct { const char *szGame; const char *szButton; int iKey; } g_SecondDefaultKeys[] =
 {
-	{ "Rate Up", KEY_PLUS },
+	{ NULL, "Rate Up", KEY_PLUS },
+	{ "dance", "Left", KEY_Cd },
+	{ "dance", "Down", KEY_Cf },
+	{ "dance", "Up", KEY_Cj },
+	{ "dance", "Right", KEY_Ck },
 };
 
 void InputMapper::AddDefaultMappingsForCurrentGameIfUnmapped()
@@ -70,6 +75,8 @@ void InputMapper::AddDefaultMappingsForCurrentGameIfUnmapped()
 	// made on the config screen, as there is only the one default slot.
 	for( unsigned i=0; i<ARRAYSIZE(g_SecondDefaultKeys); i++ )
 	{
+		if( g_SecondDefaultKeys[i].szGame != NULL  &&  strcmp(g_SecondDefaultKeys[i].szGame, pGame->m_szName) )
+			continue;
 		GameButton gb = pGame->ButtonNameToIndex( g_SecondDefaultKeys[i].szButton );
 		if( gb == GAME_BUTTON_INVALID )
 			continue;
