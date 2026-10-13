@@ -1583,7 +1583,7 @@ void NoteDataUtil::SnapToNearestNoteType( NoteData &in, NoteType nt1, NoteType n
 		default:	ASSERT( false );						return;
 	}
 
-	switch( nt2 )
+	switch( (int)nt2 )
 	{
 		case NOTE_TYPE_4TH:		fSnapInterval2 = 1/1.0f;	break;
 		case NOTE_TYPE_8TH:		fSnapInterval2 = 1/2.0f;	break;
