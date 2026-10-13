@@ -10,11 +10,9 @@ const int HOURS_IN_DAY = 24;
 const int DAYS_IN_WEEK = 7;
 const int MONTHS_IN_YEAR = 12;
 
-CString DayInYearToString( int iDayInYearIndex );
 CString LastDayToString( int iLastDayIndex );
 CString DayOfWeekToString( int iDayOfWeekIndex );
 CString HourInDayToString( int iHourIndex );
-CString MonthToString( int iMonthIndex );
 CString LastWeekToString( int iLastWeekIndex );
 
 tm AddDays( tm start, int iDaysToMove );
@@ -22,7 +20,6 @@ tm GetYesterday( tm start );
 int GetDayOfWeek( tm time );
 tm GetNextSunday( tm start );
 
-tm GetDayInYearAndYear( int iDayInYearIndex, int iYear );
 
 
 struct DateTime 

@@ -265,13 +265,6 @@ CString CryptManager::GetSHA1ForString( const CString &sData )
 	return s;
 }
 
-CString CryptManager::GetPublicKeyFileName()
-{
-	ASSERT( PREFSMAN->m_bSignProfileData );
-
-	return PUBLIC_KEY_PATH;
-}
-
 /*
  * (c) 2004 Chris Danford
  * All rights reserved.

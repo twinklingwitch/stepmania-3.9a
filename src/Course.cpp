@@ -256,14 +256,6 @@ void Course::LoadFromCRSFile( CString sPath )
 	m_sMainTitleTranslit = title.TitleTranslit;
 }
 
-void Course::RevertFromDisk()
-{
-	// trying to catch invalid an Course
-	ASSERT( !m_sPath.empty() );
-
-	LoadFromCRSFile( m_sPath );
-}
-
 void Course::Init()
 {
 	m_bIsAutogen = false;
@@ -936,28 +928,6 @@ bool Course::AllSongsAreFixed() const
 			return false;
 	}
 	return true;
-}
-
-void Course::Invalidate( Song *pStaleSong )
-{
-	FOREACH_CONST( CourseEntry, m_entries, e )
-	{
-		if( e->pSong == pStaleSong )	// a fixed entry that references the stale Song
-		{
-			RevertFromDisk();
-			return;
-		}
-	}
-
-	// Invalidate any Trails that contain this song.
-	// If we find a Trail that contains this song, then it's part of a 
-	// non-fixed entry.  So, regenerating the Trail will force different
-	// songs to be chosen.
-	FOREACH_StepsType( st )
-		FOREACH_ShownCourseDifficulty( cd )
-			if( m_TrailCacheValid[st][cd] && !m_TrailCacheNull[st][cd] )
-				if( GetTrail( st, cd )->ContainsSong( pStaleSong ) )
-					m_TrailCacheValid[st][cd] = false;
 }
 
 void Course::RegenerateNonFixedTrails()

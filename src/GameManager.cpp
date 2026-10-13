@@ -3010,13 +3010,6 @@ int GameManager::GetIndexFromGame( const Game* pGame )
 	return 0;
 }
 
-const Game* GameManager::GetGameFromIndex( int index )
-{
-	ASSERT( index >= 0 );
-	ASSERT( index < NUM_GAMES );
-	return &g_Games[index];
-}
-
 bool GameManager::IsGameEnabled( const Game *pGame )
 {
 	CStringArray asNoteSkins;

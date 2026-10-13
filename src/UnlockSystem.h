@@ -69,7 +69,6 @@ public:
 	void UnlockCode( int num );
 
 	// unlocks the song's code
-	void UnlockSong( const Song *song );
 
 	// All locked songs are stored here
 	vector<UnlockEntry>	m_SongEntries;

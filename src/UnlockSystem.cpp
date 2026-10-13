@@ -32,17 +32,6 @@ UnlockSystem::UnlockSystem()
 	Load();
 }
 
-void UnlockSystem::UnlockSong( const Song *song )
-{
-	const UnlockEntry *p = FindSong( song );
-	if( !p )
-		return;  // does not exist
-	if( p->m_iCode == -1 )
-		return;
-
-	UnlockCode( p->m_iCode );
-}
-
 bool UnlockSystem::CourseIsLocked( const Course *course ) const
 {
 	if( !PREFSMAN->m_bUseUnlockSystem )

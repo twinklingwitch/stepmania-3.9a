@@ -69,11 +69,6 @@ NoteType BeatToNoteType( float fBeat )
 	return GetNoteType( BeatToNoteRow(fBeat) );
 }
 
-bool IsNoteOfType( int iNoteIndex, NoteType t )
-{ 
-	return GetNoteType(iNoteIndex) == t;
-}
-
 /*
  * (c) 2001-2004 Chris Danford, Glenn Maynard
  * All rights reserved.

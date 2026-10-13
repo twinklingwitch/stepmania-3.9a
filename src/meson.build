@@ -87,7 +87,6 @@ data_structures = files(
   'Difficulty.cpp',
   'DiscordIpc.cpp',
   'DiscordPresence.cpp',
-  'EnumHelper.cpp',
   'Course.cpp',
   'CourseUtil.cpp',
   'DateTime.cpp',

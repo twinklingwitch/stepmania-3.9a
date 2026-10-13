@@ -93,7 +93,6 @@ struct StageStats
 	bool	FullCombo( PlayerNumber pn ) const { return FullComboOfScore(pn,TNS_GREAT); }
 	bool	SingleDigitsOfScore( PlayerNumber pn, TapNoteScore tnsAllGreaterOrEqual ) const;
 	bool	OneOfScore( PlayerNumber pn, TapNoteScore tnsAllGreaterOrEqual ) const;
-	int		GetTotalTaps( PlayerNumber pn ) const;
 	float	GetPercentageOfTaps( PlayerNumber pn, TapNoteScore tns ) const;
 	void	UpdateComboList( PlayerNumber pn, float fSecond, bool rollover );
 	Combo_t GetMaxCombo( PlayerNumber pn ) const;

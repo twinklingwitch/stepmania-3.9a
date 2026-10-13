@@ -189,17 +189,6 @@ int Font::GetLineWidthInSourcePixels( const wstring &szLine ) const
 	return LineWidth;
 }
 
-int Font::GetLineHeightInSourcePixels( const wstring &szLine ) const
-{
-	int iLineHeight = 0;
-
-	/* The height of a line is the height of its tallest used font page. */
-	for( unsigned i=0; i<szLine.size(); i++ )
-		iLineHeight = max(iLineHeight, GetGlyph(szLine[i]).fp->height);
-
-	return iLineHeight;
-}
-
 
 Font::Font()
 {

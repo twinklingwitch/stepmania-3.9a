@@ -389,16 +389,6 @@ void PlayerOptions::NextScroll()
 	NextFloat( m_fScrolls, NUM_SCROLLS );
 }
 
-void PlayerOptions::NextPerspective()
-{
-	switch( (int)m_fPerspectiveTilt )
-	{
-	case -1:			m_fPerspectiveTilt =  0;	break;
-	case  0:			m_fPerspectiveTilt = +1;	break;
-	case +1: default:	m_fPerspectiveTilt = -1;	break;
-	}
-}
-
 void PlayerOptions::ChooseRandomMofifiers()
 {
 	if( RandomFloat(0,1)>0.8f )
@@ -420,22 +410,6 @@ void PlayerOptions::ChooseRandomMofifiers()
 		m_fAppearances[APPEARANCE_SUDDEN] = 1;
 }
 
-PlayerOptions::Accel PlayerOptions::GetFirstAccel()
-{
-	for( int i=0; i<NUM_ACCELS; i++ )
-		if( m_fAccels[i] == 1.f )
-			return (Accel)i;
-	return (Accel)-1;
-}
-
-PlayerOptions::Effect PlayerOptions::GetFirstEffect()
-{
-	for( int i=0; i<NUM_EFFECTS; i++ )
-		if( m_fEffects[i] == 1.f )
-			return (Effect)i;
-	return (Effect)-1;
-}
-
 PlayerOptions::Appearance PlayerOptions::GetFirstAppearance()
 {
 	for( int i=0; i<NUM_APPEARANCES; i++ )
@@ -444,36 +418,10 @@ PlayerOptions::Appearance PlayerOptions::GetFirstAppearance()
 	return (Appearance)-1;
 }
 
-PlayerOptions::Scroll PlayerOptions::GetFirstScroll()
-{
-	for( int i=0; i<NUM_SCROLLS; i++ )
-		if( m_fScrolls[i] == 1.f )
-			return (Scroll)i;
-	return (Scroll)-1;
-}
-
-void PlayerOptions::SetOneAccel( Accel a )
-{
-	ZERO( m_fAccels );
-	m_fAccels[a] = 1;
-}
-
-void PlayerOptions::SetOneEffect( Effect e )
-{
-	ZERO( m_fEffects );
-	m_fEffects[e] = 1;
-}
-
 void PlayerOptions::SetOneAppearance( Appearance a )
 {
 	ZERO( m_fAppearances );
 	m_fAppearances[a] = 1;
-}
-
-void PlayerOptions::SetOneScroll( Scroll s )
-{
-	ZERO( m_fScrolls );
-	m_fScrolls[s] = 1;
 }
 
 void PlayerOptions::ToggleOneTurn( Turn t )

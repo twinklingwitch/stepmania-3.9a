@@ -159,14 +159,6 @@ static CString FormatCalories( float fCals )
 	return Commify((int)fCals) + " Cal";
 }
 
-CString Profile::GetDisplayTotalCaloriesBurned() const
-{
-	if( m_iWeightPounds == 0 )	// weight not entered
-		return "N/A";
-	else 
-		return FormatCalories( m_fTotalCaloriesBurned );
-}
-
 CString Profile::GetDisplayTotalCaloriesBurnedToday() const
 {
 	DateTime now = DateTime::GetNowDate();
@@ -175,14 +167,6 @@ CString Profile::GetDisplayTotalCaloriesBurnedToday() const
 		return "N/A";
 	else 
 		return FormatCalories( fCals );
-}
-
-int Profile::GetTotalNumSongsPlayed() const
-{
-	int iTotal = 0;
-	FOREACH_PlayMode( i )
-		iTotal += m_iNumSongsPlayedByPlayMode[i];
-	return iTotal;
 }
 
 int Profile::GetTotalNumSongsPassed() const
@@ -1276,12 +1260,6 @@ void Profile::SaveStatsWebPageToDir( CString sDir ) const
 	FileCopy( THEME->GetPathO("Profile",CATALOG_XSL), sDir+CATALOG_XSL );
 	FileCopy( THEME->GetPathO("Profile",COMMON_XSL), sDir+COMMON_XSL );
 	FileCopy( CATALOG_XML_FILE, sDir+CATALOG_XML );
-}
-
-void Profile::SaveMachinePublicKeyToDir( CString sDir ) const
-{
-	if( PREFSMAN->m_bSignProfileData && IsAFile(CRYPTMAN->GetPublicKeyFileName()) )
-		FileCopy( CRYPTMAN->GetPublicKeyFileName(), sDir+PUBLIC_KEY_FILE );
 }
 
 void Profile::AddScreenshot( const Screenshot &screenshot )

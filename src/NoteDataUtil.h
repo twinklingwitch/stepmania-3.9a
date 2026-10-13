@@ -88,7 +88,6 @@ namespace NoteDataUtil
 
 	void TransformNoteData( NoteData &nd, const AttackArray &aa, StepsType st, Song* pSong );
 	void TransformNoteData( NoteData &nd, const PlayerOptions &po, StepsType st, float fStartBeat = 0, float fEndBeat = 99999 );
-	void AddTapAttacks( NoteData &nd, Song* pSong );
 
 	void ScaleRegion( NoteData &nd, float fScale, float fStartBeat = 0, float fEndBeat = 99999);
 	inline void Scale( NoteData &nd, float fScale ) { NoteDataUtil::ScaleRegion(nd, fScale); }

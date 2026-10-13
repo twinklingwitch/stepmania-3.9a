@@ -109,7 +109,6 @@ enum NoteType
 float NoteTypeToBeat( NoteType nt );
 NoteType GetNoteType( int iNoteIndex );
 NoteType BeatToNoteType( float fBeat );
-bool IsNoteOfType( int iNoteIndex, NoteType t );
 CString NoteTypeToString( NoteType nt );
 
 inline int   BeatToNoteRow( float fBeatNum )			{ return int( fBeatNum * ROWS_PER_BEAT + 0.5f); };	// round

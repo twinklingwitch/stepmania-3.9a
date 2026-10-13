@@ -784,13 +784,6 @@ bool StepManiaLanServer::CheckHasSongState()
 	return true;
 }
 
-void StepManiaLanServer::ClearHasSong()
-{
-	for (unsigned int x = 0; x < Client.size(); ++x)
-		Client[x]->hasSong = false;
-
-}
-
 void StepManiaLanServer::SendToAllClients(PacketFunctions& Packet)
 {
 	for (unsigned int x = 0; x < Client.size(); ++x)

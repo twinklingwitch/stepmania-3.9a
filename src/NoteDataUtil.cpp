@@ -1910,31 +1910,6 @@ void NoteDataUtil::TransformNoteData( NoteData &nd, const PlayerOptions &po, Ste
 	if( po.m_bTurns[PlayerOptions::TURN_SUPER_SHUFFLE] )	NoteDataUtil::Turn( nd, st, NoteDataUtil::super_shuffle, fStartBeat, fEndBeat );
 }
 
-void NoteDataUtil::AddTapAttacks( NoteData &nd, Song* pSong )
-{
-	// throw an attack in every 30 seconds
-
-	const char* szAttacks[3] =
-	{
-		"2x",
-		"drunk",
-		"dizzy",
-	};
-
-	for( float sec=15; sec<pSong->m_fMusicLengthSeconds; sec+=30 )
-	{
-		float fBeat = pSong->GetBeatFromElapsedTime( sec );
-		int iBeat = (int)fBeat;
-		int iTrack = iBeat % nd.GetNumTracks();	// deterministically calculates track
-		Attack attack;
-		attack.fStartSecond = -1;
-		attack.fSecsRemaining = 15;
-		attack.sModifier = szAttacks[rand()%ARRAYSIZE(szAttacks)];
-		attack.level = ATTACK_LEVEL_1;
-		nd.SetTapAttackNote( iTrack, BeatToNoteRow(fBeat), attack );
-	}
-}
-
 // added to fix things in the editor - make sure that you're working off data that is 
 // either in 4s or in 2s and 3s.
 void NoteDataUtil::ScaleRegion( NoteData &nd, float fScale, float fStartBeat, float fEndBeat)

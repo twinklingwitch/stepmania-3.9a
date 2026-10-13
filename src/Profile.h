@@ -38,7 +38,6 @@ const CString DONT_SHARE_SIG		= "DontShare.sig";
 // construct using STATS_XML but the user can't construct using STATS_XML.
 // The file contains a signature of the STATS_XML's signature.
 
-const CString PUBLIC_KEY_FILE		= "public.key";
 const CString SCREENSHOTS_SUBDIR	= "Screenshots/";
 const CString EDITS_SUBDIR			= "Edits/";
 
@@ -60,9 +59,7 @@ public:
 	// smart accessors
 	//
 	CString GetDisplayName() const;
-	CString GetDisplayTotalCaloriesBurned() const;
 	CString GetDisplayTotalCaloriesBurnedToday() const;
-	int GetTotalNumSongsPlayed() const;
 	int GetTotalNumSongsPassed() const;
 	float GetSongsPossible( StepsType st, Difficulty dc ) const;
 	float GetCoursesPossible( StepsType st, CourseDifficulty cd ) const;
@@ -291,7 +288,6 @@ public:
 	XNode* SaveCoinDataCreateNode() const;
 
 	void SaveStatsWebPageToDir( CString sDir ) const;
-	void SaveMachinePublicKeyToDir( CString sDir ) const;
 
 private:
 	const HighScoresForASong *GetHighScoresForASong( const SongID& songID ) const;

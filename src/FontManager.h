@@ -25,7 +25,6 @@ public:
 	void ReloadFonts();
 
 	static longchar MakeGameGlyph(wchar_t c, const Game* g);
-	static bool ExtractGameGlyph(longchar ch, wchar_t &c, const Game*& g);
 };
 
 extern FontManager*	FONT;	// global and accessable from anywhere in our program

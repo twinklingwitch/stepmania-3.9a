@@ -300,18 +300,6 @@ void NoteData::RemoveHoldNote( int iHoldIndex )
 	m_HoldNotes.erase(m_HoldNotes.begin()+iHoldIndex, m_HoldNotes.begin()+iHoldIndex+1);
 }
 
-/* Get a hold note with the same track and end row as hn. */
-int NoteData::GetMatchingHoldNote( const HoldNote &hn ) const
-{
-	for( int i=0; i<GetNumHoldNotes(); i++ )	// for each HoldNote
-	{
-		const HoldNote &ret = GetHoldNote(i);
-		if( ret.iTrack == hn.iTrack && ret.iEndRow == hn.iEndRow )
-			return i;
-	}
-	FAIL_M( ssprintf("%i..%i, %i", hn.iStartRow, hn.iEndRow, hn.iTrack) );
-}
-
 
 void NoteData::SetTapAttackNote( int track, int row, Attack attack )
 {
@@ -825,13 +813,6 @@ void NoteData::PadTapNotes(int rows)
 
 	for(int track = 0; track < m_iNumTracks; ++track)
 		m_TapNotes[track].insert( m_TapNotes[track].end(), needed, TAP_EMPTY );
-}
-
-void NoteData::MoveTapNoteTrack(int dest, int src)
-{
-	if(dest == src) return;
-	m_TapNotes[dest] = m_TapNotes[src];
-	m_TapNotes[src].clear();
 }
 
 void NoteData::SetTapNote(int track, int row, TapNote t)

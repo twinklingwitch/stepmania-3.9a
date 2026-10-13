@@ -26,7 +26,6 @@ public:
 	const Game* GetDefaultGame();
 	bool IsGameEnabled( const Game* pGame );
 	int GetIndexFromGame( const Game* pGame );
-	const Game* GetGameFromIndex( int index );
 
 	static int StepsTypeToNumTracks( StepsType st );
 	static StepsType StringToStepsType( CString sStepsType );

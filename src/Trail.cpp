@@ -171,16 +171,6 @@ bool Trail::IsMystery() const
 	return false;
 }
 
-bool Trail::ContainsSong( Song* pSong ) const
-{
-	FOREACH_CONST( TrailEntry, m_vEntries, e )
-	{
-		if( e->pSong == pSong )
-			return true;
-	}
-	return false;
-}
-
 /*
  * (c) 2001-2004 Chris Danford, Glenn Maynard
  * All rights reserved.

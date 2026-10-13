@@ -67,7 +67,6 @@ public:
 	float GetLengthSeconds() const;
 	void GetDisplayBpms( DisplayBpms &AddTo );
 	bool IsMystery() const;
-	bool ContainsSong( Song* pSong ) const;
 };
 
 #endif

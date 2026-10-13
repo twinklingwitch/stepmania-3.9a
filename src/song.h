@@ -158,7 +158,6 @@ public:
 	void AddLyricSegment( LyricSegment seg );
 
 	void GetDisplayBpms( DisplayBpms &AddTo ) const;
-	CString GetBackgroundAtBeat( float fBeat ) const;
 
 	float GetBPMAtBeat( float fBeat ) const { return m_Timing.GetBPMAtBeat( fBeat ); }
 	void SetBPMAtBeat( float fBeat, float fBPM ) { m_Timing.SetBPMAtBeat( fBeat, fBPM ); }

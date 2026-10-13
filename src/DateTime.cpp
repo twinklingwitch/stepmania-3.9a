@@ -100,19 +100,6 @@ success:
 
 
 
-CString DayInYearToString( int iDayInYear )
-{
-	return ssprintf("DayInYear%03d",iDayInYear);
-}
-
-int StringToDayInYear( CString sDayInYear )
-{
-	int iDayInYear;
-	if( sscanf( sDayInYear, "DayInYear%d", &iDayInYear ) != 1 )
-		return -1;
-	return iDayInYear;
-}
-
 static const CString LAST_DAYS_NAME[NUM_LAST_DAYS] =
 {
 	"Today",
@@ -165,11 +152,6 @@ static const CString MONTH_TO_NAME[MONTHS_IN_YEAR] =
 	"November",
 	"December",
 };
-
-CString MonthToString( int iMonthIndex )
-{
-	return MONTH_TO_NAME[iMonthIndex];
-}
 
 CString LastWeekToString( int iLastWeekIndex )
 {
@@ -233,18 +215,6 @@ tm GetNextSunday( tm start )
 	return AddDays( start, DAYS_IN_WEEK-GetDayOfWeek(start) );
 }
 
-
-tm GetDayInYearAndYear( int iDayInYearIndex, int iYear )
-{
-	tm when = GetLocalTime();
-
-	when.tm_mday = iDayInYearIndex;
-	when.tm_year = iYear - 1900;
-	time_t then = mktime( &when );
-
-	when = *localtime( &then );
-	return when;
-}
 
 
 /*

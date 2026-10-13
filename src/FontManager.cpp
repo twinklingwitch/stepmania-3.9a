@@ -39,17 +39,6 @@ longchar FontManager::MakeGameGlyph(wchar_t c, const Game* g)
 	return longchar (((index+1) << 24) + c);
 }
 
-bool FontManager::ExtractGameGlyph(longchar ch, wchar_t &cOut, const Game *&gOut)
-{
-	if((ch & 0xFF000000) == 0) return false; /* not a game glyph */
-	
-	int index = (ch >> 24) - 1;
-	gOut = GAMEMAN->GetGameFromIndex( index );
-	cOut = wchar_t(ch & 0xFFFF);
-
-	return true;
-}
-
 void FontManager::ReloadFonts()
 {
 	for(map<FontName, Font*>::iterator i = g_mapPathToFont.begin();

@@ -105,7 +105,6 @@ public:
 	const glyph &GetGlyph( wchar_t c ) const;
 
 	int GetLineWidthInSourcePixels( const wstring &szLine ) const;
-	int GetLineHeightInSourcePixels( const wstring &szLine ) const;
 
 	bool FontCompleteForString( const wstring &str ) const;
 

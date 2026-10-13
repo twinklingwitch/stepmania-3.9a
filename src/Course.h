@@ -129,7 +129,6 @@ public:
 	bool ShowInDemonstrationAndRanking() const { return true; }
 
 	void LoadFromCRSFile( CString sPath );
-	void RevertFromDisk();
 	void Init();
 	void Save();
 	void AutogenEndlessFromGroup( CString sGroupName, Difficulty dc );
@@ -147,7 +146,6 @@ public:
 	void RegenerateNonFixedTrails();
 
 	/* Call when a Song or its Steps are deleted/changed. */
-	void Invalidate( Song *pStaleSong );
 
 	void GetAllCachedTrails( vector<Trail *> &out );
 

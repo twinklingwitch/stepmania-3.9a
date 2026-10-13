@@ -7,63 +7,6 @@
 #include "GameManager.h"
 #include "XmlFile.h"
 
-//
-// Sorting stuff
-//
-map<const Steps*, CString> steps_sort_val;
-
-bool CompareStepsPointersBySortValueAscending(const Steps *pSteps1, const Steps *pSteps2)
-{
-	return steps_sort_val[pSteps1] < steps_sort_val[pSteps2];
-}
-
-bool CompareStepsPointersBySortValueDescending(const Steps *pSteps1, const Steps *pSteps2)
-{
-	return steps_sort_val[pSteps1] > steps_sort_val[pSteps2];
-}
-
-void StepsUtil::SortStepsPointerArrayByNumPlays( vector<Steps*> &vStepsPointers, ProfileSlot slot, bool bDescending )
-{
-	Profile* pProfile = PROFILEMAN->GetProfile(slot);
-	if( pProfile == NULL )
-		return;	// nothing to do since we don't have data
-	SortStepsPointerArrayByNumPlays( vStepsPointers, pProfile, bDescending );
-}
-
-void StepsUtil::SortStepsPointerArrayByNumPlays( vector<Steps*> &vStepsPointers, const Profile* pProfile, bool bDecending )
-{
-	// ugly...
-	vector<Song*> vpSongs = SONGMAN->GetAllSongs();
-	vector<Steps*> vpAllSteps;
-	map<Steps*,Song*> mapStepsToSong;
-	{
-		for( unsigned i=0; i<vpSongs.size(); i++ )
-		{
-			Song* pSong = vpSongs[i];
-			vector<Steps*> vpSteps = pSong->GetAllSteps();
-			for( unsigned j=0; j<vpSteps.size(); j++ )
-			{
-				Steps* pSteps = vpSteps[j];
-				if( pSteps->IsAutogen() )
-					continue;	// skip
-				vpAllSteps.push_back( pSteps );
-				mapStepsToSong[pSteps] = pSong;
-			}
-		}
-	}
-
-
-	ASSERT( pProfile );
-	for(unsigned i = 0; i < vStepsPointers.size(); ++i)
-	{
-		Steps* pSteps = vStepsPointers[i];
-		Song* pSong = mapStepsToSong[pSteps];
-		steps_sort_val[vStepsPointers[i]] = ssprintf("%9i", pProfile->GetStepsNumTimesPlayed(pSong,pSteps));
-	}
-	stable_sort( vStepsPointers.begin(), vStepsPointers.end(), bDecending ? CompareStepsPointersBySortValueDescending : CompareStepsPointersBySortValueAscending );
-	steps_sort_val.clear();
-}
-
 bool StepsUtil::CompareNotesPointersByRadarValues(const Steps* pSteps1, const Steps* pSteps2)
 {
 	float fScore1 = 0;

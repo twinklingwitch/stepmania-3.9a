@@ -111,7 +111,6 @@ private:
 	void ServerChat(const CString& message);
 	void SendToAllClients(PacketFunctions& Packet);
 	bool CheckHasSongState();
-	void ClearHasSong();
 	void AssignPlayerIDs();
 	void SendUserList();
 	void GameOver(PacketFunctions& Packet, const unsigned int clientNum);

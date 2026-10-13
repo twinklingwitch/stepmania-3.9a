@@ -623,12 +623,6 @@ void GameState::UpdateSongPosition( float fPositionSeconds, const TimingData &ti
 //	LOG->Trace( "m_fMusicSeconds = %f, m_fSongBeat = %f, m_fCurBPS = %f, m_bFreeze = %f", m_fMusicSeconds, m_fSongBeat, m_fCurBPS, m_bFreeze );
 }
 
-float GameState::GetSongPercent( float beat ) const
-{
-	/* 0 = first step; 1 = last step */
-	return (beat - m_pCurSong->m_fFirstBeat) / m_pCurSong->m_fLastBeat;
-}
-
 static int GetNumStagesForCurrentSong()
 {
 	int iNumStagesOfThisSong = 1;
@@ -1838,29 +1832,6 @@ bool GameState::ChangePreferredCourseDifficulty( PlayerNumber pn, CourseDifficul
 			m_PreferredCourseDifficulty[p] = m_PreferredCourseDifficulty[pn];
 
 	return true;
-}
-
-bool GameState::ChangePreferredCourseDifficulty( PlayerNumber pn, int dir )
-{
-	/* If we have a course selected, only choose among difficulties available in the course. */
-	const Course *pCourse = this->m_pCurCourse;
-
-	set<CourseDifficulty> asDiff;
-	GetCourseDifficultiesToShow( asDiff );
-
-	CourseDifficulty cd = m_PreferredCourseDifficulty[pn];
-	while( 1 )
-	{
-		cd = (CourseDifficulty)(cd+dir);
-		if( cd < 0 || cd >= NUM_DIFFICULTIES )
-			return false;
-		if( asDiff.find(cd) == asDiff.end() )
-			continue; /* not available */
-		if( !pCourse || pCourse->GetTrail( GAMESTATE->GetCurrentStyle()->m_StepsType, cd ) )
-			break;
-	}
-
-	return ChangePreferredCourseDifficulty( pn, cd );
 }
 
 bool GameState::IsCourseDifficultyShown( CourseDifficulty cd )

@@ -59,7 +59,6 @@ public:
 	bool ChangePreferredDifficulty( PlayerNumber pn, Difficulty dc );
 	bool ChangePreferredDifficulty( PlayerNumber pn, int dir );
 	bool ChangePreferredCourseDifficulty( PlayerNumber pn, CourseDifficulty cd );
-	bool ChangePreferredCourseDifficulty( PlayerNumber pn, int dir );
 	bool IsCourseDifficultyShown( CourseDifficulty cd );
 	Difficulty GetEasiestNotesDifficulty() const;
 	RageTimer			m_timeGameStarted;	// from the moment the first player pressed Start
@@ -167,7 +166,6 @@ public:
 
 	void ResetMusicStatistics();	// Call this when it's time to play a new song.  Clears the values above.
 	void UpdateSongPosition( float fPositionSeconds, const TimingData &timing, const RageTimer &timestamp = RageZeroTimer );
-	float GetSongPercent( float beat ) const;
 
 	enum HealthState { HOT, ALIVE, DANGER, DEAD };
 	HealthState	m_HealthState[NUM_PLAYERS];

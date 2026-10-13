@@ -20,7 +20,6 @@ public:
 	static CString GetMD5( CString fn );	// in Hex
 	static CString GetSHA1ForString( const CString &sData );	// 40 lowercase hex digits
 
-	static CString GetPublicKeyFileName();
 };
 
 extern CryptManager*	CRYPTMAN;	// global and accessable from anywhere in our program

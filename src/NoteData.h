@@ -62,7 +62,6 @@ public:
 	/* The notes of a track, for scanning; valid for 0 <= row < GetNumRows(), and
 	 * only if GetNumRows() > 0. */
 	const TapNote *GetTrackRows( int track ) const { return &m_TapNotes[track][0]; }
-	void MoveTapNoteTrack(int dest, int src);
 	void SetTapNote(int track, int row, TapNote t);
 	
 	void ClearRange( int iNoteIndexBegin, int iNoteIndexEnd );
@@ -98,7 +97,6 @@ public:
 	void RemoveHoldNote( int index );
 	HoldNote &GetHoldNote( int index ) { ASSERT( index < (int) m_HoldNotes.size() ); return m_HoldNotes[index]; }
 	const HoldNote &GetHoldNote( int index ) const { ASSERT( index < (int) m_HoldNotes.size() ); return m_HoldNotes[index]; }
-	int GetMatchingHoldNote( const HoldNote &hn ) const;
 
 	void SetTapAttackNote( int track, int row, Attack attack );
 	void PruneUnusedAttacksFromMap();	// slow

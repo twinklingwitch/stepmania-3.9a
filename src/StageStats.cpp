@@ -434,16 +434,6 @@ bool StageStats::OneOfScore( PlayerNumber pn, TapNoteScore tnsAllGreaterOrEqual 
 		iTapNoteScores[pn][tnsAllGreaterOrEqual] == 1;
 }
 
-int StageStats::GetTotalTaps( PlayerNumber pn ) const
-{
-	int iTotalTaps = 0;
-	for( int i=TNS_MISS; i<NUM_TAP_NOTE_SCORES; i++ )
-	{
-		iTotalTaps += iTapNoteScores[pn][i];
-	}
-	return iTotalTaps;
-}
-
 float StageStats::GetPercentageOfTaps( PlayerNumber pn, TapNoteScore tns ) const
 {
 	int iTotalTaps = 0;

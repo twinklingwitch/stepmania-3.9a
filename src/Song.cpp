@@ -134,15 +134,6 @@ void Song::GetDisplayBpms( DisplayBpms &AddTo ) const
 	}
 }
 
-CString Song::GetBackgroundAtBeat( float fBeat ) const
-{
-	unsigned i;
-	for( i=0; i<m_BackgroundChanges.size()-1; i++ )
-		if( m_BackgroundChanges[i+1].m_fStartBeat > fBeat )
-			break;
-	return m_BackgroundChanges[i].m_sBGName;
-}
-
 
 /* Get a path to the SM containing data for this song.  It might
  * be a cache file. */
