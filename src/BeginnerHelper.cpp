@@ -248,26 +248,33 @@ void BeginnerHelper::DrawPrimitives()
 		for(int scde=0; scde<4; scde++)
 			m_sStepCircle[scd][scde].Draw();
 	
+	/* The else belongs to the inner if, as it always has: without cel shading
+	 * the dancers aren't drawn, and with it, each non-human player draws the
+	 * human dancers again, lit. */
 	if(DrawCelShaded)
+	{
 		FOREACH_PlayerNumber(pn)	// Draw each dancer
+		{
 			if(GAMESTATE->IsHumanPlayer(pn))
 				m_pDancer[pn]->DrawCelShaded();
-	else
-	{
-		DISPLAY->SetLighting( true );
-		DISPLAY->SetLightDirectional( 
-			0, 
-			RageColor(0.5,0.5,0.5,1), 
-			RageColor(1,1,1,1),
-			RageColor(0,0,0,1),
-			RageVector3(0, 0, 1) );
+			else
+			{
+				DISPLAY->SetLighting( true );
+				DISPLAY->SetLightDirectional( 
+					0, 
+					RageColor(0.5,0.5,0.5,1), 
+					RageColor(1,1,1,1),
+					RageColor(0,0,0,1),
+					RageVector3(0, 0, 1) );
 
-		FOREACH_PlayerNumber(pn)	// Draw each dancer
-			if(GAMESTATE->IsHumanPlayer(pn))
-				m_pDancer[pn]->Draw();
+				FOREACH_PlayerNumber(pn)	// Draw each dancer
+					if(GAMESTATE->IsHumanPlayer(pn))
+						m_pDancer[pn]->Draw();
 
-		DISPLAY->SetLightOff(0);
-		DISPLAY->SetLighting(false);
+				DISPLAY->SetLightOff(0);
+				DISPLAY->SetLighting(false);
+			}
+		}
 	}
 }
 
