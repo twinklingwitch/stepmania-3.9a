@@ -55,8 +55,8 @@ The few intentional differences:
   `ConstantCSpeed=0` in `StepMania.ini`) to get 3.9's behavior, where C speeds
   follow the music (see [Music rate keys](#music-rate-keys)).  X-mods are not
   affected.
-- Sound goes through SDL by default; ALSA, OSS and sndio are still there as
-  fallbacks (see [Sound](#sound)).
+- Sound goes through SDL; the ALSA, OSS and sndio drivers are gone (see
+  [Sound](#sound)).
 - The loading window is SDL's; the GTK one is gone.
 - An optional Etterna-style scoring mode, off by default and adding the two
   settings `Wife` and `ShowWifeInGameplay`.  With it off nothing is different (see
@@ -88,9 +88,9 @@ are supported.  The build uses [Meson](https://mesonbuild.com/) (1.1 or newer). 
     meson test -C build        # needs -Dtests=true at setup
 
 Optional features are `auto` by default and can be forced with
-`-D<name>=enabled` or `-D<name>=disabled`: `alsa`, `oss`, `sndio`, `ffmpeg`,
-`vorbis`, `mad`, `jpeg`, `online` (libcurl).  The boolean options are `networking`,
-`crash_handler` and `tests`.  `meson configure build` lists them all.
+`-D<name>=enabled` or `-D<name>=disabled`: `ffmpeg`, `vorbis`, `mad`, `jpeg`,
+`online` (libcurl).  The boolean options are `networking`, `crash_handler` and
+`tests`.  `meson configure build` lists them all.
 
 Lua 5.0 is bundled and built with the game.  Everything else comes from the
 system and is found with pkg-config where possible.
@@ -179,8 +179,7 @@ Debian and Ubuntu:
     apt install build-essential meson ninja-build pkgconf libsdl3-dev \
         libgl-dev libglu1-mesa-dev libpng-dev zlib1g-dev libsqlite3-dev \
         libssl-dev libpcre2-dev libsamplerate0-dev libjpeg-dev libvorbis-dev \
-        libmad0-dev libasound2-dev libsndio-dev libavformat-dev libavcodec-dev \
-        libavutil-dev libswscale-dev
+        libmad0-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
 
 FreeBSD (OpenSSL is part of the base system):
 
@@ -205,10 +204,9 @@ same toolchain works with `CXX="clang++ -stdlib=libc++"`.
 
 ## Sound
 
-The default driver order is SDL, ALSA, sndio, OSS, then Null.  Use
-the `SoundDrivers` preference to pick another.  OSS is only available on Linux
-and FreeBSD; OpenBSD uses sndio.  On Windows it is SDL (which uses WASAPI), then
-Null, and on macOS SDL (CoreAudio), then Null.
+Sound goes through SDL on every platform, with the Null driver (no sound) as the
+fallback if SDL can't open an audio device.  Set `SoundDrivers=Null` in
+`StepMania.ini` to run without sound.
 
 The SDL driver mixes the sound itself and hands SDL the finished stream, so it
 works with whatever SDL's audio backend is (PipeWire, PulseAudio, ALSA, sndio,

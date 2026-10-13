@@ -1,19 +1,6 @@
 #ifndef UNIX_ARCH_H
 #define UNIX_ARCH_H
 
-#ifdef HAVE_ALSA
-#include "Sound/RageSoundDriver_ALSA9.h"
-#include "Sound/RageSoundDriver_ALSA9_Software.h"
-#endif
-
-#ifdef HAVE_OSS
-#include "Sound/RageSoundDriver_OSS.h"
-#endif
-
-#ifdef HAVE_SNDIO
-#include "Sound/RageSoundDriver_Sndio.h"
-#endif
-
 #include "LoadingWindow/LoadingWindow_SDL.h"
 
 #include "ArchHooks/ArchHooks_Unix.h"

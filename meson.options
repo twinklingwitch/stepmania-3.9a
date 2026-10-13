@@ -1,6 +1,3 @@
-option('alsa', type: 'feature', value: 'auto', description: 'ALSA sound drivers')
-option('oss', type: 'feature', value: 'auto', description: 'OSS sound driver')
-option('sndio', type: 'feature', value: 'auto', description: 'sndio sound driver')
 option('ffmpeg', type: 'feature', value: 'auto', description: 'FFmpeg movie textures')
 option('vorbis', type: 'feature', value: 'auto', description: 'Ogg Vorbis decoding')
 option('mad', type: 'feature', value: 'auto', description: 'MP3 decoding with libmad')

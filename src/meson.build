@@ -396,25 +396,6 @@ deps = [
   sdl_dep,
 ]
 
-if alsa_dep.found()
-  stepmania_sources += files(
-    'arch/Sound/ALSA9Dynamic.cpp',
-    'arch/Sound/ALSA9Helpers.cpp',
-    'arch/Sound/RageSoundDriver_ALSA9.cpp',
-    'arch/Sound/RageSoundDriver_ALSA9_Software.cpp',
-  )
-  deps += alsa_dep.partial_dependency(compile_args: true, includes: true)
-endif
-
-if have_oss
-  stepmania_sources += files('arch/Sound/RageSoundDriver_OSS.cpp')
-endif
-
-if sndio_dep.found()
-  stepmania_sources += files('arch/Sound/RageSoundDriver_Sndio.cpp')
-  deps += sndio_dep
-endif
-
 if have_ffmpeg
   stepmania_sources += files('arch/MovieTexture/MovieTexture_FFMpeg.cpp')
   deps += ffmpeg_deps

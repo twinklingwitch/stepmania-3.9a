@@ -259,7 +259,6 @@ private:
 	CString			m_sSoundDrivers;
 public:
 	int				m_iSoundWriteAhead;
-	CString				m_iSoundDevice;
 	float			m_fSoundVolume;
 	int				m_iSoundResampleQuality;
 	CString			m_sMovieDrivers;

@@ -146,37 +146,6 @@ endif
 sdl_dep = dependency('sdl3', version: '>=3.2.0')
 conf.set('HAVE_SDL', 1)
 
-# SDL does the audio on Windows and macOS (CoreAudio).
-alsa_dep = not_found
-if system not in ['windows', 'darwin'] and not get_option('alsa').disabled()
-  alsa_dep = dependency('alsa', required: get_option('alsa'))
-endif
-if alsa_dep.found()
-  conf.set('HAVE_ALSA', 1)
-endif
-
-have_oss = false
-if system not in ['windows', 'darwin']
-  have_oss = cc.has_header('sys/soundcard.h', required: get_option('oss'))
-endif
-if have_oss
-  conf.set('HAVE_OSS', 1)
-  if cc.has_header_symbol('sys/soundcard.h', 'OSS_GETVERSION')
-    conf.set('HAVE_OSS_GETVERSION', 1)
-  endif
-endif
-
-sndio_dep = not_found
-if system not in ['windows', 'darwin'] and not get_option('sndio').disabled()
-  sndio_dep = dependency('sndio', required: false)
-  if not sndio_dep.found()
-    sndio_dep = cc.find_library('sndio', has_headers: 'sndio.h', required: get_option('sndio'))
-  endif
-endif
-if sndio_dep.found()
-  conf.set('HAVE_SNDIO', 1)
-endif
-
 ffmpeg_deps = []
 if not get_option('ffmpeg').disabled()
   foreach name : ['libavformat', 'libavcodec', 'libavutil', 'libswscale']

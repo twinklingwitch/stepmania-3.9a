@@ -20,13 +20,9 @@ RageSoundDriver *MakeRageSoundDriver(CString drivers);
  * need to be available to other modules.  It'd be overkill to create separate
  * "config" and "driver" headers for each arch. */
 
-/* Define the default list of sound drivers for each arch.  It's
- * OK to list drivers that may not be available. */
-#if defined(DARWIN) || defined(WINDOWS)
-	#define DEFAULT_SOUND_DRIVER_LIST "SDL,Null"
-#else
-	#define DEFAULT_SOUND_DRIVER_LIST "SDL,ALSA,ALSA-sw,sndio,OSS,Null"
-#endif
+/* Define the default list of sound drivers.  SDL does the sound everywhere;
+ * Null is the fallback if no audio device can be opened. */
+#define DEFAULT_SOUND_DRIVER_LIST "SDL,Null"
 
 #define DEFAULT_MOVIE_DRIVER_LIST "FFMpeg,Null"
 

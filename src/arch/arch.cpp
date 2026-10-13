@@ -71,16 +71,6 @@ RageSoundDriver *MakeRageSoundDriver(CString drivers)
 			Driver = DriversToTry[i];
 			LOG->Trace("Initializing driver: %s", DriversToTry[i].c_str());
 
-#ifdef HAVE_ALSA
-			if(!DriversToTry[i].CompareNoCase("ALSA")) ret = new RageSound_ALSA9;
-			if(!DriversToTry[i].CompareNoCase("ALSA-sw")) ret = new RageSound_ALSA9_Software;
-#endif		
-#ifdef HAVE_OSS
-			if(!DriversToTry[i].CompareNoCase("OSS")) ret = new RageSound_OSS;
-#endif
-#ifdef HAVE_SNDIO
-			if(!DriversToTry[i].CompareNoCase("sndio")) ret = new RageSound_Sndio;
-#endif
 			if(!DriversToTry[i].CompareNoCase("SDL")) ret = new RageSound_SDL;
 			if(!DriversToTry[i].CompareNoCase("Null")) ret = new RageSound_Null;
 			if( !ret )

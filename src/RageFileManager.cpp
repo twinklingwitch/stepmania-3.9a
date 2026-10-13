@@ -156,7 +156,7 @@ void RageFileManager::MountInitialFilesystems()
 	/* Add file search paths, higher priority first. */
 #if defined(UNIX) || defined(WINDOWS)
 #if defined(UNIX)
-	/* Absolute paths.  This is rarely used, eg. by Alsa9Buf::GetSoundCardDebugInfo(). 
+	/* Absolute paths.  This is rarely used. 
 	 * All paths that start with a slash (eg. "/proc") should use this, so put it
 	 * first. */
 	RageFileManager::Mount( "dir", "/", "/" );
