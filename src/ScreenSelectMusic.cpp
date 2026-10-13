@@ -803,9 +803,15 @@ void ScreenSelectMusic::Update( float fDeltaTime )
 
 void ScreenSelectMusic::UpdateChartInfo( float fDeltaTime )
 {
-	PlayerNumber pn = GAMESTATE->GetFirstHumanPlayer();
-	if( pn == PLAYER_INVALID )
-		pn = GAMESTATE->m_MasterPlayerNumber;
+	/* Not GetFirstHumanPlayer, which asserts: on the way back to the title
+	 * screen this runs once more after the game has ended and nobody is in. */
+	PlayerNumber pn = PLAYER_INVALID;
+	FOREACH_PlayerNumber( p )
+		if( GAMESTATE->IsHumanPlayer(p) )
+		{
+			pn = p;
+			break;
+		}
 	const Song *pSong = GAMESTATE->m_pCurSong;
 	const Steps *pSteps = pn == PLAYER_INVALID || pSong == NULL? NULL: GAMESTATE->m_pCurSteps[pn];
 	const float fRate = GAMESTATE->m_SongOptions.m_fMusicRate;
