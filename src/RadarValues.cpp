@@ -30,17 +30,22 @@ XNode* RadarValues::CreateNode() const
 	XNode* pNode = new XNode;
 	pNode->name = "RadarValues";
 
+	/* Look the metrics up once, not for every category: this is called for
+	 * every chart in the catalog and every score in a profile. */
+	const bool bWriteSimpleValues = WRITE_SIMPLE_VALUES;
+	const bool bWriteComplexValues = WRITE_COMPLEX_VALUES;
+
 	// TRICKY: Don't print a remainder for the integer values.
 	FOREACH_RadarCategory( rc )
 	{
 		if( rc >= RADAR_NUM_TAPS_AND_HOLDS )
 		{
-			if( WRITE_SIMPLE_VALUES )
+			if( bWriteSimpleValues )
 				pNode->AppendChild( RadarCategoryToString(rc),	(int)m_fValues[rc] );
 		}
 		else
 		{
-			if( WRITE_COMPLEX_VALUES )
+			if( bWriteComplexValues )
 				pNode->AppendChild( RadarCategoryToString(rc),	m_fValues[rc] );
 		}
 	}

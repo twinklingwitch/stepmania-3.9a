@@ -38,11 +38,11 @@ void SaveCatalogXml()
 	XNode xml;
 	xml.name = "Catalog";
 
+	bool ShowStepsType[NUM_STEPS_TYPES];
+	FOREACH_StepsType( st )
+		ShowStepsType[st] = SHOW_STEPS_TYPE( st );
+
 	{
-		bool ShowStepsType[NUM_STEPS_TYPES];
-		FOREACH_StepsType( st )
-			ShowStepsType[st] = SHOW_STEPS_TYPE( st );
-	
 		XNode* pNode = xml.AppendChild( "Songs" );
 
 		vector<Song*> vpSongs = SONGMAN->GetAllSongs();
@@ -116,7 +116,7 @@ void SaveCatalogXml()
 
 			FOREACH_StepsType( st )
 			{
-				if( !SHOW_STEPS_TYPE(st) )
+				if( !ShowStepsType[st] )
 					continue;	// skip
 
 				for( set<CourseDifficulty>::const_iterator iter = vDiffs.begin(); iter != vDiffs.end(); iter++ )
