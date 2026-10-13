@@ -430,12 +430,6 @@ PaneTypes PaneDisplay::GetNext( PaneTypes current, int dir ) const
 	return ret;
 }
 
-void PaneDisplay::Move( int dir )
-{
-	const PaneTypes NewPane = GetNext( m_CurPane, dir );
-	SetFocus( NewPane );
-}
-
 /*
  * (c) 2003 Glenn Maynard
  * All rights reserved.

@@ -27,8 +27,6 @@ public:
 	void Down();
 	void Left();
 	void Right();
-	void Start();
-	void HandleScreenMessage( const ScreenMessage SM );
 
 	enum Row 
 	{ 

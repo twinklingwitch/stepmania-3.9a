@@ -223,19 +223,6 @@ int NoteFieldPositioning::GetID(const CString &name) const
 }
 
 
-/* Get all arrow modifier names for the current game. */
-void NoteFieldPositioning::GetNamesForCurrentGame(vector<CString> &IDs)
-{ // XXX dupes
-	/* Iterate over all keys. */
-	for(unsigned i = 0; i < Modes.size(); ++i)
-	{
-		if(!Modes[i].MatchesCurrentGame())
-			continue;
-		
-		IDs.push_back(Modes[i].m_Name);
-	}
-}
-
 bool NoteFieldPositioning::IsValidModeForAnyStyle(CString mode) const
 {
 	for(unsigned i = 0; i < Modes.size(); ++i)

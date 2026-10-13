@@ -49,7 +49,7 @@ struct NoteMetricCache_t
 	bool m_bFlipHeadAndTailWhenReverse;
 
 	void Load(CString skin, const CString &name);
-} *NoteMetricCache;
+};
 
 void NoteMetricCache_t::Load(CString skin, const CString &name)
 {

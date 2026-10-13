@@ -81,12 +81,6 @@ void ComboGraph::Load( CString Path, const StageStats &s, PlayerNumber pn )
 	}
 }
 
-void ComboGraph::TweenOffScreen()
-{
-	for( unsigned i = 0; i < m_SubActors.size(); ++i )
-		OFF_COMMAND( m_SubActors[i] );
-}
-
 void ComboGraph::Unload()
 {
 	for( unsigned i = 0; i < m_SubActors.size(); ++i )

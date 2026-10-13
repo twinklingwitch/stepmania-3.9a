@@ -23,7 +23,6 @@ public:
 
 	void SetSelection( int iIndex );	
 	int GetSelection();
-	void SetNumberVisible( int iNumVisibleElements );
 	void SetSpacing( int iSpacingInPixels );
 	void UseSpriteType(int NewSpriteType);
 	void StartBouncing();

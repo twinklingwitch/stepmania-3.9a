@@ -649,12 +649,6 @@ void NoteField::DrawPrimitives()
 	cur->m_GhostArrowRow.Draw();
 }
 
-void NoteField::RemoveTapNoteRow( int iIndex )
-{
-	for( int c=0; c<GetNumTracks(); c++ )
-		SetTapNote(c, iIndex, TAP_EMPTY);
-}
-
 void NoteField::FadeToFail()
 {
 	m_fPercentFadeToFail = max( 0.0f, m_fPercentFadeToFail );	// this will slowly increase every Update()

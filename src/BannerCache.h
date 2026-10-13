@@ -26,7 +26,6 @@ public:
 	void CacheBanner( CString BannerPath );
 	void UncacheBanner( CString BannerPath );
 	void LoadBanner( CString BannerPath );
-	void OutputStats() const;
 };
 
 extern BannerCache *BANNERCACHE; // global and accessable from anywhere in our program

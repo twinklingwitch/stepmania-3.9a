@@ -228,17 +228,6 @@ void EditCoursesSongMenu::Right()
 	}
 }
 
-void EditCoursesSongMenu::Start()
-{
-	// XXX
-	// SCREENMAN->PopTopScreen( m_SMSendOnOK );
-}
-
-
-void EditCoursesSongMenu::HandleScreenMessage( const ScreenMessage SM )
-{
-}
-
 void EditCoursesSongMenu::ChangeToRow( Row newRow )
 {
 	m_SelectedRow = newRow;

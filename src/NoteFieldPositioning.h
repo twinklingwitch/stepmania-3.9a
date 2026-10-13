@@ -53,7 +53,6 @@ public:
 	NoteFieldPositioning(CString fn);
 	void Load(PlayerNumber pn);
 
-	void GetNamesForCurrentGame(vector<CString> &IDs);
 	bool IsValidModeForCurrentStyle(CString mode) const;
 	bool IsValidModeForAnyStyle(CString mode) const;
 

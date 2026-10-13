@@ -92,19 +92,6 @@ void BannerCache::LoadBanner( CString BannerPath )
 	}
 }
 
-void BannerCache::OutputStats() const
-{
-	map<CString,RageSurface *>::const_iterator ban;
-	int total_size = 0;
-	for( ban = g_BannerPathToImage.begin(); ban != g_BannerPathToImage.end(); ++ban )
-	{
-		RageSurface * const &img = ban->second;
-		const int size = img->pitch * img->h;
-		total_size += size;
-	}
-	LOG->Info( "%i bytes of banners loaded", total_size );
-}
-
 void BannerCache::UnloadAllBanners()
 {
 	map<CString,RageSurface *>::iterator it;

@@ -22,7 +22,6 @@
 const CString TEMP_MOUNT_POINT = "@mctemp/";
 
 static const char *USB_DEVICE_LIST_FILE = "/proc/bus/usb/devices";
-static const char *ETC_MTAB = "/etc/mtab";
 
 void GetNewStorageDevices( vector<UsbStorageDevice>& vDevicesOut );
 

@@ -73,7 +73,6 @@ public:
 
 	void Load( PlayerNumber pn );
 	void SetFromGameState();
-	void Move( int dir );
 
 	void Update( float fDeltaTime );
 

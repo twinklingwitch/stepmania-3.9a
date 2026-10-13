@@ -227,17 +227,6 @@ void ScrollingList::SetSpacing( int iSpacingInPixels )
 	m_iSpacing = iSpacingInPixels;
 }
 
-/******************************
-SetNumberVisibleElements
-
-Allows us to set whether 3,4 or 5
-elements are visible on screen at once
-*******************************/
-void ScrollingList::SetNumberVisible( int iNumVisibleElements )
-{
-	m_iNumVisible = iNumVisibleElements;
-}
-
 /*******************************
 Update
 

@@ -26,7 +26,6 @@ public:
 	
 	virtual void Load( const NoteData* pNoteData, PlayerNumber pn, int iStartDrawingPixel, int iEndDrawingPixel, float fYReverseOffsetPixels );
 	virtual void Unload();
-	void RemoveTapNoteRow( int iIndex );
 
 	map<RowTrack,bool> m_HeldHoldNotes;	// true if button is being held down
 	map<RowTrack,bool> m_ActiveHoldNotes;	// true if hold has life > 0
