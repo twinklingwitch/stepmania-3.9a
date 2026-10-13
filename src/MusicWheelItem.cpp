@@ -14,6 +14,9 @@
 #include "Course.h"
 #include "ProfileManager.h"
 #include "ActorUtil.h"
+#include "ChartInfo.h"
+#include "Profile.h"
+#include "Style.h"
 
 
 // WheelItem stuff
@@ -24,6 +27,7 @@
 #define ROULETTE_X		THEME->GetMetricF("MusicWheelItem","RouletteX")
 #define ROULETTE_ZOOM	THEME->GetMetricF("MusicWheelItem","RouletteZoom")
 #define GRADE_X( p )	THEME->GetMetricF("MusicWheelItem",ssprintf("GradeP%dX",p+1))
+#define GRADES_FROM_WIFE	THEME->GetMetricB("MusicWheelItem","GradesFromWife")
 
 
 
@@ -178,6 +182,33 @@ void MusicWheelItem::LoadFromWheelItemData( WheelItemData* pWID )
 	}
 }
 
+/* The grade of the best Wife3 score among the chart's high scores, or 3.9's
+ * grade if none of them has one. */
+Grade MusicWheelItem::GetWifeGrade( PlayerNumber pn, Difficulty dc ) const
+{
+	const Steps *pSteps = data->m_pSong->GetStepsByDifficulty( GAMESTATE->GetCurrentStyle()->m_StepsType, dc );
+	if( pSteps == NULL )
+		return GRADE_NO_DATA;
+	const Profile *pProfile = PROFILEMAN->IsUsingProfile(pn)? PROFILEMAN->GetProfile(pn): PROFILEMAN->GetMachineProfile();
+	const HighScoreList &hsl = pProfile->GetStepsHighScoreList( data->m_pSong, pSteps );
+
+	/* Wife% can be negative, so "none yet" is a flag of its own. */
+	bool bAny = false;
+	float fBest = 0;
+	for( unsigned i=0; i<hsl.vHighScores.size(); i++ )
+	{
+		const HighScore &hs = hsl.vHighScores[i];
+		if( hs.bHasWife && (!bAny || hs.fWifePercent > fBest) )
+		{
+			fBest = hs.fWifePercent;
+			bAny = true;
+		}
+	}
+	if( !bAny )
+		return hsl.GetTopScore().grade;
+	return ChartInfo::WifeToGrade( fBest );
+}
+
 void MusicWheelItem::RefreshGrades()
 {
 	// Refresh Grades
@@ -196,7 +227,9 @@ void MusicWheelItem::RefreshGrades()
 		else
 			dc = GAMESTATE->m_PreferredDifficulty[p];
 		Grade grade;
-		if( PROFILEMAN->IsUsingProfile((PlayerNumber)p) )
+		if( PREFSMAN->m_bWife && GRADES_FROM_WIFE )
+			grade = GetWifeGrade( (PlayerNumber) p, dc );
+		else if( PROFILEMAN->IsUsingProfile((PlayerNumber)p) )
 			grade = PROFILEMAN->GetHighScoreForDifficulty( data->m_pSong, GAMESTATE->GetCurrentStyle(), (ProfileSlot)p, dc ).grade;
 		else
 			grade = PROFILEMAN->GetHighScoreForDifficulty( data->m_pSong, GAMESTATE->GetCurrentStyle(), PROFILE_SLOT_MACHINE, dc ).grade;

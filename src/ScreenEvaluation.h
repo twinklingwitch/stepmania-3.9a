@@ -60,6 +60,8 @@ protected:
 		PerDifficultyAward pdaToShowOut[NUM_PLAYERS],
 		PeakComboAward pcaToShowOut[NUM_PLAYERS] );
 	void EndScreen();
+	void InitInfoArea( const StageStats &stageStats );
+	void AddInfoText( BitmapText &text, const CString &sName, const CString &sFont, const CString &sText );
 
 	Type				m_Type;
 
@@ -140,6 +142,17 @@ protected:
 	AutoActor			m_PerDifficultyAward[NUM_PLAYERS];
 	AutoActor			m_PeakComboAward[NUM_PLAYERS];
 	bool m_bFailed;
+
+	// info area: what was played and at what rate, and the Wife3 score
+	BitmapText			m_textSongTitle, m_textSongArtist, m_textSongPack;
+	BitmapText			m_textRate;
+	BitmapText			m_textWifePercent[NUM_PLAYERS];
+	BitmapText			m_textWifeDetail[NUM_PLAYERS];
+	BitmapText			m_textWifeRank[NUM_PLAYERS];
+	BitmapText			m_textWifeRecord[NUM_PLAYERS];
+	BitmapText			m_textWifeStats[NUM_PLAYERS];
+	BitmapText			m_textJudgePercent[NUM_JUDGE_LINES][NUM_PLAYERS];
+	vector<Actor*>		m_vInfoActors;	// the ones that are shown, to tween off
 
 	RageSound	m_soundStart;	// sound played if the player passes or fails
 

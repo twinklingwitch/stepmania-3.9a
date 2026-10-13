@@ -119,8 +119,12 @@ void WifeManager::Press( PlayerNumber pn, int iColumn, float fSongSeconds, int i
 
 void WifeManager::TapHit( PlayerNumber pn, int iColumn, int iRow, float fOffset )
 {
-	m_Player[pn].tally.Tap( fOffset );
-	m_Player[pn].tallyJ4.Tap( fOffset );
+	PlayerData &p = m_Player[pn];
+	p.tally.Tap( fOffset );
+	p.tallyJ4.Tap( fOffset );
+	p.iHits++;
+	p.fOffsetSum += fOffset;
+	p.fOffsetSquares += (double) fOffset * fOffset;
 	LOG->Trace( "Wife: P%i hit column %i row %i, %.4f ms", pn+1, iColumn, iRow, fOffset*1000 );
 }
 
@@ -163,6 +167,23 @@ void WifeManager::HoldDropped( PlayerNumber pn, int iColumn, int iRow, int iSubT
 	h.iSubType = iSubType;
 	p.replay.holds.push_back( h );
 	LOG->Trace( "Wife: P%i dropped the hold in column %i row %i", pn+1, iColumn, iRow );
+}
+
+bool WifeManager::GetOffsetStats( PlayerNumber pn, float &fMeanOut, float &fSDOut ) const
+{
+	const PlayerData &p = m_Player[pn];
+	if( p.iHits == 0 )
+		return false;
+	const double fMean = p.fOffsetSum / p.iHits;
+	fMeanOut = (float) fMean;
+	/* The sample standard deviation, as Etterna shows it. */
+	fSDOut = 0;
+	if( p.iHits > 1 )
+	{
+		const double fVariance = (p.fOffsetSquares - p.iHits * fMean * fMean) / (p.iHits - 1);
+		fSDOut = (float) sqrt( max(fVariance, 0.0) );
+	}
+	return true;
 }
 
 CString WifeManager::GetProfileDir( PlayerNumber pn ) const

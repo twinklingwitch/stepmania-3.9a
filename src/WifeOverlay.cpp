@@ -1,5 +1,6 @@
 #include "global.h"
 #include "WifeOverlay.h"
+#include "ChartInfo.h"
 #include "ChartMSD.h"
 #include "GameState.h"
 #include "OnlineManager.h"
@@ -170,19 +171,8 @@ void WifeOverlay::Init()
 }
 
 
-static CString JudgeName( float fScale )
-{
-	static const float scales[] = { 1.50f,1.33f,1.16f,1.00f,0.84f,0.66f,0.50f,0.33f,0.20f };
-	for( unsigned i=0; i<ARRAYSIZE(scales); i++ )
-		if( fabsf(scales[i] - fScale) < 0.005f )
-			return i == ARRAYSIZE(scales)-1? CString("Justice"): ssprintf( "J%i", i+1 );
-	return ssprintf( "x%.2f", fScale );
-}
-
-static CString PercentString( float fFraction )
-{
-	return ssprintf( "%.2f%%", Wife3Truncate(fFraction) );
-}
+using ChartInfo::JudgeName;
+using ChartInfo::PercentString;
 
 /* The player whose chart the music select screen is showing. */
 static PlayerNumber GetSelectPlayer()

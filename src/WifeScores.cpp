@@ -131,7 +131,7 @@ void WifeScores::ForChart( const vector<WifeScoreEntry> &all, const CString &sCh
 		const WifeScoreEntry &e = all[i];
 		if( e.sChartKey != sChartKey )
 			continue;
-		if( fabsf(e.fRate - fRate) >= 0.005f )
+		if( fRate >= 0  &&  fabsf(e.fRate - fRate) >= 0.005f )
 			continue;
 		if( !seen.insert(e.sScoreKey).second )
 			continue;

@@ -29,6 +29,8 @@
 #include "Style.h"
 #include "WifeManager.h"
 #include "OnlineManager.h"
+#include "ChartInfo.h"
+#include "ChartMSD.h"
 
 const int NUM_SCORE_DIGITS	=	9;
 
@@ -77,6 +79,11 @@ const char* STATS_STRING[NUM_STATS_LINES] =
 #define SOUNDSEQ_NAME( i )					THEME->GetMetric (m_sName,ssprintf("SoundSeqName%d", i+1))
 #define MAX_COMBO_NUM_DIGITS				THEME->GetMetricI(m_sName,"MaxComboNumDigits")
 #define PLAYER_OPTIONS_SEPARATOR			THEME->GetMetric (m_sName,"PlayerOptionsSeparator")
+#define SHOW_SONG_INFO						THEME->GetMetricB(m_sName,"ShowSongInfo")
+#define SHOW_RATE							THEME->GetMetricB(m_sName,"ShowRate")
+#define SHOW_WIFE_AREA						THEME->GetMetricB(m_sName,"ShowWifeArea")
+#define SHOW_JUDGMENT_PERCENTS				THEME->GetMetricB(m_sName,"ShowJudgmentPercents")
+#define GRADE_FROM_WIFE						THEME->GetMetricB(m_sName,"GradeFromWife")
 
 
 static const int NUM_SHOWN_RADAR_CATEGORIES = 5;
@@ -471,6 +478,16 @@ void ScreenEvaluation::Init()
 	//
 	if( SHOW_GRADE_AREA )
 	{
+		/* The theme can show the grade of the Wife3 score instead of 3.9's. */
+		Grade gradeShown[NUM_PLAYERS];
+		FOREACH_PlayerNumber( p )
+		{
+			gradeShown[p] = grade[p];
+			if( m_Type == stage  &&  PREFSMAN->m_bWife  &&  GRADE_FROM_WIFE  &&  GAMESTATE->IsPlayerEnabled(p)  &&
+				!stageStats.bFailed[p]  &&  WIFE->HasScore(p) )
+				gradeShown[p] = ChartInfo::WifeToGrade( WIFE->GetFinalPercent(p) );
+		}
+
 		// Touch all possible grade files to make sure they're all present
 		for( int g=GRADE_TIER_1; g<NUM_GRADES; g++ )
 			THEME->GetPathToG( "ScreenEvaluation grade "+ GradeToString((Grade)g) );
@@ -483,14 +500,14 @@ void ScreenEvaluation::Init()
 			this->AddChild( m_sprGradeFrame[p] );
 
 			m_Grades[p].Load( THEME->GetPathToG("ScreenEvaluation grades") );
-			m_Grades[p].SetGrade( (PlayerNumber)p, grade[p] );
+			m_Grades[p].SetGrade( (PlayerNumber)p, gradeShown[p] );
 			m_Grades[p].SetName( ssprintf("GradeP%d",p+1) );
 			SET_XY_AND_ON_COMMAND( m_Grades[p] );
 			if( SPIN_GRADES )
 				m_Grades[p].Spin();
 			this->AddChild( &m_Grades[p] );
 
-			m_sprGrade[p].Load( THEME->GetPathToG( "ScreenEvaluation grade "+ GradeToString(grade[p]) ) );
+			m_sprGrade[p].Load( THEME->GetPathToG( "ScreenEvaluation grade "+ GradeToString(gradeShown[p]) ) );
 			m_sprGrade[p]->SetName( ssprintf("GradeP%d",p+1) );
 			SET_XY_AND_ON_COMMAND( m_sprGrade[p] );
 			this->AddChild( m_sprGrade[p] );
@@ -683,6 +700,8 @@ void ScreenEvaluation::Init()
 		}
 	}
 
+	InitInfoArea( stageStats );
+
 	//
 	// init score area
 	//
@@ -868,6 +887,104 @@ void ScreenEvaluation::Init()
 	m_fScreenCreateTime = RageTimer::GetTimeSinceStart();
 }
 
+
+void ScreenEvaluation::AddInfoText( BitmapText &text, const CString &sName, const CString &sFont, const CString &sText )
+{
+	text.LoadFromFont( THEME->GetPathF(m_sName, sFont) );
+	text.SetName( sName );
+	text.SetText( sText );
+	SET_XY_AND_ON_COMMAND( text );
+	this->AddChild( &text );
+	m_vInfoActors.push_back( &text );
+}
+
+/* What a theme can add with ShowSongInfo, ShowRate, ShowWifeArea and
+ * ShowJudgmentPercents. */
+void ScreenEvaluation::InitInfoArea( const StageStats &stageStats )
+{
+	const Song *pSong = GAMESTATE->m_pCurSong;
+	if( m_Type == stage  &&  SHOW_SONG_INFO  &&  pSong != NULL )
+	{
+		AddInfoText( m_textSongTitle, "SongTitle", "song info", pSong->GetFullDisplayTitle() );
+		AddInfoText( m_textSongArtist, "SongArtist", "song info", pSong->GetDisplayArtist() );
+		AddInfoText( m_textSongPack, "SongPack", "song info", pSong->m_sGroupName );
+	}
+
+	if( m_Type != summary  &&  SHOW_RATE )
+		AddInfoText( m_textRate, "RateDisplay", "song info", "Rate " + ChartInfo::RateString(GAMESTATE->m_SongOptions.m_fMusicRate) );
+
+	if( m_Type == stage  &&  SHOW_JUDGMENT_PERCENTS )
+	{
+		FOREACH_EnabledPlayer( p )
+		{
+			const int *iTaps = stageStats.iTapNoteScores[p];
+			const int iTotal = iTaps[TNS_MARVELOUS] + iTaps[TNS_PERFECT] + iTaps[TNS_GREAT] + iTaps[TNS_GOOD] + iTaps[TNS_BOO] + iTaps[TNS_MISS];
+			for( int l=marvelous; l<=miss; l++ )
+			{
+				if( l == marvelous  &&  !GAMESTATE->ShowMarvelous() )
+					continue;
+				if( !SHOW_JUDGMENT(l) )
+					continue;
+				const TapNoteScore tns[] = { TNS_MARVELOUS, TNS_PERFECT, TNS_GREAT, TNS_GOOD, TNS_BOO, TNS_MISS };
+				const float fPercent = iTotal > 0? 100.0f * iTaps[tns[l]] / iTotal: 0.0f;
+				AddInfoText( m_textJudgePercent[l][p], ssprintf("%sPercentP%d",JUDGE_STRING[l],p+1), "judge percent", ssprintf("%.2f%%", fPercent) );
+			}
+		}
+	}
+
+	if( m_Type != stage  ||  !SHOW_WIFE_AREA  ||  !PREFSMAN->m_bWife )
+		return;
+
+	FOREACH_EnabledPlayer( p )
+	{
+		if( !WIFE->HasScore(p) )
+			continue;
+		const WifeStageResult &r = WIFE->GetStageResult( p );
+		const Steps *pSteps = GAMESTATE->m_pCurSteps[p];
+		const float fRate = r.bValid? r.fRate: GAMESTATE->m_SongOptions.m_fMusicRate;
+
+		AddInfoText( m_textWifePercent[p], ssprintf("WifePercentP%d",p+1), "wife", ChartInfo::PercentString(WIFE->GetFinalPercent(p)) );
+
+		/* The judge, the chart's MSD and the play's SSR (at Judge 4). */
+		CString sDetail = ChartInfo::JudgeName( PREFSMAN->m_fJudgeWindowScale );
+		if( r.bValid )
+			sDetail = ChartInfo::JudgeName( r.fJudgeScale );
+		if( pSong != NULL  &&  ChartMSD::IsSupported(pSteps) )
+		{
+			float fMSD[MINACALC_NUM_SKILLSETS];
+			if( ChartMSD::GetMSDAtRate(pSong, pSteps, fRate, fMSD)  &&  fMSD[MINACALC_OVERALL] > 0 )
+				sDetail += "  " + ChartInfo::MSDString( fMSD );
+			const OnlineStageResult &o = ONLINE->GetStageResult( p );
+			if( o.bValid  &&  o.bHasSSR  &&  o.fSSR[MINACALC_OVERALL] > 0 )
+				sDetail += ssprintf( "  SSR %.2f", o.fSSR[MINACALC_OVERALL] );
+		}
+		AddInfoText( m_textWifeDetail[p], ssprintf("WifeDetailP%d",p+1), "wife info", sDetail );
+
+		/* Where it ranks among the player's scores on the chart at the rate. */
+		CString sRank;
+		if( !r.bValid )
+			sRank = "Not saved";
+		else if( r.iCountProfile <= 1 )
+			sRank = "First score at " + ChartInfo::RateString( r.fRate );
+		else
+			sRank = ssprintf( "#%i of %i at %s", r.iRankProfile, r.iCountProfile, ChartInfo::RateString(r.fRate).c_str() );
+		AddInfoText( m_textWifeRank[p], ssprintf("WifeRankP%d",p+1), "wife info", sRank );
+
+		if( r.bValid  &&  r.iRankProfile == 1  &&  r.iCountProfile > 1 )
+			AddInfoText( m_textWifeRecord[p], ssprintf("WifeRecordP%d",p+1), "wife info", "PERSONAL BEST" );
+
+		/* Etterna's accuracy numbers: the mean and spread of the hits, and the
+		 * combo breaks (Goods, Boos and Misses). */
+		const int *iTaps = stageStats.iTapNoteScores[p];
+		const int iCB = iTaps[TNS_GOOD] + iTaps[TNS_BOO] + iTaps[TNS_MISS];
+		CString sStats;
+		float fMean, fSD;
+		if( WIFE->GetOffsetStats(p, fMean, fSD) )
+			sStats = ssprintf( "Mean %+.1fms  SD %.1fms  ", fMean*1000, fSD*1000 );
+		sStats += ssprintf( "CB %i", iCB );
+		AddInfoText( m_textWifeStats[p], ssprintf("WifeStatsP%d",p+1), "wife info", sStats );
+	}
+}
 
 void ScreenEvaluation::CommitScores(
 	const StageStats &stageStats, 
@@ -1276,6 +1393,9 @@ void ScreenEvaluation::TweenOffScreen()
 			OFF_COMMAND( m_PeakComboAward[p] );
 	}
 	OFF_COMMAND( m_sprTryExtraStage );
+
+	for( unsigned i=0; i<m_vInfoActors.size(); i++ )
+		OFF_COMMAND( *m_vInfoActors[i] );
 }
 
 void ScreenEvaluation::Update( float fDeltaTime )

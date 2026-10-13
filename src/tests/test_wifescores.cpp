@@ -92,6 +92,12 @@ int main( int argc, char *argv[] )
 	if( !v.empty() )
 		Fail( "Alice at 1.5x" );
 
+	/* A negative rate is every rate: her 1.2x score is the best of all three. */
+	v.clear();
+	WifeScores::ForChart( alice, "X1", -1, v );
+	if( v.size() != 3 || v[0].sScoreKey != "Sa3" || v[1].sScoreKey != "Sa2" || v[2].sScoreKey != "Sa1" )
+		Fail( "Alice at every rate" );
+
 	/* All profiles: both players' files plus the machine's, which has the same
 	 * plays again.  Each score once; the tie goes to the one played first. */
 	vector<WifeScoreEntry> everything;

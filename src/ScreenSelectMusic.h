@@ -64,6 +64,8 @@ protected:
 
 	void UpdateOptionsDisplays();
 	void CheckBackgroundRequests();
+	void UpdateChartInfo( float fDeltaTime );
+	void SetInfo( int iLine, const CString &sText );
 
 	vector<Steps*>		m_vpSteps;
 	vector<Trail*>		m_vpTrails;
@@ -102,6 +104,17 @@ protected:
 	HelpDisplay			m_Artist;
 	BitmapText			m_MachineRank;
 	PaneDisplay			m_PaneDisplay[NUM_PLAYERS];
+
+	/* The chart info lines a theme can turn on (see ChartInfo.h), for the chart
+	 * of the first player.  The ones that take a moment (the MSD and, with
+	 * Wife, the best score) wait until the selection has stayed put. */
+	enum ChartInfoLine { INFO_RATE, INFO_LENGTH, INFO_BPM, INFO_NOTES, INFO_NPS, INFO_MSD, INFO_SKILLSETS, INFO_BEST, NUM_INFO_LINES };
+	BitmapText			m_textInfo[NUM_INFO_LINES];
+	bool				m_bShowInfo[NUM_INFO_LINES];
+	const Steps			*m_pInfoSteps;
+	float				m_fInfoRate;
+	float				m_fInfoSettled;
+	bool				m_bInfoSlowPending;
 
 	bool				m_bMadeChoice;
 	bool				m_bGoToOptions;

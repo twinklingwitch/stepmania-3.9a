@@ -27,6 +27,7 @@ public:
 	
 	void LoadFromWheelItemData( WheelItemData* pWID );
 	void RefreshGrades();
+	Grade GetWifeGrade( PlayerNumber pn, Difficulty dc ) const;
 
 	WheelItemData *data;
 	float				m_fPercentGray;

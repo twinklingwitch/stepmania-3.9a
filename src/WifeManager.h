@@ -63,6 +63,9 @@ public:
 	 * worth what it would be at Judge 4.  SSRs and online scores use this. */
 	const WifeTally &GetTallyJ4( PlayerNumber pn ) const { return m_Player[pn].tallyJ4; }
 	const WifeReplay &GetReplay( PlayerNumber pn ) const { return m_Player[pn].replay; }
+	/* The mean and standard deviation of the offsets of the notes that were
+	 * hit, in seconds (positive is late).  False if none were hit. */
+	bool GetOffsetStats( PlayerNumber pn, float &fMeanOut, float &fSDOut ) const;
 
 	/* Called by ScreenEvaluation for a song that is going to be saved: adds the
 	 * Wife score to hs (which goes into the profile's high scores), saves the
@@ -73,8 +76,9 @@ public:
 	/* The chart key of a chart, worked out when asked for. */
 	static CString GetChartKey( const Song *pSong, const Steps *pSteps );
 
-	/* The best scores of a chart at a rate: of the player's profile (the machine
-	 * profile if the player doesn't have one), or of all the profiles. */
+	/* The best scores of a chart at a rate (at every rate if fRate is negative):
+	 * of the player's profile (the machine profile if the player doesn't have
+	 * one), or of all the profiles. */
 	void GetLeaderboard( PlayerNumber pn, const CString &sChartKey, float fRate, bool bAllProfiles, vector<WifeScoreEntry> &out );
 
 private:
@@ -89,7 +93,9 @@ private:
 		float fRate;
 		float fJudgeScale;
 		std::set< std::pair<int,int> > holdsCounted;	// (column, head row) of holds already charged
-		PlayerData(): bActive(false), bScored(false), fRate(1), fJudgeScale(1) { }
+		int iHits;
+		double fOffsetSum, fOffsetSquares;	// of the hits' offsets
+		PlayerData(): bActive(false), bScored(false), fRate(1), fJudgeScale(1), iHits(0), fOffsetSum(0), fOffsetSquares(0) { }
 	};
 	PlayerData m_Player[NUM_PLAYERS];
 	WifeStageResult m_Result[NUM_PLAYERS];

@@ -26,6 +26,8 @@
 #include "Foreach.h"
 #include "Style.h"
 #include "InputFilter.h"
+#include "ChartInfo.h"
+#include "ChartMSD.h"
 
 
 const int NUM_SCORE_DIGITS	=	9;
@@ -51,6 +53,15 @@ const int NUM_SCORE_DIGITS	=	9;
 #define CODES								THEME->GetMetric (m_sName,"Codes")
 
 static const ScreenMessage	SM_AllowOptionsMenuRepeat	= ScreenMessage(SM_User+1);
+
+/* The chart info lines: "Show<name>" turns one on, and it's placed and tweened
+ * with "<name>X" and so on. */
+static const char *INFO_NAMES[] =
+{
+	"RateDisplay", "ChartLength", "ChartBPM", "ChartNotes", "ChartNPS", "ChartMSD", "ChartSkillsets", "ChartBest"
+};
+/* How long the selection has to stay put before the slow lines are worked out. */
+static const float INFO_SETTLE_SECONDS = 0.25f;
 CString g_sFallbackCDTitlePath;
 
 static CString g_sCDTitlePath;
@@ -211,6 +222,22 @@ ScreenSelectMusic::ScreenSelectMusic( CString sClassName ) : ScreenWithMenuEleme
 	m_MachineRank.LoadFromFont( THEME->GetPathF(m_sName,"rank") );
 	SET_XY( m_MachineRank );
 	this->AddChild( &m_MachineRank );
+
+	ASSERT( ARRAYSIZE(INFO_NAMES) == NUM_INFO_LINES );
+	for( int i=0; i<NUM_INFO_LINES; i++ )
+	{
+		m_bShowInfo[i] = THEME->GetMetricB( m_sName, ssprintf("Show%s",INFO_NAMES[i]) );
+		if( !m_bShowInfo[i] )
+			continue;
+		m_textInfo[i].SetName( INFO_NAMES[i] );
+		m_textInfo[i].LoadFromFont( THEME->GetPathF(m_sName,"chart info") );
+		SET_XY( m_textInfo[i] );
+		this->AddChild( &m_textInfo[i] );
+	}
+	m_pInfoSteps = NULL;
+	m_fInfoRate = -1;
+	m_fInfoSettled = 0;
+	m_bInfoSlowPending = false;
 
 	if( SHOW_DIFFICULTY_LIST )
 	{
@@ -515,6 +542,9 @@ void ScreenSelectMusic::TweenOnScreen()
 	ON_COMMAND( m_Artist );
 	ON_COMMAND( m_MachineRank );
 	ON_COMMAND( m_Overlay );
+	for( int i=0; i<NUM_INFO_LINES; i++ )
+		if( m_bShowInfo[i] )
+			ON_COMMAND( m_textInfo[i] );
 
 	FOREACH_HumanPlayer( p )
 	{		
@@ -568,6 +598,9 @@ void ScreenSelectMusic::TweenOffScreen()
 	OFF_COMMAND( m_sprCourseHasMods );
 	OFF_COMMAND( m_Artist );
 	OFF_COMMAND( m_MachineRank );
+	for( int i=0; i<NUM_INFO_LINES; i++ )
+		if( m_bShowInfo[i] )
+			OFF_COMMAND( m_textInfo[i] );
 	OFF_COMMAND( m_Overlay );
 
 	FOREACH_HumanPlayer( p )
@@ -765,6 +798,61 @@ void ScreenSelectMusic::Update( float fDeltaTime )
 	m_sprOptionsMessage.Update( fDeltaTime );
 
 	CheckBackgroundRequests();
+	UpdateChartInfo( fDeltaTime );
+}
+
+void ScreenSelectMusic::UpdateChartInfo( float fDeltaTime )
+{
+	PlayerNumber pn = GAMESTATE->GetFirstHumanPlayer();
+	if( pn == PLAYER_INVALID )
+		pn = GAMESTATE->m_MasterPlayerNumber;
+	const Song *pSong = GAMESTATE->m_pCurSong;
+	const Steps *pSteps = pn == PLAYER_INVALID || pSong == NULL? NULL: GAMESTATE->m_pCurSteps[pn];
+	const float fRate = GAMESTATE->m_SongOptions.m_fMusicRate;
+	const bool bWife = PREFSMAN->m_bWife;
+
+	m_fInfoSettled += fDeltaTime;
+	if( pSteps != m_pInfoSteps || fRate != m_fInfoRate )
+	{
+		m_pInfoSteps = pSteps;
+		m_fInfoRate = fRate;
+		m_fInfoSettled = 0;
+		m_bInfoSlowPending = pSteps != NULL;
+
+		SetInfo( INFO_RATE, "Rate " + ChartInfo::RateString(fRate) );
+		SetInfo( INFO_LENGTH, pSteps? ChartInfo::LengthString(pSong, fRate): CString() );
+		SetInfo( INFO_BPM, pSteps? ChartInfo::BPMString(pSong, fRate): CString() );
+		SetInfo( INFO_NOTES, pSteps? ChartInfo::NotesString(pSteps): CString() );
+		SetInfo( INFO_NPS, pSteps? ChartInfo::NPSString(pSong, pSteps, fRate): CString() );
+		SetInfo( INFO_MSD, "" );
+		SetInfo( INFO_SKILLSETS, "" );
+		/* 3.9's best score is right there; the Wife3 one waits. */
+		SetInfo( INFO_BEST, pSteps && !bWife && m_bShowInfo[INFO_BEST]? ChartInfo::BestScoreString(pn, pSong, pSteps, fRate, false): CString() );
+	}
+
+	if( !m_bInfoSlowPending  ||  m_fInfoSettled < INFO_SETTLE_SECONDS )
+		return;
+	m_bInfoSlowPending = false;
+	if( !bWife )
+		return;
+
+	if( (m_bShowInfo[INFO_MSD] || m_bShowInfo[INFO_SKILLSETS])  &&  ChartMSD::IsSupported(pSteps) )
+	{
+		float fMSD[MINACALC_NUM_SKILLSETS];
+		if( ChartMSD::GetMSDAtRate(pSong, pSteps, fRate, fMSD)  &&  fMSD[MINACALC_OVERALL] > 0 )
+		{
+			SetInfo( INFO_MSD, ChartInfo::MSDString(fMSD) );
+			SetInfo( INFO_SKILLSETS, ChartInfo::SkillsetsString(fMSD) );
+		}
+	}
+	if( m_bShowInfo[INFO_BEST] )
+		SetInfo( INFO_BEST, ChartInfo::BestScoreString(pn, pSong, pSteps, fRate, true) );
+}
+
+void ScreenSelectMusic::SetInfo( int iLine, const CString &sText )
+{
+	if( m_bShowInfo[iLine] )
+		m_textInfo[iLine].SetText( sText );
 }
 
 void ScreenSelectMusic::Input( const DeviceInput& DeviceI, InputEventType type, const GameInput &GameI, const MenuInput &MenuI, const StyleInput &StyleI )

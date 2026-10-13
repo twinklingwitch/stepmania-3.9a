@@ -241,8 +241,8 @@ grade and percent 3.9 keeps, which are not touched.
 
 **Turning it on.**  Options, Gameplay Options, Wife Scoring: ON (or `Wife=1` in
 `Data/StepMania.ini`).  "Show Wife% In Gameplay" there hides the gameplay counter
-(`ShowWifeInGameplay=0`).  Only the default theme has these two lines; with
-another theme use the ini file, or add `conf,Wife` and `conf,ShowWifeInGameplay`
+(`ShowWifeInGameplay=0`).  Only the default and Nocturnal Dream themes have these
+two lines; with another theme use the ini file, or add `conf,Wife` and `conf,ShowWifeInGameplay`
 lines to its `ScreenGameplayOptions` metrics.
 Only songs that a person plays count: not courses, demonstrations, autoplay or
 the computer's play, and only plays that 3.9 would save (not failed or
@@ -306,6 +306,57 @@ scores instead, see [Online](#online).
 from [Etterna](https://github.com/etternagame/etterna), which is MIT licensed,
 Copyright (c) 2016-2023 Etterna.  The license text is in `src/Wife.h`, and
 MinaCalc's in `extern/MinaCalc/LICENSE`.
+
+## Themes
+
+A new install starts with 3.9's `default` theme, as always; `techno` is there
+too.  A third theme, **Nocturnal Dream** (an anime theme for 3.9 by Anime
+Toshokan), comes with the game and shows more about the charts and your scores.
+Pick it in Options, Appearance Options, Theme, or set `Theme=Nocturnal Dream` in
+the game's section of `Data/GamePrefs.ini`.
+
+What it adds to the original theme:
+
+| Where        | What                                                                 |
+|--------------|----------------------------------------------------------------------|
+| Music select | the music rate, and the chart's length and BPM at that rate          |
+| Music select | your best score on the chart: 3.9's best grade and percent, or with Wife on the best Wife% at the current rate (the best at any rate, with its rate, if there is none at this one) |
+| Music select | with Wife on, the chart's MSD and its two highest skillsets at the current rate, and the grade of your best Wife% on the wheel |
+| Results      | the song's title, artist and pack, the music rate, and each judgment's share of the taps under its count |
+| Results      | with Wife on, the Wife% (and its grade in the grade box), the judge, the chart's MSD and the play's SSR, where it ranks among your scores on the chart at that rate, "PERSONAL BEST" when it beats them, and the mean and standard deviation of your hits and the combo breaks (Goods, Boos and Misses) |
+
+The Wife grades are Etterna's: AAAA from 99.955%, AAA from 99.7%, AA from 93%,
+A from 80%, B from 70%, C from 60%, D under that.  The best scores are the
+player's profile's, or the machine's for a player without one.  The F5 to F7
+panels work as with any other theme.
+
+Compared with the theme as it was released, a screen in the attract loop that
+advertised an adult theme is gone, the warning screen has new art, images whose
+frame sizes 3.9 complains about were padded by a transparent pixel, and two
+music loops were re-encoded smaller.
+
+**For theme authors.**  The lines Nocturnal Dream shows are there for any theme;
+the default theme has them all off.  Each one that is on needs `<name>X`,
+`<name>Y`, `<name>OnCommand` and `<name>OffCommand`.
+
+| Metric (section)                              | Turns on                                     |
+|-----------------------------------------------|----------------------------------------------|
+| `ShowRateDisplay` (`ScreenSelectMusic`)       | `RateDisplay`: "Rate 1.1x"                   |
+| `ShowChartLength`, `ShowChartBPM`             | `ChartLength`, `ChartBPM`, at the rate       |
+| `ShowChartNPS`, `ShowChartNotes`              | `ChartNPS`: average notes per second; `ChartNotes`: notes, jumps, hands, holds and mines |
+| `ShowChartMSD`, `ShowChartSkillsets`          | `ChartMSD`, `ChartSkillsets` (with Wife on)  |
+| `ShowChartBest`                               | `ChartBest`: the best score                  |
+| `GradesFromWife` (`MusicWheelItem`)           | the wheel's grades from Wife3 scores (with Wife on) |
+| `ShowSongInfo` (`ScreenEvaluation`)           | `SongTitle`, `SongArtist`, `SongPack`        |
+| `ShowRate`                                    | `RateDisplay`                                |
+| `ShowJudgmentPercents`                        | `MarvelousPercentP1` ... `MissPercentP2`     |
+| `ShowWifeArea`                                | `WifePercentP1`, `WifeDetailP1`, `WifeRankP1`, `WifeRecordP1` and `WifeStatsP1` (and P2), with Wife on |
+| `GradeFromWife`                               | the grade area shows the Wife3 score's grade (with Wife on) |
+
+The music select lines are for the first player's chart and use the font
+`ScreenSelectMusic chart info`; the results ones use `ScreenEvaluation song
+info`, `judge percent`, `wife` and `wife info`.  All of them are `Common normal`
+in the default theme.
 
 ## Online
 
@@ -475,8 +526,8 @@ profile keeps nothing, and the song options screen is forgotten every time.  Wit
 **Remember Options** the options you last played with come back at the start of
 the next game, on the music select screen and in the options screens.  It is on
 by default; "Remember Options: OFF" in Gameplay Options (`RememberOptions=0` in
-`Data/StepMania.ini`) gives you 3.9's behavior exactly.  Only the default theme
-has the line in its menu; for another theme add `conf,RememberOptions` to its
+`Data/StepMania.ini`) gives you 3.9's behavior exactly.  Only the default and
+Nocturnal Dream themes have the line in their menu; for another theme add `conf,RememberOptions` to its
 `ScreenGameplayOptions` metrics, or use the ini file.
 
 **What is remembered.**  Everything on the player options screen: speed, every
@@ -539,8 +590,8 @@ a button to your profile on the server.
 
 **Turning it off.**  Gameplay Options, Discord Presence: OFF
 (`DiscordRichPresence=0` in `Data/StepMania.ini`).  It is on by default; Discord
-itself can also hide what you play (Settings, Activity Privacy).  For another
-theme than the default, add `conf,DiscordRichPresence` to its
+itself can also hide what you play (Settings, Activity Privacy).  For a theme other
+than the default and Nocturnal Dream, add `conf,DiscordRichPresence` to its
 `ScreenGameplayOptions` metrics, or use the ini file.
 
 **Privacy.**  The game only talks to the Discord app on your own computer,
