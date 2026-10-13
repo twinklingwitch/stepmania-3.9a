@@ -319,7 +319,7 @@ What it adds to the original theme:
 
 | Where        | What                                                                 |
 |--------------|----------------------------------------------------------------------|
-| Music select | the music rate, and the chart's length and BPM at that rate          |
+| Music select | the chart's length and BPM at the current music rate                |
 | Music select | your best score on the chart: 3.9's best grade and percent, or with Wife on the best Wife% at the current rate (the best at any rate, with its rate, if there is none at this one) |
 | Music select | with Wife on, the chart's MSD and its two highest skillsets at the current rate, and the grade of your best Wife% on the wheel |
 | Results      | the song's title, artist and pack, the music rate, and each judgment's share of the taps under its count |
