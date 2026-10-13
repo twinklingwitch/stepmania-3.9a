@@ -574,9 +574,7 @@ void GetNewStorageDevices( vector<UsbStorageDevice>& vDevicesOut )
 			}
 		}
 	}
-	
-leave:
-	
+
 	/* Remove any devices that we couldn't find a mountpoint for. */
 	for( unsigned i=0; i<vDevicesOut.size(); i++ )
 	{

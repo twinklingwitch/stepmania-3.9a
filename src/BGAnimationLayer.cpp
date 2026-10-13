@@ -536,12 +536,6 @@ void BGAnimationLayer::LoadFromIni( CString sAniDir, CString sLayer )
 	ini.GetValue( sLayer, "TileVelocityX", m_fTileVelocityX );
 	ini.GetValue( sLayer, "TileVelocityY", m_fTileVelocityY );
 
-
-	bool NeedTextureStretch = false;
-	if( m_fTexCoordVelocityX != 0 ||
-		m_fTexCoordVelocityY != 0 )
-		NeedTextureStretch = true;
-
 	switch( m_Type )
 	{
 	case TYPE_SPRITE:
