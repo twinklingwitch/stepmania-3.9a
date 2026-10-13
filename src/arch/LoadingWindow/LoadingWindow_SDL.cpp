@@ -83,6 +83,12 @@ LoadingWindow_SDL::~LoadingWindow_SDL()
 
 void LoadingWindow_SDL::Paint()
 {
+	/* This is called for every song and course loaded, but the picture never
+	 * changes, so a few times a second is plenty. */
+	if( m_LastPaint.Ago() < 1/30.0f )
+		return;
+	m_LastPaint.Touch();
+
 	SDL_UpdateWindowSurface( window );
 
 	/* Keep the window manager from thinking we've hung. */

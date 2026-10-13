@@ -2,10 +2,12 @@
 #define LOADING_WINDOW_SDL_H
 
 #include "LoadingWindow.h"
+#include "RageTimer.h"
 #include <SDL3/SDL.h>
 
 class LoadingWindow_SDL: public LoadingWindow {
 	SDL_Window *window;
+	RageTimer m_LastPaint;
 
 public:
 	LoadingWindow_SDL();
