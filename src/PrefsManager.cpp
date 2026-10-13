@@ -355,6 +355,15 @@ void PrefsManager::ResetToFactoryDefaults()
 	SaveGlobalPrefsToDisk();
 }
 
+/* Read an enum through an int, instead of casting the enum to int&. */
+template<class T>
+static void GetEnumValue( const IniFile &ini, const CString &key, const CString &valuename, T &value )
+{
+	int i = value;
+	if( ini.GetValue( key, valuename, i ) )
+		value = (T) i;
+}
+
 void PrefsManager::ReadPrefsFromFile( CString sIni )
 {
 	IniFile ini;
@@ -376,7 +385,7 @@ void PrefsManager::ReadPrefsFromFile( CString sIni )
 	ini.GetValue( "Options", "UseDedicatedMenuButtons",			m_bOnlyDedicatedMenuButtons );
 	ini.GetValue( "Options", "ShowStats",						m_bShowStats );
 	ini.GetValue( "Options", "ShowBanners",						m_bShowBanners );
-	ini.GetValue( "Options", "BackgroundMode",					(int&)m_BackgroundMode );
+	GetEnumValue( ini, "Options", "BackgroundMode",					m_BackgroundMode );
 	ini.GetValue( "Options", "NumBackgrounds",					m_iNumBackgrounds);
 	ini.GetValue( "Options", "ShowDanger",						m_bShowDanger );
 	ini.GetValue( "Options", "BGBrightness",					m_fBGBrightness );
@@ -474,10 +483,10 @@ void PrefsManager::ReadPrefsFromFile( CString sIni )
 	ini.GetValue( "Options", "TexturePreload",					m_bTexturePreload );
 	ini.GetValue( "Options", "DelayedScreenLoad",				m_bDelayedScreenLoad );
 	ini.GetValue( "Options", "DelayedModelDelete",				m_bDelayedModelDelete );
-	ini.GetValue( "Options", "BannerCache",						(int&)m_BannerCache );
+	GetEnumValue( ini, "Options", "BannerCache",						m_BannerCache );
 	ini.GetValue( "Options", "PalettedBannerCache",				m_bPalettedBannerCache );
 	ini.GetValue( "Options", "FastLoad",						m_bFastLoad );
-	ini.GetValue( "Options", "MusicWheelUsesSections",			(int&)m_MusicWheelUsesSections );
+	GetEnumValue( ini, "Options", "MusicWheelUsesSections",			m_MusicWheelUsesSections );
 	ini.GetValue( "Options", "MusicWheelSwitchSpeed",			m_iMusicWheelSwitchSpeed );
 	ini.GetValue( "Options", "SoundDrivers",					m_sSoundDrivers );
 	ini.GetValue( "Options", "SoundWriteAhead",					m_iSoundWriteAhead );
@@ -491,13 +500,13 @@ void PrefsManager::ReadPrefsFromFile( CString sIni )
 	ini.GetValue( "Options", "CoinMode",						m_iCoinMode );
 	ini.GetValue( "Options", "CoinsPerCredit",					m_iCoinsPerCredit );
 	m_iCoinsPerCredit = max(m_iCoinsPerCredit, 1);
-	ini.GetValue( "Options", "Premium",							(int&)m_Premium );
+	GetEnumValue( ini, "Options", "Premium",							m_Premium );
 	ini.GetValue( "Options", "DelayedCreditsReconcile",			m_bDelayedCreditsReconcile );
 	ini.GetValue( "Options", "PickExtraStage",					m_bPickExtraStage );
 	ini.GetValue( "Options", "ComboContinuesBetweenSongs",		m_bComboContinuesBetweenSongs );
 	ini.GetValue( "Options", "LongVerSeconds",					m_fLongVerSongSeconds );
 	ini.GetValue( "Options", "MarathonVerSeconds",				m_fMarathonVerSongSeconds );
-	ini.GetValue( "Options", "ShowSongOptions",					(int&)m_ShowSongOptions );
+	GetEnumValue( ini, "Options", "ShowSongOptions",					m_ShowSongOptions );
 	ini.GetValue( "Options", "LightsStepsDifficulty",			m_sLightsStepsDifficulty );
 	ini.GetValue( "Options", "BlinkGameplayButtonLightsOnNote",	m_bBlinkGameplayButtonLightsOnNote );
 	ini.GetValue( "Options", "AllowUnacceleratedRenderer",		m_bAllowUnacceleratedRenderer );
@@ -532,13 +541,13 @@ void PrefsManager::ReadPrefsFromFile( CString sIni )
 	ini.GetValue( "Options", "AutogenGroupCourses",				m_bAutogenGroupCourses );
 	ini.GetValue( "Options", "BreakComboToGetItem",				m_bBreakComboToGetItem );
 	ini.GetValue( "Options", "LockCourseDifficulties",			m_bLockCourseDifficulties );
-	ini.GetValue( "Options", "ShowDancingCharacters",			(int&)m_ShowDancingCharacters );
+	GetEnumValue( ini, "Options", "ShowDancingCharacters",			m_ShowDancingCharacters );
 
-	ini.GetValue( "Options", "CourseSortOrder",					(int&)m_iCourseSortOrder );
+	GetEnumValue( ini, "Options", "CourseSortOrder",					m_iCourseSortOrder );
 	ini.GetValue( "Options", "MoveRandomToEnd",					m_bMoveRandomToEnd );
 	ini.GetValue( "Options", "SubSortByNumSteps",				m_bSubSortByNumSteps );
 
-	ini.GetValue( "Options", "ScoringType",						(int&)m_iScoringType );
+	GetEnumValue( ini, "Options", "ScoringType",						m_iScoringType );
 
 	ini.GetValue( "Options", "ProgressiveLifebar",				m_iProgressiveLifebar );
 	ini.GetValue( "Options", "ProgressiveNonstopLifebar", 		m_iProgressiveNonstopLifebar );
@@ -552,7 +561,7 @@ void PrefsManager::ReadPrefsFromFile( CString sIni )
 	ini.GetValue( "Options", "LastSeenVideoDriver",				m_sLastSeenVideoDriver );
 	ini.GetValue( "Options", "LastSeenInputDevices",			m_sLastSeenInputDevices );
 	ini.GetValue( "Options", "CoursesToShowRanking",			m_sCoursesToShowRanking );
-	ini.GetValue( "Options", "GetRankingName",					(int&)m_iGetRankingName);
+	GetEnumValue( ini, "Options", "GetRankingName",					m_iGetRankingName );
 	ini.GetValue( "Options", "SmoothLines",						m_bSmoothLines );
 	ini.GetValue( "Options", "GlobalOffsetSeconds",				m_fGlobalOffsetSeconds );
 	ini.GetValue( "Options", "ShowBeginnerHelper",				m_bShowBeginnerHelper );

@@ -900,6 +900,12 @@ Steps* Song::GetStepsByDescription( StepsType st, CString sDescription ) const
 }
 
 
+static Difficulty ClampDifficulty( int dc )
+{
+	CLAMP( dc, 0, NUM_DIFFICULTIES-1 );
+	return (Difficulty) dc;
+}
+
 Steps* Song::GetClosestNotes( StepsType st, Difficulty dc ) const
 {
 	Difficulty newDC = dc;
@@ -907,23 +913,19 @@ Steps* Song::GetClosestNotes( StepsType st, Difficulty dc ) const
 	pSteps = GetStepsByDifficulty( st, newDC );
 	if( pSteps )
 		return pSteps;
-	newDC = (Difficulty)(dc-1);
-	CLAMP( (int&)newDC, 0, NUM_DIFFICULTIES-1 );
+	newDC = ClampDifficulty( dc-1 );
 	pSteps = GetStepsByDifficulty( st, newDC );
 	if( pSteps )
 		return pSteps;
-	newDC = (Difficulty)(dc+1);
-	CLAMP( (int&)newDC, 0, NUM_DIFFICULTIES-1 );
+	newDC = ClampDifficulty( dc+1 );
 	pSteps = GetStepsByDifficulty( st, newDC );
 	if( pSteps )
 		return pSteps;
-	newDC = (Difficulty)(dc-2);
-	CLAMP( (int&)newDC, 0, NUM_DIFFICULTIES-1 );
+	newDC = ClampDifficulty( dc-2 );
 	pSteps = GetStepsByDifficulty( st, newDC );
 	if( pSteps )
 		return pSteps;
-	newDC = (Difficulty)(dc+2);
-	CLAMP( (int&)newDC, 0, NUM_DIFFICULTIES-1 );
+	newDC = ClampDifficulty( dc+2 );
 	pSteps = GetStepsByDifficulty( st, newDC );
 	return pSteps;
 }
