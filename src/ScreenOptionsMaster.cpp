@@ -215,7 +215,6 @@ ScreenOptionsMaster::ScreenOptionsMaster( CString sClassName ):
 	CStringArray Flags;
 	split( OPTION_MENU_FLAGS, ";", Flags, true );
 	InputMode im = INPUTMODE_INDIVIDUAL;
-	bool Explanations = false;
 	
 	unsigned i;
 	for( i = 0; i < Flags.size(); ++i )
@@ -224,8 +223,6 @@ ScreenOptionsMaster::ScreenOptionsMaster( CString sClassName ):
 
 		if( Flags[i] == "together" )
 			im = INPUTMODE_SHARE_CURSOR;
-		if( Flags[i] == "explanations" )
-			Explanations = true;
 		if( Flags[i] == "forceallplayers" )
 		{
 			FOREACH_PlayerNumber( pn )

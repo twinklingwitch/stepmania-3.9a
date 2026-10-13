@@ -111,6 +111,7 @@ int q = 0;
 		++q;
 //		const float t = test.GetElapsedTimeFromBeat( f );
 		const float b = test.GetBeatFromElapsedTime( f );
+		(void) b;	/* for the disabled check below */
 
 		/* b == f */
 	
