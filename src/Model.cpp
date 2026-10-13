@@ -270,8 +270,13 @@ bool Model::LoadMilkshapeAsciiBones( CString sAniName, CString sPath )
 	m_mapNameToAnimation[sAniName] = msAnimation();
 	msAnimation &Animation = m_mapNameToAnimation[sAniName];
 
-	if( Animation.LoadMilkshapeAsciiBones( sAniName, sPath ) )
+	if( !Animation.LoadMilkshapeAsciiBones( sAniName, sPath ) )
 	{
+		if( m_pCurAnimation == &Animation )
+		{
+			m_pCurAnimation = NULL;
+			m_vpBones.clear();
+		}
 		m_mapNameToAnimation.erase( sAniName );
 		return false;
 	}

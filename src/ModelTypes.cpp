@@ -221,6 +221,7 @@ bool msAnimation::LoadMilkshapeAsciiBones( CString sAniName, CString sPath )
         char szName[MS_MAX_NAME];
 
         Animation.Bones.resize( nNumBones );
+		bLoaded = true;
 
         for( int i = 0; i < nNumBones; i++ )
         {
