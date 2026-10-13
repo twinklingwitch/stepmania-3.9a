@@ -16,6 +16,7 @@ public:
 	void EndFrame();
 	VideoModeParams GetVideoModeParams() const { return m_Params; }
 	void SetBlendMode( BlendMode mode ) { }
+	void SetBlending( bool b ) { }
 	bool SupportsTextureFormat( PixelFormat pixfmt, bool realtime=false ) { return true; }
 	unsigned CreateTexture( 
 		PixelFormat pixfmt, 

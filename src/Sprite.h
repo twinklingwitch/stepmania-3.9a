@@ -66,6 +66,7 @@ protected:
 	virtual bool LoadFromSpriteFile( RageTextureID ID );
 
 	void DrawTexture( const TweenState *state );
+	void DrawDiffuseQuad( const RageSpriteVertex v[4] );
 
 	CString	m_sSpritePath;
 	RageTexture* m_pTexture;

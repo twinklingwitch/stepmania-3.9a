@@ -1270,6 +1270,14 @@ void RageDisplay_OGL::SetBlendMode( BlendMode mode )
 	}
 }
 
+void RageDisplay_OGL::SetBlending( bool b )
+{
+	if( b )
+		glEnable( GL_BLEND );
+	else
+		glDisable( GL_BLEND );
+}
+
 bool RageDisplay_OGL::IsZWriteEnabled() const
 {
 	bool a;

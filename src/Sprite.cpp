@@ -324,6 +324,52 @@ void TexCoordArrayFromRect(float fImageCoords[8], const RectF &rect)
 	fImageCoords[6] = rect.right;	fImageCoords[7] = rect.top;		// top right
 }
 
+/* With an opaque texture, normal blending and full diffuse alpha, blending gives
+ * back exactly the source color, so draw without it and save the GPU reading
+ * back every pixel.  The power-of-two padding past the image is transparent,
+ * though, and filtering pulls it into the image's last texel, so only do this if
+ * the quad stays clear of it. */
+void Sprite::DrawDiffuseQuad( const RageSpriteVertex v[4] )
+{
+	if( m_pTexture == NULL || !m_pTexture->IsOpaque() || m_BlendMode != BLEND_NORMAL ||
+		v[0].c.a != 255 || v[1].c.a != 255 || v[2].c.a != 255 || v[3].c.a != 255 )
+	{
+		DISPLAY->DrawQuad( v );
+		return;
+	}
+
+	const int iImageWidth = m_pTexture->GetImageWidth(), iTextureWidth = m_pTexture->GetTextureWidth();
+	const int iImageHeight = m_pTexture->GetImageHeight(), iTextureHeight = m_pTexture->GetTextureHeight();
+
+	/* The largest texture coordinate on each axis that can't reach the padding.
+	 * Filtering reads the next texel once we're past the middle of the last one;
+	 * stop a whole texel short, to stay clear of rounding.  With wrapping, the
+	 * left and top edges reach the padding too. */
+	if( iImageWidth != iTextureWidth || iImageHeight != iTextureHeight )
+	{
+		if( m_bTextureWrapping )
+		{
+			DISPLAY->DrawQuad( v );
+			return;
+		}
+
+		const float fMaxU = iImageWidth != iTextureWidth? float(iImageWidth-1) / iTextureWidth: 1e30f;
+		const float fMaxV = iImageHeight != iTextureHeight? float(iImageHeight-1) / iTextureHeight: 1e30f;
+		for( int i = 0; i < 4; ++i )
+		{
+			if( v[i].t.x > fMaxU || v[i].t.y > fMaxV )
+			{
+				DISPLAY->DrawQuad( v );
+				return;
+			}
+		}
+	}
+
+	DISPLAY->SetBlending( false );
+	DISPLAY->DrawQuad( v );
+	DISPLAY->SetBlending( true );
+}
+
 void Sprite::DrawTexture( const TweenState *state )
 {
 	// bail if cropped all the way 
@@ -454,7 +500,7 @@ void Sprite::DrawTexture( const TweenState *state )
 		v[1].c = state->diffuse[2];	// bottom left
 		v[2].c = state->diffuse[3];	// bottom right
 		v[3].c = state->diffuse[1];	// top right
-		DISPLAY->DrawQuad( v );
+		DrawDiffuseQuad( v );
 	}
 
 	//////////////////////

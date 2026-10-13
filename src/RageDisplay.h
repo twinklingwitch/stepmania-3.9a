@@ -165,6 +165,9 @@ public:
 	bool IsWindowed() const { return this->GetVideoModeParams().windowed; }
 	
 	virtual void SetBlendMode( BlendMode mode ) = 0;
+	/* Turn blending off and back on without changing the mode.  SetBlendMode
+	 * always turns it back on. */
+	virtual void SetBlending( bool b ) = 0;
 
 	virtual bool SupportsTextureFormat( PixelFormat pixfmt, bool realtime=false ) = 0;
 

@@ -80,11 +80,13 @@ void RageBitmapTexture::Create()
 	if( actualID.bHotPinkColorKey )
 		RageSurfaceUtils::ApplyHotPinkColorKey( img );
 
+	bool bNoTransparency = false;
 	{
 		/* Do this after setting the color key for paletted images; it'll also return
 		 * TRAIT_NO_TRANSPARENCY if the color key is never used. */
 		int traits = RageSurfaceUtils::FindSurfaceTraits(img);
-		if( traits & RageSurfaceUtils::TRAIT_NO_TRANSPARENCY )
+		bNoTransparency = !!(traits & RageSurfaceUtils::TRAIT_NO_TRANSPARENCY);
+		if( bNoTransparency )
 			actualID.iAlphaBits = 0;
 		else if( traits & RageSurfaceUtils::TRAIT_BOOL_TRANSPARENCY )
 			actualID.iAlphaBits = 1;
@@ -152,6 +154,11 @@ void RageBitmapTexture::Create()
 
 	if( img->w != m_iImageWidth || img->h != m_iImageHeight ) 
 		RageSurfaceUtils::Zoom( img, m_iImageWidth, m_iImageHeight );
+
+	/* Mipmaps blend the transparent padding past the image into the image's
+	 * edges, and an alpha map is nothing but alpha. */
+	const bool bPadded = m_iImageWidth != m_iTextureWidth || m_iImageHeight != m_iTextureHeight;
+	m_bOpaque = bNoTransparency && actualID.iGrayscaleBits != 0 && !(actualID.bMipMaps && bPadded);
 
 	// Format of the image that we will pass to OpenGL and that we want OpenGL to use
 	RageDisplay::PixelFormat pixfmt;

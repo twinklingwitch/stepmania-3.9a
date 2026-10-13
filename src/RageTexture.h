@@ -50,6 +50,10 @@ public:
 	const RectF *GetTextureCoordRect( int frameNo ) const;
 	int   GetNumFrames() const { return m_iFramesWide*m_iFramesHigh; }
 
+	/* True if every texel of the image is fully opaque.  Texels outside the
+	 * image (power-of-two padding) are still transparent. */
+	bool IsOpaque() const { return m_bOpaque; }
+
 	/* Used by RageTextureManager.  Order is important; see RageTextureManager.cpp. */
 	const RageTextureID::TexPolicy &GetPolicy() const { return m_ID.Policy; }
 	RageTextureID::TexPolicy &GetPolicy() { return m_ID.Policy; }
@@ -73,6 +77,7 @@ protected:
 	int		m_iTextureWidth,	m_iTextureHeight;	// dimensions of the texture in memory
 	int		m_iImageWidth,		m_iImageHeight;		// dimensions of the image in the texture
 	int		m_iFramesWide,		m_iFramesHigh;		// The number of frames of animation in each row and column of this texture
+	bool	m_bOpaque;
 	vector<RectF>	m_TextureCoordRects;	// size = m_iFramesWide * m_iFramesHigh
 
 	virtual void CreateFrameRects();
