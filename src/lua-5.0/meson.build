@@ -33,6 +33,9 @@ lua_inc = include_directories('include', 'src')
 liblua = static_library('lua', lua_sources,
   include_directories: lua_inc,
   dependencies: m_dep,
+  # Vendored code; warning_level=0 doesn't turn off the warnings GCC enables
+  # by default (like -Wpointer-to-int-cast in llimits.h), so silence them too.
+  c_args: ['-w'],
   override_options: ['warning_level=0'])
 
 lua_dep = declare_dependency(
