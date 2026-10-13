@@ -399,6 +399,16 @@ void ScreenRanking::HandleScreenMessage( const ScreenMessage SM )
 	ScreenAttract::HandleScreenMessage( SM );
 }
 
+/* Whether the top score's name was just entered, so it should blink. */
+static bool IsRecentTopScore( const HighScoreList &hsl )
+{
+	if( hsl.vHighScores.empty() )
+		return false;
+	const CString *psName = &hsl.vHighScores[0].sName;
+	const vector<CString*> &vpsNames = GAMESTATE->m_vpsNamesThatWereFilled;
+	return find( vpsNames.begin(), vpsNames.end(), psName ) != vpsNames.end();
+}
+
 float ScreenRanking::SetPage( PageToShow pts )
 {
 	bool bBanner = false; 
@@ -790,6 +800,8 @@ float ScreenRanking::SetPage( PageToShow pts )
 						s = hs.GetDisplayName() + "\n";
 						s += ssprintf( "%0*.*f%%", PERCENT_TOTAL_SIZE, PERCENT_DECIMAL_PLACES, hs.fPercentDP*100 );
 						pTextStepsScore->SetText( s );
+						if( IsRecentTopScore(hsl) )
+							pTextStepsScore->SetEffectGlowBlink(0.1f);
 					}
 				}
 			}
@@ -826,6 +838,8 @@ float ScreenRanking::SetPage( PageToShow pts )
 					s = hs.GetDisplayName() + "\n";
 					s += ssprintf( "%0*.*f%%", PERCENT_TOTAL_SIZE, PERCENT_DECIMAL_PLACES, hs.fPercentDP*100 );
 					pTextStepsScore->SetText( s );
+					if( IsRecentTopScore(hsl) )
+						pTextStepsScore->SetEffectGlowBlink(0.1f);
 				}
 			}
 		}
