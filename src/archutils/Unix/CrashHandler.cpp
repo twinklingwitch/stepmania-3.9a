@@ -114,7 +114,7 @@ static void NORETURN spawn_child_process( int from_parent )
 	GetExecutableName( path, sizeof(path) );
 
 	/* Use execve; it's the lowest-level of the exec calls.  The others may allocate. */
-	char *argv[3] = { path, CHILD_MAGIC_PARAMETER, NULL };
+	char *argv[3] = { path, const_cast<char *>(CHILD_MAGIC_PARAMETER), NULL };
 	char *envp[1] = { NULL };
 	execve( path, argv, envp );
 
