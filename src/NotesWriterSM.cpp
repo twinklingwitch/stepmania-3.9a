@@ -11,7 +11,15 @@
 #include <cstring>
 #include <cerrno>
 
-void NotesWriterSM::WriteGlobalTags( RageFile &f, const Song &out )
+/* The cache keeps the timing exactly as it was read: online scores send it, and
+ * the server compares it with the simfile's.  Rounding it to three decimals would
+ * make a song loaded from the cache look like it had been resynced. */
+static CString TimingValue( float f, bool bSavingCache )
+{
+	return ssprintf( bSavingCache? "%.9g": "%.3f", f );
+}
+
+void NotesWriterSM::WriteGlobalTags( RageFile &f, const Song &out, bool bSavingCache )
 {
 	f.PutLine( ssprintf( "#TITLE:%s;", out.m_sMainTitle.c_str() ) );
 	f.PutLine( ssprintf( "#SUBTITLE:%s;", out.m_sSubTitle.c_str() ) );
@@ -25,7 +33,7 @@ void NotesWriterSM::WriteGlobalTags( RageFile &f, const Song &out )
 	f.PutLine( ssprintf( "#LYRICSPATH:%s;", out.m_sLyricsFile.c_str() ) );
 	f.PutLine( ssprintf( "#CDTITLE:%s;", out.m_sCDTitleFile.c_str() ) );
 	f.PutLine( ssprintf( "#MUSIC:%s;", out.m_sMusicFile.c_str() ) );
-	f.PutLine( ssprintf( "#OFFSET:%.3f;", out.m_Timing.m_fBeat0OffsetInSeconds ) );
+	f.PutLine( ssprintf( "#OFFSET:%s;", TimingValue(out.m_Timing.m_fBeat0OffsetInSeconds, bSavingCache).c_str() ) );
 	f.PutLine( ssprintf( "#SAMPLESTART:%.3f;", out.m_fMusicSampleStartSeconds ) );
 	f.PutLine( ssprintf( "#SAMPLELENGTH:%.3f;", out.m_fMusicSampleLengthSeconds ) );
 
@@ -64,7 +72,7 @@ void NotesWriterSM::WriteGlobalTags( RageFile &f, const Song &out )
 	{
 		const BPMSegment &bs = out.m_Timing.m_BPMSegments[i];
 
-		f.Write( ssprintf( "%.3f=%.3f", bs.m_fStartBeat, bs.m_fBPM ) );
+		f.Write( TimingValue(bs.m_fStartBeat, bSavingCache) + "=" + TimingValue(bs.m_fBPM, bSavingCache) );
 		if( i != out.m_Timing.m_BPMSegments.size()-1 )
 			f.Write( "," );
 	}
@@ -75,7 +83,7 @@ void NotesWriterSM::WriteGlobalTags( RageFile &f, const Song &out )
 	{
 		const StopSegment &fs = out.m_Timing.m_StopSegments[i];
 
-		f.PutLine( ssprintf( "%.3f=%.3f", fs.m_fStartBeat, fs.m_fStopSeconds ) );
+		f.PutLine( TimingValue(fs.m_fStartBeat, bSavingCache) + "=" + TimingValue(fs.m_fStopSeconds, bSavingCache) );
 		if( i != out.m_Timing.m_StopSegments.size()-1 )
 			f.Write( "," );
 	}
@@ -254,7 +262,7 @@ bool NotesWriterSM::WriteSong( RageFile &f, const Song &out, bool bSavingCache, 
 {
 	unsigned i;
 
-	WriteGlobalTags( f, out );
+	WriteGlobalTags( f, out, bSavingCache );
 	if( bSavingCache )
 	{
 		f.PutLine( ssprintf( "// cache tags:" ) );

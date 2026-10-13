@@ -8,7 +8,7 @@ class Steps;
 class RageFile;
 class NotesWriterSM
 {
-	void WriteGlobalTags( RageFile &f, const Song &out );
+	void WriteGlobalTags( RageFile &f, const Song &out, bool bSavingCache );
 	void WriteSMNotesTag( const Steps &in, RageFile &f, bool bSavingCache, const unsigned *puHash );
 	bool WriteSong( RageFile &f, const Song &out, bool bSavingCache, const vector<unsigned> *pHashes );
 	bool WriteToString( CString &sOut, const Song &out, const vector<unsigned> *pHashes );
