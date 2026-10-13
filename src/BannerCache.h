@@ -12,6 +12,7 @@ class LoadingWindow;
 class BannerCache
 {
 	IniFile BannerData;
+	bool m_bIndexDirty;
 
 	static CString GetBannerCachePath( CString BannerPath );
 	void UnloadAllBanners();
@@ -26,6 +27,9 @@ public:
 	void CacheBanner( CString BannerPath );
 	void UncacheBanner( CString BannerPath );
 	void LoadBanner( CString BannerPath );
+
+	/* Write the index, if any banners have been cached since it was last written. */
+	void WriteIndex();
 };
 
 extern BannerCache *BANNERCACHE; // global and accessable from anywhere in our program

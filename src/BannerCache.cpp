@@ -104,11 +104,21 @@ void BannerCache::UnloadAllBanners()
 BannerCache::BannerCache()
 {
 	BannerData.ReadFile( BANNER_CACHE_INDEX );	// don't care if this fails
+	m_bIndexDirty = false;
 }
 
 BannerCache::~BannerCache()
 {
+	WriteIndex();
 	UnloadAllBanners();
+}
+
+void BannerCache::WriteIndex()
+{
+	if( !m_bIndexDirty )
+		return;
+	BannerData.WriteFile( BANNER_CACHE_INDEX );
+	m_bIndexDirty = false;
 }
 
 struct BannerTexture: public RageTexture
@@ -423,7 +433,11 @@ void BannerCache::CacheBannerInternal( CString BannerPath )
 	BannerData.SetValue( BannerPath, "FullHash", GetHashForFile( BannerPath ) );
 	/* Remember this, so we can hint Sprite. */
 	BannerData.SetValue( BannerPath, "Rotated", WasRotatedBanner );
-	BannerData.WriteFile( BANNER_CACHE_INDEX );
+
+	/* Writing the whole index for every banner makes caching a big library take
+	 * time proportional to the square of its size.  It's written once the songs
+	 * are loaded; if we don't get that far, the banners just get cached again. */
+	m_bIndexDirty = true;
 }
 
 /*
