@@ -202,6 +202,10 @@ void PaneDisplay::SetContent( PaneContents c )
 			val = 100.0f * PROFILEMAN->GetMachineProfile()->GetStepsHighScoreList(pSong,pSteps).GetTopScore().fPercentDP;
 			break;
 
+		case SONG_MACHINE_NUM_PLAYS:
+			val = (float) PROFILEMAN->GetMachineProfile()->GetStepsNumTimesPlayed(pSong,pSteps);
+			break;
+
 		case SONG_MACHINE_RANK:
 			{
 			const vector<Song*> best = SONGMAN->GetBestSongs( PROFILE_SLOT_MACHINE );
