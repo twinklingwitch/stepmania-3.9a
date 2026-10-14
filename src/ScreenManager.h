@@ -40,7 +40,7 @@ public:
 	void SystemMessage( CString sMessage );
 	void SystemMessageNoAnimate( CString sMessage );
 	bool WifeInput( const DeviceInput& DeviceI, const InputEventType type );	// the Wife overlay's keys
-	bool ChatInput( const DeviceInput& DeviceI, const InputEventType type );	// F8 and, while it's open, the keyboard
+	bool ChatInput( const DeviceInput& DeviceI, const InputEventType type );	// F8, F10 and, while their panels are open, the keyboard
 	void ShowRate( float fRate, int iLimit );	// the music rate popup (iLimit -1 or +1 at the ends); doesn't need Wife
 
 	void PostMessageToTopScreen( ScreenMessage SM, float fDelay );

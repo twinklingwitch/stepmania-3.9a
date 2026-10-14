@@ -5,6 +5,7 @@
 #include "global.h"
 #include "OnlineManager.h"
 #include "OnlineHttp.h"
+#include "OnlineRequest.h"
 #include "OnlineJson.h"
 #include "PrefsManager.h"
 #include "ProfileManager.h"
@@ -41,7 +42,7 @@ static float Now()
 }
 
 /* "2026-10-12T04:05:06Z" -> seconds since 1970, or 0. */
-static time_t ParseRFC3339( const CString &s )
+time_t OnlineParseTime( const CString &s )
 {
 	int y, mo, d, h, mi, sec;
 	if( sscanf(s.c_str(), "%d-%d-%dT%d:%d:%d", &y, &mo, &d, &h, &mi, &sec) != 6 )
@@ -57,7 +58,7 @@ static time_t ParseRFC3339( const CString &s )
 }
 
 /* What went wrong with a request, for the player. */
-static CString ErrorMessage( const OnlineHttpResponse &r, CString *pCode = NULL )
+CString OnlineErrorMessage( const OnlineHttpResponse &r, CString *pCode )
 {
 	if( pCode )
 		*pCode = "";
@@ -76,7 +77,7 @@ static CString ErrorMessage( const OnlineHttpResponse &r, CString *pCode = NULL 
 	return ssprintf( "the server answered %i", r.iStatus );
 }
 
-static bool ParseBody( const OnlineHttpResponse &r, JsonValue &v )
+bool OnlineParseBody( const OnlineHttpResponse &r, JsonValue &v )
 {
 	CString sError;
 	if( JsonValue::Parse(r.sBody, v, sError) && v.IsObject() )
@@ -86,8 +87,8 @@ static bool ParseBody( const OnlineHttpResponse &r, JsonValue &v )
 }
 
 /* Only the path goes in the log; see OnlineHttp. */
-static int Request( const CString &sServer, const CString &sMethod, const CString &sPath, const CString &sBody,
-	const CString &sToken, int iTimeout = 30 )
+int OnlineRequest( const CString &sServer, const CString &sMethod, const CString &sPath, const CString &sBody,
+	const CString &sToken, int iTimeout )
 {
 	OnlineHttpRequest req;
 	req.sMethod = sMethod;
@@ -209,10 +210,10 @@ void OnlineManager::CheckServer()
 			return;
 		m_iInfoRequest = 0;
 		JsonValue v;
-		if( r.iStatus != 200 || !ParseBody(r, v) )
+		if( r.iStatus != 200 || !OnlineParseBody(r, v) )
 		{
 			m_InfoState = INFO_FAILED;
-			m_sInfoError = ErrorMessage( r );
+			m_sInfoError = OnlineErrorMessage( r );
 			m_fInfoRetry = Now() + INFO_RETRY;
 			return;
 		}
@@ -224,7 +225,7 @@ void OnlineManager::CheckServer()
 		}
 		m_InfoState = INFO_OK;
 		m_sServerName = v["name"].GetString();
-		const time_t tServer = ParseRFC3339( v["time"].GetString() );
+		const time_t tServer = OnlineParseTime( v["time"].GetString() );
 		const long iSkew = (long) (time(NULL) - tServer);
 		if( tServer && (iSkew > 300 || iSkew < -300) )
 			m_sClockWarning = ssprintf( "This computer's clock is %li minutes off the server's.", labs(iSkew) / 60 );
@@ -235,7 +236,7 @@ void OnlineManager::CheckServer()
 	if( m_InfoState == INFO_NONE || (m_InfoState == INFO_FAILED && Now() > m_fInfoRetry) )
 	{
 		m_InfoState = INFO_ASKING;
-		m_iInfoRequest = Request( m_sServer, "GET", "/info", "", "" );
+		m_iInfoRequest = OnlineRequest( m_sServer, "GET", "/info", "", "" );
 	}
 }
 
@@ -260,7 +261,7 @@ CString OnlineManager::ReadToken( const CString &sFile ) const
 	ParseKeyValues( s, kv );
 	if( kv["Server"] != m_sServer )
 		return "";
-	const time_t tExpires = ParseRFC3339( kv["ExpiresAt"] );
+	const time_t tExpires = OnlineParseTime( kv["ExpiresAt"] );
 	if( tExpires && tExpires < time(NULL) )
 		return "";
 	return kv["Token"];
@@ -324,7 +325,7 @@ void OnlineManager::Login( PlayerNumber pn, const CString &sUsername, const CStr
 	v.Set( "username", JsonValue::String(sUsername) );
 	v.Set( "password", JsonValue::String(sPassword) );
 	v.Set( "client", ClientInfo() );
-	a.iLoginRequest = Request( m_sServer, "POST", "/auth/login", v.Write(), "" );
+	a.iLoginRequest = OnlineRequest( m_sServer, "POST", "/auth/login", v.Write(), "" );
 	a.info.bBusy = true;
 	a.info.sStatus = "Logging in...";
 	a.info.sUsername = sUsername;
@@ -336,7 +337,7 @@ void OnlineManager::Logout( PlayerNumber pn )
 	if( a.info.bBusy || !a.info.bLoggedIn )
 		return;
 	/* Revoke the token on the server, but forget it here whatever happens. */
-	a.iLogoutRequest = Request( m_sServer, "POST", "/auth/logout", "", a.sToken );
+	a.iLogoutRequest = OnlineRequest( m_sServer, "POST", "/auth/logout", "", a.sToken );
 	ForgetToken( pn, "Logged out." );
 	a.info.sUsername = "";
 }
@@ -348,7 +349,7 @@ void OnlineManager::RefreshAccount( PlayerNumber pn )
 		return;
 	if( a.fMeFetched >= 0 && Now() - a.fMeFetched < ME_LIFETIME )
 		return;
-	a.iMeRequest = Request( m_sServer, "GET", "/me", "", a.sToken );
+	a.iMeRequest = OnlineRequest( m_sServer, "GET", "/me", "", a.sToken );
 }
 
 static void ReadRating( const JsonValue &v, float out[MINACALC_NUM_SKILLSETS] )
@@ -374,10 +375,10 @@ void OnlineManager::UpdateAccounts()
 			a.iLoginRequest = 0;
 			a.info.bBusy = false;
 			JsonValue v;
-			if( r.iStatus != 200 || !ParseBody(r, v) || v["token"].GetString().empty() )
+			if( r.iStatus != 200 || !OnlineParseBody(r, v) || v["token"].GetString().empty() )
 			{
 				CString sCode;
-				a.info.sStatus = ErrorMessage( r, &sCode );
+				a.info.sStatus = OnlineErrorMessage( r, &sCode );
 				if( sCode == "bad_credentials" )
 					a.info.sStatus = "Wrong username or password.";
 				LOG->Info( "Online: P%i couldn't log in: %s", pn+1, a.info.sStatus.c_str() );
@@ -410,7 +411,7 @@ void OnlineManager::UpdateAccounts()
 			JsonValue v;
 			if( r.iStatus == 401 )
 				ForgetToken( pn, "Your login has expired.  Log in again." );
-			else if( r.iStatus == 200 && ParseBody(r, v) )
+			else if( r.iStatus == 200 && OnlineParseBody(r, v) )
 			{
 				a.info.bHasRating = v["rating"].IsObject();
 				ReadRating( v["rating"], a.info.fRating );
@@ -448,7 +449,7 @@ const OnlineLeaderboard &OnlineManager::GetLeaderboard( PlayerNumber pn, const C
 	Board &b = it->second;
 	if( b.iRequest == 0 && (b.fFetched < 0 || Now() - b.fFetched > BOARD_LIFETIME) && GetServerProblem().empty() )
 	{
-		b.iRequest = Request( m_sServer, "GET", "/charts/" + sChartKey + "/leaderboard?rate=" + sRate + "&limit=10", "", a.sToken );
+		b.iRequest = OnlineRequest( m_sServer, "GET", "/charts/" + sChartKey + "/leaderboard?rate=" + sRate + "&limit=10", "", a.sToken );
 		b.lb.bLoading = true;
 	}
 	return b.lb;
@@ -481,8 +482,8 @@ void OnlineManager::UpdateBoards()
 		JsonValue v;
 		if( r.iStatus == 404 )
 			b.lb.sError = "This chart isn't on the server.";
-		else if( r.iStatus != 200 || !ParseBody(r, v) )
-			b.lb.sError = ErrorMessage( r );
+		else if( r.iStatus != 200 || !OnlineParseBody(r, v) )
+			b.lb.sError = OnlineErrorMessage( r );
 		else
 		{
 			b.lb.iTotal = v["total"].GetInt();
@@ -517,7 +518,7 @@ void OnlineManager::RequestTicket( PlayerNumber pn )
 	v.Set( "player_options", JsonValue::String(p.sPlayerOptions) );
 	v.Set( "song_options", JsonValue::String(p.sSongOptions) );
 	v.Set( "client", ClientInfo() );
-	p.iTicketRequest = Request( m_sServer, "POST", "/tickets", v.Write(), a.sToken, 10 );
+	p.iTicketRequest = OnlineRequest( m_sServer, "POST", "/tickets", v.Write(), a.sToken, 10 );
 }
 
 void OnlineManager::UpdateTickets()
@@ -531,27 +532,27 @@ void OnlineManager::UpdateTickets()
 			p.iTicketRequest = 0;
 			JsonValue v;
 			CString sCode;
-			if( (r.iStatus == 200 || r.iStatus == 201) && ParseBody(r, v) && !v["ticket"].GetString().empty() )
+			if( (r.iStatus == 200 || r.iStatus == 201) && OnlineParseBody(r, v) && !v["ticket"].GetString().empty() )
 			{
 				p.sTicket = v["ticket"].GetString();
 				/* Our clock may be off the server's: count from when it arrived. */
-				const time_t tIssued = ParseRFC3339( v["issued_at"].GetString() );
-				const time_t tEarliest = ParseRFC3339( v["earliest_submit_at"].GetString() );
-				const time_t tExpires = ParseRFC3339( v["expires_at"].GetString() );
+				const time_t tIssued = OnlineParseTime( v["issued_at"].GetString() );
+				const time_t tEarliest = OnlineParseTime( v["earliest_submit_at"].GetString() );
+				const time_t tExpires = OnlineParseTime( v["expires_at"].GetString() );
 				const time_t tNow = time(NULL);
 				p.tSubmitFrom = tNow + max( (long) (tEarliest - tIssued), 0L ) + 1;
 				p.tTicketExpires = tNow + max( (long) (tExpires - tIssued), 0L );
 				LOG->Info( "Online: P%i has a play ticket", pn+1 );
 			}
 			else if( r.iStatus == 422 )
-				Unranked( pn, ErrorMessage(r) );
+				Unranked( pn, OnlineErrorMessage(r) );
 			else if( r.iStatus == 401 )
 			{
 				ForgetToken( pn, "Your login has expired.  Log in again." );
 				p.sTicketError = "not logged in";
 			}
 			else
-				p.sTicketError = ErrorMessage( r );
+				p.sTicketError = OnlineErrorMessage( r );
 			if( !p.sTicketError.empty() )
 				LOG->Info( "Online: P%i got no play ticket: %s", pn+1, p.sTicketError.c_str() );
 		}
@@ -713,7 +714,7 @@ void OnlineManager::FetchRank( PlayerNumber pn )
 	const WifeStageResult &wr = WIFE->GetStageResult( pn );
 	if( m_iRankRequest[pn] || !r.bValid || wr.sChartKey.empty() )
 		return;
-	m_iRankRequest[pn] = Request( m_sServer, "GET", "/charts/" + wr.sChartKey + "/leaderboard?rate=" + ssprintf("%.2f", r.fRate) + "&limit=1",
+	m_iRankRequest[pn] = OnlineRequest( m_sServer, "GET", "/charts/" + wr.sChartKey + "/leaderboard?rate=" + ssprintf("%.2f", r.fRate) + "&limit=1",
 		"", ReadToken(m_Account[pn].sFile) );
 }
 
@@ -729,7 +730,7 @@ void OnlineManager::UpdateQueue()
 		{
 			m_iRankRequest[pn] = 0;
 			JsonValue v;
-			if( r.iStatus == 200 && ParseBody(r, v) && v["me"].IsObject() )
+			if( r.iStatus == 200 && OnlineParseBody(r, v) && v["me"].IsObject() )
 				m_Result[pn].iRank = v["me"]["rank"].GetInt();
 		}
 	}
@@ -771,7 +772,7 @@ void OnlineManager::UpdateQueue()
 				RemoveQueued( i-- );
 				continue;
 			}
-			q.iRequest = Request( m_sServer, "POST", "/scores", q.sBody, sToken, 60 );
+			q.iRequest = OnlineRequest( m_sServer, "POST", "/scores", q.sBody, sToken, 60 );
 			SetResult( q.pn, q.sScoreKey, OnlineStageResult::SENDING, "" );
 			continue;
 		}
@@ -782,9 +783,9 @@ void OnlineManager::UpdateQueue()
 		q.iRequest = 0;
 
 		CString sCode;
-		const CString sMessage = ErrorMessage( r, &sCode );
+		const CString sMessage = OnlineErrorMessage( r, &sCode );
 		JsonValue v;
-		if( (r.iStatus == 200 || r.iStatus == 201) && ParseBody(r, v) )
+		if( (r.iStatus == 200 || r.iStatus == 201) && OnlineParseBody(r, v) )
 		{
 			const CString sStatus = v["score"]["status"].GetString();
 			LOG->Info( "Online: %s sent, %s", q.sScoreKey.c_str(), sStatus.c_str() );
@@ -861,15 +862,29 @@ static const float CHAT_POLL_OPEN = 2;
 static const float CHAT_POLL_CLOSED = 10;
 static const unsigned CHAT_KEEP = 100;
 
-bool OnlineManager::CanChat()
+bool OnlineManager::GetSession( PlayerNumber &pn, CString &sToken, CString &sUsername )
 {
-	FOREACH_PlayerNumber( pn )
+	if( !IsEnabled() || !m_bServerOK || !IsBuiltIn() )
+		return false;
+	FOREACH_PlayerNumber( p )
 	{
-		const OnlineAccount &a = GetAccount( pn );
+		const OnlineAccount &a = GetAccount( p );
 		if( a.bLoggedIn && !a.bBusy )
+		{
+			pn = p;
+			sToken = m_Account[p].sToken;
+			sUsername = a.sUsername;
 			return true;
+		}
 	}
 	return false;
+}
+
+bool OnlineManager::CanChat()
+{
+	PlayerNumber pn;
+	CString sToken, sUsername;
+	return GetSession( pn, sToken, sUsername );
 }
 
 void OnlineManager::SetChatOpen( bool bOpen )
@@ -887,7 +902,7 @@ bool OnlineManager::ChatSay( const CString &sText )
 	v.Set( "text", JsonValue::String(sText) );
 	if( m_iChatLastID >= 0 )
 		v.Set( "after", JsonValue::Int(m_iChatLastID) );
-	m_iChatSayRequest = Request( m_sServer, "POST", "/chat", v.Write(), m_sChatToken, 10 );
+	m_iChatSayRequest = OnlineRequest( m_sServer, "POST", "/chat", v.Write(), m_sChatToken, 10 );
 	return true;
 }
 
@@ -895,7 +910,7 @@ void OnlineManager::ReadChat( const OnlineHttpResponse &r, PlayerNumber pn )
 {
 	JsonValue v;
 	CString sCode;
-	if( (r.iStatus == 200 || r.iStatus == 201) && ParseBody(r, v) )
+	if( (r.iStatus == 200 || r.iStatus == 201) && OnlineParseBody(r, v) )
 	{
 		const JsonValue &msgs = v["messages"];
 		for( unsigned i = 0; i < msgs.size(); ++i )
@@ -911,7 +926,7 @@ void OnlineManager::ReadChat( const OnlineHttpResponse &r, PlayerNumber pn )
 				sKind == "part"? OnlineChatLine::PART: OnlineChatLine::MESSAGE;
 			line.sUser = m["user"]["username"].GetString();
 			line.sText = m["text"].GetString();
-			line.tAt = ParseRFC3339( m["at"].GetString() );
+			line.tAt = OnlineParseTime( m["at"].GetString() );
 			m_ChatLines.push_back( line );
 			m_iChatLastID = line.iID;
 		}
@@ -930,7 +945,7 @@ void OnlineManager::ReadChat( const OnlineHttpResponse &r, PlayerNumber pn )
 		ForgetToken( pn, "Your login has expired.  Log in again." );
 	else
 	{
-		m_sChatStatus = ErrorMessage( r, &sCode );
+		m_sChatStatus = OnlineErrorMessage( r, &sCode );
 		if( r.iRetryAfter > 0 )
 			m_fChatNextPoll = Now() + min( r.iRetryAfter, 300 );
 	}
@@ -939,18 +954,11 @@ void OnlineManager::ReadChat( const OnlineHttpResponse &r, PlayerNumber pn )
 
 void OnlineManager::UpdateChat()
 {
-	/* The first player who is logged in chats; if that changes, start over. */
+	/* The session's player chats; if that changes, start over. */
 	PlayerNumber chatter = PLAYER_INVALID;
-	FOREACH_PlayerNumber( pn )
-	{
-		const OnlineAccount &a = GetAccount( pn );
-		if( a.bLoggedIn && !a.bBusy )
-		{
-			chatter = pn;
-			break;
-		}
-	}
-	const CString sToken = chatter == PLAYER_INVALID? CString(): m_Account[chatter].sToken;
+	CString sToken, sUsername;
+	if( !GetSession(chatter, sToken, sUsername) )
+		chatter = PLAYER_INVALID;
 	if( sToken != m_sChatToken )
 	{
 		if( m_iChatPollRequest )
@@ -960,7 +968,7 @@ void OnlineManager::UpdateChat()
 		m_iChatPollRequest = m_iChatSayRequest = 0;
 		m_ChatPlayer = chatter;
 		m_sChatToken = sToken;
-		m_sChatUser = chatter == PLAYER_INVALID? CString(): m_Account[chatter].info.sUsername;
+		m_sChatUser = sUsername;
 		m_ChatLines.clear();
 		m_ChatOnline.clear();
 		m_sChatStatus = "";
@@ -988,7 +996,7 @@ void OnlineManager::UpdateChat()
 		CString sPath = "/chat";
 		if( m_iChatLastID >= 0 )
 			sPath += ssprintf( "?after=%i", m_iChatLastID );
-		m_iChatPollRequest = Request( m_sServer, "GET", sPath, "", m_sChatToken, 10 );
+		m_iChatPollRequest = OnlineRequest( m_sServer, "GET", sPath, "", m_sChatToken, 10 );
 		m_fChatNextPoll = Now() + (m_bChatOpen? CHAT_POLL_OPEN: CHAT_POLL_CLOSED);
 	}
 }

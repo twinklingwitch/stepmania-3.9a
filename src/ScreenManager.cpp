@@ -42,6 +42,8 @@
 #include "StepMania.h"
 #include "WifeOverlay.h"
 #include "ChatOverlay.h"
+#include "RoomOverlay.h"
+#include "OnlineRoom.h"
 #include "OnlineManager.h"
 
 ScreenManager*	SCREENMAN = NULL;	// global and accessable from anywhere in our program
@@ -75,8 +77,9 @@ class ScreenSystemLayer: public Screen
 
 	/* Only touched when the Wife preference is on or an online server is set. */
 	WifeOverlay m_WifeOverlay;
-	/* Only opens with an online server set. */
+	/* Only open with an online server set. */
 	ChatOverlay m_ChatOverlay;
+	RoomOverlay m_RoomOverlay;
 
 	RageTimer SkipTimer;
 	void AddTimestampLine( const CString &txt, RageColor color );
@@ -92,7 +95,7 @@ public:
 	void DrawPrimitives();
 	bool WifeInput( const DeviceInput& DeviceI, const InputEventType type ) { return m_WifeOverlay.Input( DeviceI, type ); }
 	void ShowRate( float fRate, int iLimit ) { m_WifeOverlay.ShowRate( fRate, iLimit ); }
-	bool ChatInput( const DeviceInput& DeviceI, const InputEventType type ) { return m_ChatOverlay.Input( DeviceI, type ); }
+	bool ChatInput( const DeviceInput& DeviceI, const InputEventType type );
 };
 
 ScreenSystemLayer::ScreenSystemLayer() : Screen("ScreenSystemLayer")
@@ -367,8 +370,40 @@ void ScreenSystemLayer::Update( float fDeltaTime )
 	if( PREFSMAN  &&  (PREFSMAN->m_bWife || (ONLINE && ONLINE->IsEnabled())) )
 		m_WifeOverlay.Update( fDeltaTime );
 	m_WifeOverlay.UpdatePopup( fDeltaTime );
+	if( ROOM )
+		ROOM->Update( fDeltaTime );
 	if( ONLINE )
+	{
 		m_ChatOverlay.Update( fDeltaTime );
+		m_RoomOverlay.Update( fDeltaTime );
+	}
+}
+
+/* An open panel gets the keys first; a key that opens one closes the other. */
+bool ScreenSystemLayer::ChatInput( const DeviceInput& DeviceI, const InputEventType type )
+{
+	ChatPanel *panels[] = { &m_ChatOverlay, &m_RoomOverlay };
+	const int iPanels = ARRAYSIZE( panels );
+	if( type == IET_RELEASE )
+	{
+		for( int i = 0; i < iPanels; ++i )
+			if( panels[i]->Input(DeviceI, type) )
+				return true;
+		return false;
+	}
+	for( int i = 0; i < iPanels; ++i )
+		if( panels[i]->IsOpen() && panels[i]->Input(DeviceI, type) )
+			return true;
+	for( int i = 0; i < iPanels; ++i )
+	{
+		if( panels[i]->IsOpen() || !panels[i]->Input(DeviceI, type) )
+			continue;
+		for( int j = 0; j < iPanels; ++j )
+			if( j != i && panels[j]->IsOpen() )
+				panels[j]->SetOpen( false );
+		return true;
+	}
+	return false;
 }
 
 void ScreenSystemLayer::DrawPrimitives()
@@ -379,6 +414,7 @@ void ScreenSystemLayer::DrawPrimitives()
 		m_WifeOverlay.Draw();
 	else
 		m_WifeOverlay.DrawPopup();	/* the rate popup doesn't depend on Wife */
+	m_RoomOverlay.Draw();
 	m_ChatOverlay.Draw();
 }
 

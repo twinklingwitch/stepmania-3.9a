@@ -64,6 +64,9 @@ public:
 	bool Select();	// return true if this selection ends the screen
 	WheelItemType	GetSelectedType()	{ return m_CurWheelItemData[m_iSelection]->m_Type; }
 	Song*			GetSelectedSong();
+	/* Puts the selection on p at once, opening its group.  False if it isn't
+	 * under the current sort. */
+	bool JumpToSong( Song *p );
 	Course*			GetSelectedCourse()	{ return m_CurWheelItemData[m_iSelection]->m_pCourse; }
 	CString			GetSelectedSection(){ return m_CurWheelItemData[m_iSelection]->m_sSectionName; }
 

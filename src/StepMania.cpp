@@ -60,6 +60,7 @@
 #include "NetworkSyncManager.h"
 #include "WifeManager.h"
 #include "OnlineManager.h"
+#include "OnlineRoom.h"
 #include "DiscordPresence.h"
 #include <sched.h>
 
@@ -700,6 +701,7 @@ int main(int argc, char* argv[])
 	PROFILEMAN->Init();				// must load after SONGMAN
 	WIFE		= new WifeManager;
 	ONLINE		= new OnlineManager;
+	ROOM		= new OnlineRoom;
 	DISCORD		= new DiscordPresence;
 	UNLOCKMAN	= new UnlockSystem;
     NSMAN       = new NetworkSyncManager( loading_window ); 
@@ -783,6 +785,7 @@ int main(int argc, char* argv[])
 	SAFE_DELETE( INPUTMAPPER );
 	SAFE_DELETE( INPUTFILTER );
 	SAFE_DELETE( MODELMAN );
+	SAFE_DELETE( ROOM );
 	SAFE_DELETE( ONLINE );
 	SAFE_DELETE( WIFE );
 	SAFE_DELETE( PROFILEMAN );	// PROFILEMAN needs the songs still loaded
@@ -904,6 +907,11 @@ void InsertCredit()
  * the key should be sent on to screens. */
 bool HandleGlobalInputs( DeviceInput DeviceI, InputEventType type, GameInput GameI, MenuInput MenuI, StyleInput StyleI )
 {
+	/* The online chat and rooms take the keyboard while open: repeats and
+	 * releases too. */
+	if( SCREENMAN->ChatInput( DeviceI, type ) )
+		return true;
+
 	/* None of the globals keys act on types other than FIRST_PRESS */
 	if( type != IET_FIRST_PRESS ) 
 		return false;
@@ -1031,10 +1039,6 @@ bool HandleGlobalInputs( DeviceInput DeviceI, InputEventType type, GameInput Gam
 		SCREENMAN->SystemMessage( bMute ? "Mute on" : "Mute off" );
 		return true;
 	}
-
-	/* The online chat, which takes the keyboard while it's open. */
-	if( SCREENMAN->ChatInput( DeviceI, type ) )
-		return true;
 
 	/* The keys of the Wife overlay and the online panel, if they are on. */
 	if( (PREFSMAN->m_bWife || ONLINE->IsEnabled())  &&  SCREENMAN->WifeInput( DeviceI, type ) )

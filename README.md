@@ -24,7 +24,8 @@
 >   skillset, and global and per-country rankings, Etterna Online style, on
 >   more than 1,700 packs and 100,000 ranked charts.  Registration needs an invite
 >   code, which you can get on the [Discord](https://discord.gg/CCygPSpenu).
->   **F8** anywhere opens a chat with everyone else who is online.
+>   **F8** opens a chat with everyone else who is online, and **F10** the
+>   multiplayer rooms: play a chart together with a live scoreboard.
 >
 > With Wife off (the default), none of that exists: no counter, no panels, no
 > network traffic.  Just 3.9.
@@ -398,7 +399,8 @@ Anything else must be `https://`, and the server's certificate is always checked
 | Music select | F6 | With the online panel up: log out. |
 | Results | F5 | The play's SSRs and what happened to it online: sending, accepted (with your rank on the chart and your new rating), pending review, rejected (with the server's reason), unranked (with the reason), or queued to try again. |
 | Results | F7 | Send the play, with `OnlineAutoSubmit=0`. |
-| Anywhere but the editor | F8 | The chat: one room for everyone logged in to the server, IRC style, with who's online on the right.  Type and press Enter to send; `/me waves` is an action.  Esc or F8 closes it.  While it's open it takes the keyboard (keys you release still reach the game).  It chats as the first player who is logged in. |
+| Anywhere but gameplay and the editor | F8 | The chat: one room for everyone logged in to the server, IRC style, with who's online on the right.  Type and press Enter to send; `/me waves` is an action.  Esc or F8 closes it.  While it's open it takes the keyboard (a key that was already down when it opened still reaches the game).  It chats as the first player who is logged in.  Gameplay and the editor keep F8 for themselves. |
+| Anywhere but gameplay and the editor | F10 | Multiplayer rooms, in a panel like the chat's: see [Rooms](#rooms).  F8 and F10 switch between the two. |
 
 **Accounts.**  Make an account on the server's web site; the online panel shows
 the address (`<server>/register`).  If you aren't logged in, F7 opens a login
@@ -451,6 +453,46 @@ the server has it or its ticket runs out (half an hour after the song).  A score
 the server has accepted is never sent again (`Data/Online/Submitted.txt`).  If
 the ticket didn't arrive when the song started, the play is unranked ("no
 ticket").
+
+### Rooms
+
+Rooms are osu!-style multiplayer on the online server: players meet in a room,
+the host picks a chart, everyone who has it and is ready plays it at the same
+time, with a live scoreboard and the round's results at the end.  F10 opens
+the rooms panel, IRC style: commands start with `/`, anything else is said in
+the room.  You play as the first player who is logged in.
+
+| Command | |
+|---|---|
+| `/list` | The rooms on the server (shown when you open the panel outside one). |
+| `/create [name]` | Make a room and be its host. |
+| `/join <#> [password]` | Join a room by its number. |
+| `/leave` | Leave the room. |
+| `/ready`, `/unready` | You have the chart and want to play it.  Needed again for each round. |
+| `/pick` | Host: the chart and rate selected on the music wheel become the room's. |
+| `/start [force]` | Host: start the round.  `force` starts without whoever isn't ready. |
+| `/kick <name>`, `/host <name>` | Host: remove a player, or make them the host. |
+| `/name <text>`, `/password [password]` | Host: rename the room, set or clear its password. |
+| `/help` | The commands. |
+
+**The chart.**  When the host picks a chart, the game looks for it in your
+songs: where the host has it (the same group and folder), then any song by the
+same title, and checks that the notes are the same (the chart key).  If you
+have it, the music wheel moves to it and the rate is set; if not, the panel
+says what's missing.  Charts don't have to be ranked online.
+
+**A round.**  When the host starts, the game starts the song for everyone in the
+round from the music select screen, as if Start was pressed, and waits in
+gameplay until everyone has loaded (at most 30 seconds, then it goes on without
+whoever hasn't).  During the song the top right corner is the live scoreboard
+(Wife%); after it, the results screen shows the round's ranking, also in the
+panel.  Players who finished rank before those who gave up or left.  Rooms
+don't change anything about saving scores or sending them as ranked plays.
+
+With the panel closed, a line at the top right says what the room is doing.
+Rooms are kept by the server in memory only; a player who's offline for 20
+seconds leaves the room.  The protocol is section 8.6 of the server's
+`docs/API.md`.
 
 **MinaCalc.**  The difficulty numbers are Etterna's calculator, MinaCalc (calc
 version 527), in `extern/MinaCalc`, built as its own C++20 library with a C

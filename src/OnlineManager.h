@@ -94,8 +94,8 @@ struct OnlineLeaderboard
 struct OnlineChatLine
 {
 	int iID;
-	enum Kind { MESSAGE, ACTION, JOIN, PART } kind;	// ACTION is "/me ..."
-	CString sUser;
+	enum Kind { MESSAGE, ACTION, JOIN, PART, SYSTEM, NOTICE } kind;	// ACTION is "/me ...", NOTICE only we see
+	CString sUser;		// "" for SYSTEM and NOTICE
 	CString sText;
 	time_t tAt;		// local clock
 };
@@ -158,6 +158,12 @@ public:
 	 * slowly while it's closed, which is also what shows the player as
 	 * online, and quickly while it's open.  GetChatSerial changes whenever
 	 * the lines, the online list or the status do. */
+	/* The account the chat and the rooms use: the first player who is
+	 * logged in.  False if there's none, or no server to talk to. */
+	bool GetSession( PlayerNumber &pn, CString &sToken, CString &sUsername );
+	/* The server said the session's token is no good. */
+	void SessionExpired( PlayerNumber pn ) { ForgetToken( pn, "Your login has expired.  Log in again." ); }
+
 	bool CanChat();
 	CString GetChatUser() const { return m_sChatUser; }
 	const vector<OnlineChatLine> &GetChatLines() const { return m_ChatLines; }

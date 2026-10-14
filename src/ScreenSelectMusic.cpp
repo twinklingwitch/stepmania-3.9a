@@ -1409,6 +1409,50 @@ void ScreenSelectMusic::MenuStart( PlayerNumber pn )
 }
 
 
+bool ScreenSelectMusic::SelectRoomChart( Song *pSong, Steps *pSteps, float fRate )
+{
+	if( m_bMadeChoice || IsTransitioning() || GAMESTATE->IsCourseMode() || m_MusicWheel.IsRouletting() )
+		return false;
+
+	if( m_MusicWheel.GetSelectedSong() != pSong )
+	{
+		/* False if the song isn't under the current sort. */
+		if( !m_MusicWheel.JumpToSong(pSong) )
+			return false;
+		AfterMusicChange();
+	}
+
+	bool bThere = GAMESTATE->m_pCurSong == pSong;
+	FOREACH_HumanPlayer( pn )
+	{
+		for( unsigned i = 0; i < m_vpSteps.size(); ++i )
+		{
+			if( m_vpSteps[i] != pSteps || m_iSelection[pn] == (int) i )
+				continue;
+			m_iSelection[pn] = i;
+			GAMESTATE->ChangePreferredDifficulty( pn, pSteps->GetDifficulty() );
+			AfterStepsChange( pn );
+		}
+		if( GAMESTATE->m_pCurSteps[pn] != pSteps )
+			bThere = false;
+	}
+
+	if( fabsf(GAMESTATE->m_SongOptions.m_fMusicRate - fRate) > 0.001f )
+	{
+		GAMESTATE->m_SongOptions.m_fMusicRate = fRate;
+		GAMESTATE->m_StoredSongOptions.m_fMusicRate = fRate;
+		UpdateOptionsDisplays();
+		SCREENMAN->ShowRate( fRate, 0 );
+	}
+	return bThere;
+}
+
+void ScreenSelectMusic::StartRoomRound()
+{
+	if( !m_bMadeChoice )
+		MenuStart( PLAYER_INVALID );
+}
+
 void ScreenSelectMusic::MenuBack( PlayerNumber pn )
 {
 	SOUND->StopMusic();

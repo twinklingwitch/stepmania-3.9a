@@ -40,6 +40,7 @@
 #include "DancingCharacters.h"
 #include "WifeManager.h"
 #include "OnlineManager.h"
+#include "OnlineRoom.h"
 
 //
 // Defines
@@ -274,6 +275,7 @@ void ScreenGameplay::Init()
 	//m_fTimeLeftBeforeDancingComment = SECONDS_BETWEEN_COMMENTS;
 	
 	m_bZeroDeltaOnNextUpdate = false;
+	m_bWaitingForRoom = false;
 	
 	// init old offset in case offset changes in song
 	if( GAMESTATE->IsCourseMode() )
@@ -1226,7 +1228,32 @@ void ScreenGameplay::Update( float fDeltaTime )
 		return;
 	}
 
-	if( m_bFirstUpdate )
+	/* In a multiplayer room, everyone loads first, then the song starts for
+	 * all at once.  Until then, nothing moves. */
+	if( m_bFirstUpdate && !m_bDemonstration && ROOM->IsInRound() )
+	{
+		SOUND->PlayOnceFromAnnouncer( "gameplay intro" );	// crowd cheer
+		m_bWaitingForRoom = true;
+		ROOM->Loaded();
+	}
+	if( m_bWaitingForRoom )
+	{
+		if( !ROOM->MayStart() )
+		{
+			/* Keep the song well before its first note, so a key pressed
+			 * while waiting can't hit anything. */
+			const Song *pSong = GAMESTATE->m_pCurSong;
+			GAMESTATE->UpdateSongPosition( pSong->GetElapsedTimeFromBeat(pSong->m_fFirstBeat) - 10, pSong->m_Timing );
+			Screen::Update( 0 );
+			return;
+		}
+		m_bWaitingForRoom = false;
+		float fMinTimeToMusic = m_In.GetLengthSeconds();
+		float fMinTimeToNotes = fMinTimeToMusic + m_Ready.GetLengthSeconds() + m_Go.GetLengthSeconds()+2;
+		StartPlayingSong( fMinTimeToNotes, fMinTimeToMusic );
+		m_In.StartTransitioning( SM_PlayReady );
+	}
+	else if( m_bFirstUpdate )
 	{
 		SOUND->PlayOnceFromAnnouncer( "gameplay intro" );	// crowd cheer
 

@@ -295,6 +295,14 @@ bool MusicWheel::SelectSong( Song *p )
 	return true;
 }
 
+bool MusicWheel::JumpToSong( Song *p )
+{
+	if( !SelectSong(p) )
+		return false;
+	RebuildMusicWheelItems();
+	return true;
+}
+
 bool MusicWheel::SelectCourse( Course *p )
 {
 	if(p == NULL)
