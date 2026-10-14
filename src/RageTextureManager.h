@@ -97,6 +97,11 @@ protected:
 	RageTexture* LoadTextureInternal( RageTextureID ID );
 
 	std::map<RageTextureID, RageTexture*> m_mapPathToTexture;
+
+	/* The textures in m_mapPathToTexture, in the same order, for Update to walk
+	 * every frame; rebuilt when the map changes. */
+	vector<RageTexture*> m_vTextures;
+	bool m_bTexturesChanged;
 	int m_iNoWarnAboutOddDimensions;
 	RageTextureID::TexPolicy m_TexturePolicy;
 };

@@ -46,6 +46,7 @@ RageTextureManager::RageTextureManager()
 {
 	m_iNoWarnAboutOddDimensions = 0;
 	m_TexturePolicy = RageTextureID::TEX_DEFAULT;
+	m_bTexturesChanged = true;
 }
 
 RageTextureManager::~RageTextureManager()
@@ -62,12 +63,17 @@ RageTextureManager::~RageTextureManager()
 
 void RageTextureManager::Update( float fDeltaTime )
 {
-	for( std::map<RageTextureID, RageTexture*>::iterator i = m_mapPathToTexture.begin();
-		i != m_mapPathToTexture.end(); ++i)
+	if( m_bTexturesChanged )
 	{
-		RageTexture* pTexture = i->second;
-		pTexture->Update( fDeltaTime );
+		m_vTextures.clear();
+		for( std::map<RageTextureID, RageTexture*>::iterator i = m_mapPathToTexture.begin();
+			i != m_mapPathToTexture.end(); ++i)
+			m_vTextures.push_back( i->second );
+		m_bTexturesChanged = false;
 	}
+
+	for( unsigned i = 0; i < m_vTextures.size(); ++i )
+		m_vTextures[i]->Update( fDeltaTime );
 }
 
 void RageTextureManager::AdjustTextureID(RageTextureID &ID) const
@@ -100,6 +106,7 @@ void RageTextureManager::RegisterTexture( RageTextureID ID, RageTexture *pTextur
 		RageException::Throw("Custom texture \"%s\" already registered!", ID.filename.c_str());
 
 	m_mapPathToTexture[ID] = pTexture;
+	m_bTexturesChanged = true;
 }
 
 // Load and unload textures from disk.
@@ -131,6 +138,7 @@ RageTexture* RageTextureManager::LoadTextureInternal( RageTextureID ID )
 		pTexture = new RageBitmapTexture( ID );
 
 	m_mapPathToTexture[ID] = pTexture;
+	m_bTexturesChanged = true;
 
 	return pTexture;
 }
@@ -212,6 +220,7 @@ void RageTextureManager::DeleteTexture( RageTexture *t )
 		if( i->second == t )
 		{
 			m_mapPathToTexture.erase( i );	// remove map entry
+			m_bTexturesChanged = true;
 			SAFE_DELETE( t );	// free the texture
 			return;
 		}
