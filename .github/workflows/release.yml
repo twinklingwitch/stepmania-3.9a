@@ -3,7 +3,7 @@
 #
 #   vanilla  StepMania-3.9-*.zip, plain StepMania 3.9 with the fixes
 #            (-Dextras=false)
-#   aura     StepMania-3.9a-*.zip (StepMania-aura.app on macOS), with the
+#   aura     StepMania-3.9-aura-*.zip (StepMania-aura.app on macOS), with the
 #            extras: Wife scoring, online scores, chat and rooms
 #            (-Dextras=true, the default)
 #
@@ -53,9 +53,11 @@ jobs:
         include:
           - flavor: vanilla
             version: '3.9'
+            zipname: StepMania-3.9
             options: -Dextras=false
           - flavor: aura
             version: '3.9a'
+            zipname: StepMania-3.9-aura
             options: -Dextras=true -Donline=enabled
     env:
       DEBIAN_FRONTEND: noninteractive
@@ -121,7 +123,7 @@ jobs:
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then tag=$GITHUB_REF_NAME; else tag=${GITHUB_SHA:0:7}; fi
           folder=StepMania-${{ matrix.version }}
-          zip=$folder-$tag-windows-x64.zip
+          zip=${{ matrix.zipname }}-$tag-windows-x64.zip
           meson install -C build --strip --destdir "$PWD/out"
           mv out/stepmania "out/$folder"
           (cd out && zip -r -9 -q "../$zip" "$folder")
@@ -155,9 +157,11 @@ jobs:
         include:
           - flavor: vanilla
             version: '3.9'
+            zipname: StepMania-3.9
             options: -Dextras=false
           - flavor: aura
             version: '3.9a'
+            zipname: StepMania-3.9-aura
             options: -Dextras=true -Donline=enabled
     env:
       SDL_VERSION: 3.4.18
@@ -220,7 +224,7 @@ jobs:
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then tag=$GITHUB_REF_NAME; else tag=${GITHUB_SHA:0:7}; fi
           folder=StepMania-${{ matrix.version }}
-          zip=$folder-$tag-linux-x64.zip
+          zip=${{ matrix.zipname }}-$tag-linux-x64.zip
           LD_LIBRARY_PATH="$DEPS/lib" Utils/linux-bundle.sh build "out/$folder"
           (cd out && zip -r -9 -q -y "../$zip" "$folder")
           ls -l "$zip"
@@ -265,10 +269,12 @@ jobs:
         include:
           - flavor: vanilla
             version: '3.9'
+            zipname: StepMania-3.9
             options: -Dextras=false
             app: StepMania
           - flavor: aura
             version: '3.9a'
+            zipname: StepMania-3.9-aura
             options: -Dextras=true -Donline=enabled
             app: StepMania-aura
     env:
@@ -295,7 +301,7 @@ jobs:
       - name: Make the app
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then tag=$GITHUB_REF_NAME; else tag=${GITHUB_SHA:0:7}; fi
-          zip=StepMania-${{ matrix.version }}-$tag-macos-arm64.zip
+          zip=${{ matrix.zipname }}-$tag-macos-arm64.zip
           Utils/macos-bundle.sh build out
           # ditto keeps the executable bits and the signatures.
           ditto -c -k --sequesterRsrc --keepParent "out/${{ matrix.app }}.app" "$zip"
@@ -380,7 +386,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes='**StepMania-3.9** (vanilla) is plain StepMania 3.9 with the fixes.  **StepMania-3.9a** (aura) adds Wife scoring, online scores, chat and multiplayer rooms; on macOS it is StepMania-aura.app.  Each comes for Windows (x64), Linux (x64) and macOS (Apple Silicon); the README says what each needs.'
+          notes='**StepMania-3.9** (vanilla) is plain StepMania 3.9 with the fixes.  **StepMania-3.9-aura** adds Wife scoring, online scores, chat and multiplayer rooms; on macOS it is StepMania-aura.app.  Each comes for Windows (x64), Linux (x64) and macOS (Apple Silicon); the README says what each needs.'
           # A tag with a hyphen (v1.0.0-rc.1, v1.0.0-beta.2) is a pre-release.
           pre=
           case "$GITHUB_REF_NAME" in *-*) pre=--prerelease ;; esac

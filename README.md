@@ -108,7 +108,7 @@ There are two flavors, the [two builds](#two-builds):
 - **vanilla**, `StepMania-3.9-<version>-<system>.zip`: basically 3.9, with the
   fixes (`-Dextras=false`): no Wife scoring, MSD, leaderboards, online scores,
   chat or rooms, 3.9's own themes and no songs.
-- **aura**, `StepMania-3.9a-<version>-<system>.zip`: 3.9a, with all the new
+- **aura**, `StepMania-3.9-aura-<version>-<system>.zip`: 3.9a, with all the new
   goodies in this README.
 
 Each comes for `windows-x64`, `linux-x64` and `macos-arm64`.  The zip holds a
