@@ -291,9 +291,12 @@ if system == 'windows'
   pkglibexecdir = get_option('prefix')
   pkgdocdir = get_option('prefix')
 else
-  pkgdatadir = get_option('prefix') / get_option('datadir') / 'stepmania'
-  pkglibexecdir = get_option('prefix') / get_option('libexecdir') / 'stepmania'
-  pkgdocdir = get_option('prefix') / get_option('datadir') / 'doc' / 'stepmania'
+  # A system-wide install of the build with the extras is stepmania-aura, so
+  # it can sit next to plain 3.9's.
+  install_name = extras ? 'stepmania-aura' : 'stepmania'
+  pkgdatadir = get_option('prefix') / get_option('datadir') / install_name
+  pkglibexecdir = get_option('prefix') / get_option('libexecdir') / install_name
+  pkgdocdir = get_option('prefix') / get_option('datadir') / 'doc' / install_name
 endif
 
 if extras
@@ -332,7 +335,7 @@ if system == 'windows'
 else
   wrapper = configure_file(
     input: 'Utils/stepmania.in',
-    output: 'stepmania',
+    output: install_name,
     configuration: {'pkgdatadir': pkgdatadir, 'pkglibexecdir': pkglibexecdir})
   install_data(wrapper, install_dir: get_option('prefix') / get_option('bindir'), install_mode: 'rwxr-xr-x')
 endif

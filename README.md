@@ -109,9 +109,12 @@ The same source builds two games:
   buttons.  The Wife options aren't in Gameplay Options, and the themes'
   Wife lines on the music select and results screens stay empty.
 
-Both are `stepmania`, and both read the same songs, themes and settings files.
-The only difference on disk is the 3.9a build's user folder (see [Where user
-files go](#where-user-files-go)), so the two can be installed side by side.
+Both read the same songs, themes and settings files, and both can be
+installed side by side: where a name of the 3.9a build would clash with plain
+3.9's, it's `stepmania-aura` (a system-wide install, see
+[Installing](#installing)) or `3.9a` (its user folder, see [Where user files
+go](#where-user-files-go)).  In a game folder of its own the executable is just
+`stepmania`.
 
 Lua 5.0 is bundled and built with the game.  Everything else comes from the
 system and is found with pkg-config where possible.
@@ -132,6 +135,11 @@ The default prefix is `/usr/local`, which gives:
 The wrapper changes to `<prefix>/share/stepmania` and runs the binary, which
 looks for `Songs` in the current directory.  Use `--prefix` and `--destdir` as
 usual to install elsewhere; the wrapper contains the final prefix.
+
+The 3.9a build (see [Two builds](#two-builds)) installs next to it without
+touching it: it's `stepmania-aura` everywhere, `<prefix>/bin/stepmania-aura`,
+`<prefix>/libexec/stepmania-aura/`, `<prefix>/share/stepmania-aura/` and
+`<prefix>/share/doc/stepmania-aura/`.
 
 ### Where user files go
 
@@ -174,6 +182,8 @@ build directory is gone, remove the installed files by hand (with the default
 
     sudo rm -rf /usr/local/bin/stepmania /usr/local/libexec/stepmania \
         /usr/local/share/stepmania /usr/local/share/doc/stepmania
+
+(For the 3.9a build, the same with `stepmania-aura`.)
 
 If you run the game from the source tree or any other folder you can write to,
 it never writes outside that folder, so deleting the folder removes everything.
