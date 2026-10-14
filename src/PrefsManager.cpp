@@ -78,9 +78,17 @@ void PrefsManager::Init()
 	m_iNumBackgrounds = 8;
 	m_bShowDanger = true;
 	m_fBGBrightness = 0.8f;
+#if defined(WITHOUT_EXTRAS)
+	m_bMenuTimer = true;		// as in 3.9
+#else
 	m_bMenuTimer = false;
+#endif
 	m_iNumArcadeStages = 3;
+#if defined(WITHOUT_EXTRAS)
+	m_bEventMode = false;		// as in 3.9
+#else
 	m_bEventMode = true;
+#endif
 	m_bAutoPlay = false;
 	m_fJudgeWindowScale = 1.0f;
 	m_fJudgeWindowAdd = 0;
@@ -256,7 +264,11 @@ void PrefsManager::Init()
 	/* I'd rather get occasional people asking for support for this even though it's
 	 * already here than lots of people asking why songs aren't being displayed. */
 	m_bHiddenSongs = false;
+#if defined(WITHOUT_EXTRAS)
+	m_bVsync = true;		// as in 3.9
+#else
 	m_bVsync = false;
+#endif
 	m_bFastRendering = true;
 	m_iMaxFPS = 1000;
 	m_sLanguage = "";	// ThemeManager will deal with this invalid language

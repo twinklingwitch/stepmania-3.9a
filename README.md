@@ -42,11 +42,11 @@ The few intentional differences:
 - Judgments land about one frame later than in stock 3.9.  3.9 guessed that key
   presses happened a whole frame earlier than they did; this guesses the middle
   of the frame.  If you had tuned a global offset for 3.9, retune it.
-- "Wait For Vsync" is off by default, and there are two new graphics settings:
-  Fast Rendering (on by default) and `MaxFPS` (1000 by default).
+- In 3.9a, "Wait For Vsync" is off by default.  There are two new graphics
+  settings: Fast Rendering (on by default) and `MaxFPS` (1000 by default).
 - The song cache is a single `Cache/cache.db` file.  The old cache files are
   deleted on the first start, which reloads every song once.
-- The menu timer is off by default ("Menu Timer" in Machine Options turns it back
+- In 3.9a, the menu timer is off by default ("Menu Timer" in Machine Options turns it back
   on).  A `MenuTimer` value already in your `StepMania.ini` is kept.
 - In 3.9a, Remember Options is on by default: the options a player last used on the player
   and song options screens come back in the next game, with or without a profile
@@ -75,7 +75,7 @@ The few intentional differences:
 - In 3.9a, in dance, Player 1's Left, Down, Up and Right are also on `D`, `F`,
   `J` and `K` by default, besides the arrow keys.  Like the `+` key they go in the second
   slot of Config Key/Joy, and only if that slot and the key are free.
-- Event Mode is on by default, so you can keep playing songs instead of being
+- In 3.9a, Event Mode is on by default, so you can keep playing songs instead of being
   sent back to the title screen after the last stage.  Turn it off in the coin
   options for the arcade-style stage limit.
 - If Discord is running, it shows that you're playing Stepmania 3.9 and what
@@ -188,8 +188,9 @@ The same source builds two games:
   aren't in Gameplay Options, and the themes' Wife lines on the music select
   and results screens stay empty.  It keeps 3.9's keys and behavior: the
   Rate Up and Rate Down buttons are there for the key config but have no keys
-  until you map them, `D`, `F`, `J` and `K` aren't dance keys, and Remember
-  Options starts off.  It comes with 3.9's own themes only, `default` and
+  until you map them, `D`, `F`, `J` and `K` aren't dance keys, Remember
+  Options starts off, and Wait For Vsync, the menu timer and Event Mode start
+  as in 3.9 (on, on and off).  It comes with 3.9's own themes only, `default` and
   `techno`, and no songs: Nocturnal Dream and the Default song pack are
   3.9a's.
 
