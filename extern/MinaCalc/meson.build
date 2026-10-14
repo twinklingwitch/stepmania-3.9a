@@ -3,7 +3,10 @@
 #
 # NDEBUG as in Etterna's release builds (some asserts would otherwise abort on
 # odd charts), and no fused multiply-add so the numbers don't depend on the CPU.
-minacalc_args = ['-DSTANDALONE_CALC', '-DNDEBUG']
+#
+# Vendored code: warning_level=0 still leaves the warnings clang enables by
+# default (like -Winconsistent-missing-override), so silence those too.
+minacalc_args = ['-DSTANDALONE_CALC', '-DNDEBUG', '-w']
 minacalc_args += cxx.get_supported_arguments('-ffp-contract=off')
 
 # On 64-bit ARM (Apple Silicon) the calc's SSE intrinsics come from sse2neon,
