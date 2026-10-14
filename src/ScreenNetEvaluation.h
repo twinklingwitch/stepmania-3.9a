@@ -9,6 +9,8 @@ class ScreenNetEvaluation: public ScreenEvaluation
 public:
 	ScreenNetEvaluation (const CString& sClassName);
 protected:
+	using ScreenEvaluation::MenuLeft;
+	using ScreenEvaluation::MenuRight;
 	virtual void MenuLeft( PlayerNumber pn, const InputEventType type );
 	virtual void MenuUp( PlayerNumber pn, const InputEventType type );
 	virtual void MenuRight( PlayerNumber pn, const InputEventType type );

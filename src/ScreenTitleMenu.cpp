@@ -178,7 +178,7 @@ ScreenTitleMenu::ScreenTitleMenu( CString sClassName ) : ScreenSelect( sClassNam
 			m_textChoice[i].Command( MENU_ITEM_CREATE );
 		}
 		else
-			GainFocus( m_Choice );
+			ChoiceGainFocus( m_Choice );
 
 	SOUND->PlayMusic( THEME->GetPathToS("ScreenTitleMenu music") );
 
@@ -203,11 +203,11 @@ void ScreenTitleMenu::MoveCursor( bool up )
 		return;
 	
 	TimeToDemonstration.GetDeltaTime();	/* Reset the demonstration timer when a key is pressed. */
-	LoseFocus( m_Choice );
+	ChoiceLoseFocus( m_Choice );
 	m_Choice += (up? -1:+1);
 	wrap( (int&)m_Choice, m_aModeChoices.size() );
 	m_soundChange.Play();
-	GainFocus( m_Choice );
+	ChoiceGainFocus( m_Choice );
 }
 
 void ScreenTitleMenu::Input( const DeviceInput& DeviceI, const InputEventType type, const GameInput &GameI, const MenuInput &MenuI, const StyleInput &StyleI )
@@ -367,7 +367,7 @@ void ScreenTitleMenu::HandleScreenMessage( const ScreenMessage SM )
 }
 
 
-void ScreenTitleMenu::LoseFocus( int iChoiceIndex )
+void ScreenTitleMenu::ChoiceLoseFocus( int iChoiceIndex )
 {
 	m_textChoice[iChoiceIndex].SetEffectNone();
 	m_textChoice[iChoiceIndex].StopTweening();
@@ -375,7 +375,7 @@ void ScreenTitleMenu::LoseFocus( int iChoiceIndex )
 	m_textChoice[iChoiceIndex].SetZoom( ZOOM_NOT_SELECTED );
 }
 
-void ScreenTitleMenu::GainFocus( int iChoiceIndex )
+void ScreenTitleMenu::ChoiceGainFocus( int iChoiceIndex )
 {
 	m_textChoice[iChoiceIndex].StopTweening();
 	m_textChoice[iChoiceIndex].BeginTweening( 0.3f );

@@ -27,8 +27,8 @@ private:
 	int GetSelectionIndex( PlayerNumber pn ) { return m_Choice; }
 	void UpdateSelectableChoices();
 
-	void GainFocus( int iChoiceIndex );
-	void LoseFocus( int iChoiceIndex );
+	void ChoiceGainFocus( int iChoiceIndex );
+	void ChoiceLoseFocus( int iChoiceIndex );
 	void MoveCursor( bool up );
 
 	unsigned		m_Choice;
