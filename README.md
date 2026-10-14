@@ -394,7 +394,7 @@ Anything else must be `https://`, and the server's certificate is always checked
 
 | Where | Key | |
 |---|---|---|
-| Music select | F7 | The online panel of the first player: the selected chart's online leaderboard at the current rate (the top ten and your own place), and your rating.  F7 again shows the other player's, if there are two, then hides it. |
+| Music select | F7 | The online panel of the first player: the selected chart's online leaderboard at the current rate (the top ten and your own place), and your rating.  If the chart can't be ranked (see "What counts" below), or the rate can't, it says so and why instead; if your options or settings would keep your plays from being ranked, it says why beside the leaderboard.  F7 again shows the other player's, if there are two, then hides it. |
 | Music select | F6 | With the online panel up: log out. |
 | Results | F5 | The play's SSRs and what happened to it online: sending, accepted (with your rank on the chart and your new rating), pending review, rejected (with the server's reason), unranked (with the reason), or queued to try again. |
 | Results | F7 | Send the play, with `OnlineAutoSubmit=0`. |
@@ -417,14 +417,20 @@ Linux and the BSDs the file can only be read by you (mode 0600).  Logging out
 deletes it.
 
 **What counts.**  A play is ranked when it is a single song in regular play
-(not a course, battle or rave), played by a person (no autoplay), on a 4-key
-dance-single chart without attacks that the server knows, at a music rate from
-0.7 to 2.0, at Judge 4 or harder with 3.9's judge windows, with no turn but
-Mirror, nothing that adds or removes notes, no RandomVanish, no AutoSync, and
-not changed during the song (offset or BPM keys, the speed keys Tab and `,
-autoplay).  Assist Tick is allowed.  Failed plays and plays that aren't saved
-aren't sent.  The game checks these before the song so the reason is shown on
-the results; the server checks them all again.
+(not a course, battle or rave), played by a person (no autoplay), on a chart
+the server ranks, at a music rate from 0.7 to 2.0, at Judge 4 or harder with
+3.9's judge windows, with no turn but Mirror, nothing that adds or removes
+notes, no RandomVanish, no AutoSync, PadStickSeconds and
+ConstantUpdateDeltaSeconds at 0, and not changed during the song (offset or BPM
+keys, the speed keys Tab and `, autoplay).  The server ranks the 4-key
+dance-single charts of the packs it has (not autogen ones) that have no attacks,
+no hold ends without a start (that is what the rolls of newer simfiles become in
+3.9), and a rating from the difficulty calculator.  The simfile's format
+doesn't matter (3.9 doesn't read .ssc files at all, only .sm, .dwi, .bms and
+.ksf).  Assist Tick is allowed.  Failed plays and plays that aren't
+saved aren't sent.  The game checks these before the song so the reason is
+shown on the results, and the online panel shows them on the song select
+screen; the server checks them all again.
 
 **What is sent.**  When a ranked song starts, the game asks the server for a
 play ticket (with the chart, rate, judge and options), so the server knows the

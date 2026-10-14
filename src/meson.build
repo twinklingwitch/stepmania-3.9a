@@ -118,6 +118,7 @@ data_structures = files(
   'OnlineInputLog.cpp',
   'OnlineJson.cpp',
   'OnlineManager.cpp',
+  'OnlineRules.cpp',
   'OnlineServer.cpp',
   'PlayerAI.cpp',
   'PlayerNumber.cpp',

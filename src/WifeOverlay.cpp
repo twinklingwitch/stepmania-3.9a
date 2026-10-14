@@ -3,6 +3,7 @@
 #include "ChartInfo.h"
 #include "ChartMSD.h"
 #include "GameState.h"
+#include "NoteData.h"
 #include "OnlineManager.h"
 #include "PrefsManager.h"
 #include "ProfileManager.h"
@@ -75,6 +76,10 @@ WifeOverlay::WifeOverlay()
 	m_bSelectAll = false;
 	m_fSettled = 0;
 	m_bMSDPending = false;
+	m_pOnlineSteps = NULL;
+	m_fOnlineSettled = 0;
+	m_bOnlineCalcChecked = false;
+	m_bOnlineNotRated = false;
 	m_bPanelVisible = false;
 	m_bPanelIsBody = false;
 	m_fRowY = ROW_Y;
@@ -513,7 +518,26 @@ static CString Masked( const CString &s )
 	return CString( s.size(), '*' );
 }
 
-void WifeOverlay::UpdateOnlinePanel()
+/* The player's online rating, with a note under it: a warning (what's wrong
+ * with the server, or why plays won't be ranked), or that there's no rating. */
+static void SetRatingTable( SkillTable &t, const OnlineAccount &a, const CString &sWho, const CString &sWarning )
+{
+	if( a.bHasRating )
+		t.Set( "Online rating", sWho, a.fRating, sWarning, true );
+	else
+		t.Set( "Online rating", sWho, NULL, sWarning.empty()? CString("No rating yet."): sWarning, !sWarning.empty() );
+}
+
+/* The explanations of the rules, sBetween between them. */
+static CString ExplainRules( const vector<OnlineRules::Rule> &vRules, const CString &sBetween )
+{
+	CString s;
+	for( unsigned i = 0; i < vRules.size(); ++i )
+		s += (i? sBetween: CString()) + OnlineRules::GetExplanation( vRules[i] );
+	return s;
+}
+
+void WifeOverlay::UpdateOnlinePanel( float fDeltaTime )
 {
 	const PlayerNumber pn = m_OnlinePlayer;
 	const CString sPlayer = ssprintf( "P%i", pn+1 );
@@ -555,10 +579,7 @@ void WifeOverlay::UpdateOnlinePanel()
 	if( a.bHasRating && a.iRank > 0 )
 		sWho += ssprintf( "  #%i", a.iRank );
 	m_iTables = 1;
-	if( a.bHasRating )
-		m_Table[0].Set( "Online rating", sWho, a.fRating, sProblem, true );
-	else
-		m_Table[0].Set( "Online rating", sWho, NULL, sProblem.empty()? CString("No rating yet."): sProblem, !sProblem.empty() );
+	SetRatingTable( m_Table[0], a, sWho, sProblem );
 	sHint = "F7 next player / hide      F6 log out";
 
 	const Song *pSong = GAMESTATE->m_pCurSong;
@@ -573,12 +594,78 @@ void WifeOverlay::UpdateOnlinePanel()
 	const CString sKey = WIFE->GetChartKey( pSong, pSteps );
 	const CString sTitle = pSong->GetFullDisplayTitle() + "  " + DifficultyToThemedString( pSteps->GetDifficulty() ) + ssprintf( " %i", pSteps->GetMeter() );
 	const CString sSubtitle = ssprintf( "%.2fx online   %s", fRate, sServer.c_str() );
-	if( fRate < 0.7f || fRate > 2.0f )
+
+	/* What the chart's notes break is worked out once per chart.  Whether the
+	 * calculator rates it waits until the selection stays put, as the F5
+	 * panel's MSD does, so scrolling the wheel doesn't run it for every chart. */
+	m_fOnlineSettled += fDeltaTime;
+	if( pSteps != m_pOnlineSteps || sKey != m_sOnlineKey )
 	{
-		/* The server ranks 0.7x to 2.0x only, so there is nothing to ask for. */
-		SetPanel( sTitle, sSubtitle, sHint, "", "", "", "", "Only rates from 0.7x to 2.0x are ranked online." );
+		m_pOnlineSteps = pSteps;
+		m_sOnlineKey = sKey;
+		m_vOnlineNoteRules.clear();
+		const NoteData *pNotes = pSteps->PeekNoteData();
+		if( pNotes != NULL )
+			OnlineRules::CheckNotes( *pNotes, m_vOnlineNoteRules );
+		m_fOnlineSettled = 0;
+		m_bOnlineCalcChecked = false;
+		m_bOnlineNotRated = false;
+	}
+	vector<OnlineRules::Rule> vRules;
+	OnlineRules::CheckSetup( OnlineManager::GetPlaySetup(pn, pSteps), vRules );
+	vRules.insert( vRules.end(), m_vOnlineNoteRules.begin(), m_vOnlineNoteRules.end() );
+
+	bool bChartUnranked = false, bBadRate = false;
+	for( unsigned i = 0; i < vRules.size(); ++i )
+	{
+		if( OnlineRules::IsChartRule(vRules[i]) )
+			bChartUnranked = true;
+		if( vRules[i] == OnlineRules::RATE )
+			bBadRate = true;
+	}
+	if( !bChartUnranked && !m_bOnlineCalcChecked && m_fOnlineSettled >= MSD_SETTLE_SECONDS )
+	{
+		/* The chart export's test, on the same rows and MSDs. */
+		m_bOnlineCalcChecked = true;
+		vector<minacalc_row> rows;
+		ChartMSDTable msd;
+		memset( &msd, 0, sizeof(msd) );
+		ChartMSD::GetRows( pSong, pSteps, rows );
+		ChartMSD::GetMSD( pSong, pSteps, msd );
+		m_bOnlineNotRated = !OnlineRules::IsRatedByCalc( rows, msd );
+	}
+	if( m_bOnlineNotRated )
+	{
+		vRules.push_back( OnlineRules::NOT_RATED );
+		bChartUnranked = true;
+	}
+	std::sort( vRules.begin(), vRules.end() );
+
+	/* An unranked chart, or a rate the server doesn't rank, has no
+	 * leaderboard, so there is nothing to ask for. */
+	if( bChartUnranked || bBadRate )
+	{
+		const CString sWhy = bChartUnranked?
+			"Unranked: the server doesn't rank this chart, so it has no online leaderboard.":
+			"Unranked at this rate, so there is no online leaderboard for it.";
+		SetBodyPanel( sTitle, sSubtitle, sHint, sWhy + "\n\n" + ExplainRules(vRules, "\n\n") );
 		return;
 	}
+	if( !m_bOnlineCalcChecked )
+	{
+		SetPanel( sTitle, sSubtitle, sHint, "", "", "", "", "Loading..." );
+		return;
+	}
+
+	/* The chart is ranked, but the player's plays of it wouldn't be as things
+	 * are set: say why beside the leaderboard.  (The note wraps, which drops
+	 * empty lines, so they get a space.) */
+	if( !vRules.empty() )
+	{
+		const CString sWarning = "Unranked: your plays won't count online.\n \n" + ExplainRules( vRules, "\n \n" );
+		SetRatingTable( m_Table[0], a, sWho, sProblem.empty()? sWarning: sProblem + "\n \n" + sWarning );
+	}
+
 	const OnlineLeaderboard &lb = ONLINE->GetLeaderboard( pn, sKey, fRate );
 
 	if( !lb.sError.empty() )
@@ -756,7 +843,7 @@ void WifeOverlay::Update( float fDeltaTime )
 		const OnlineAccount &a = ONLINE->GetAccount( m_OnlinePlayer );
 		if( m_bFormOpen && a.bLoggedIn && !a.bBusy )
 			m_bFormOpen = false;
-		UpdateOnlinePanel();
+		UpdateOnlinePanel( fDeltaTime );
 		m_bPanelVisible = true;
 		m_pSelectSteps = NULL;
 	}

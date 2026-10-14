@@ -5,6 +5,7 @@
 #include "ChartMSD.h"
 #include "GameManager.h"
 #include "NoteData.h"
+#include "OnlineRules.h"
 #include "PrefsManager.h"
 #include "ProductInfo.h"
 #include "RageFileManager.h"
@@ -63,23 +64,17 @@ static CString Field( const char *szName, const CString &sValue )
 	return ssprintf( "\"%s\":", szName ) + sValue;
 }
 
-/* Why a chart can't be ranked, or "" if it can. */
+/* Why a chart can't be ranked, or "" if it can.  The rules are OnlineRules',
+ * which the game's online panel uses too, so the two say the same. */
 static CString GetUnrankedReason( const Steps *pSteps, const NoteData &nd, const vector<minacalc_row> &rows, const ChartMSDTable &msd )
 {
 	if( !ChartMSD::IsSupported(pSteps) )
 		return "steps type";
-	for( int t = 0; t < nd.GetNumTracks(); ++t )
-		for( int r = 0; r < nd.GetNumRows(); ++r )
-		{
-			const TapNote::Type type = (TapNote::Type) nd.GetTapNoteX(t, r).type;
-			if( type == TapNote::attack )
-				return "attacks";
-			/* A hold end without a head ('3' with no '2') stays in 3.9's notes as a
-			 * note of its own, which is judged like a tap but isn't in "notes". */
-			if( type == TapNote::hold_tail || type == TapNote::hold )
-				return "stray hold ends";
-		}
-	if( rows.size() < 2 || msd.fMSD[3][MINACALC_OVERALL] <= 0 )
+	vector<OnlineRules::Rule> v;
+	OnlineRules::CheckNotes( nd, v );
+	if( !v.empty() )
+		return v[0] == OnlineRules::ATTACKS? "attacks": "stray hold ends";
+	if( !OnlineRules::IsRatedByCalc(rows, msd) )
 		return "not rated by the calc";
 	return "";
 }

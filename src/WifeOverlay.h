@@ -13,7 +13,8 @@
  *                  switches it between the scores of the player's profile and
  *                  those of all profiles.  F7 shows the online panel: the
  *                  chart's online leaderboard and the player's rating (the
- *                  same column), or a login form (F7 again goes to the other player, then hides;
+ *                  same column), or why the chart can't be ranked, or a
+ *                  login form (F7 again goes to the other player, then hides;
  *                  F6 logs out).
  *   gameplay:      a small Wife% counter for each player in a corner of the
  *                  screen (the ShowWifeInGameplay preference turns it off).
@@ -31,6 +32,7 @@
 #include "WifeScores.h"
 #include "InputFilter.h"
 #include "ChartMSD.h"
+#include "OnlineRules.h"
 
 #include <map>
 
@@ -88,7 +90,7 @@ private:
 	void LayoutTables( float fTop );
 	CString ClipName( const CString &s );
 	void UpdateSelectPanel( float fDeltaTime );
-	void UpdateOnlinePanel();
+	void UpdateOnlinePanel( float fDeltaTime );
 	void UpdateEvalPanel();
 	void UpdateCounters();
 	void SetMSDTable( const Steps *pSteps, float fRate, bool bPending );
@@ -114,6 +116,16 @@ private:
 	/* The MSD is worked out once the selection has stayed put for a moment. */
 	float m_fSettled;
 	bool m_bMSDPending;
+
+	/* What the online panel found out about the selected chart, until another
+	 * is selected: the rules its notes break, and whether the calculator rates
+	 * it, which is asked once the selection has stayed put. */
+	const Steps *m_pOnlineSteps;
+	CString m_sOnlineKey;
+	vector<OnlineRules::Rule> m_vOnlineNoteRules;
+	float m_fOnlineSettled;
+	bool m_bOnlineCalcChecked;
+	bool m_bOnlineNotRated;
 
 	bool m_bPanelVisible;
 	Quad m_PanelBack;

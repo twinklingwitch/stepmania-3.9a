@@ -15,6 +15,7 @@
 #include "PlayerNumber.h"
 #include "GameConstantsAndTypes.h"
 #include "OnlineInputLog.h"
+#include "OnlineRules.h"
 #include "minacalc_c.h"
 
 #include <map>
@@ -22,6 +23,7 @@
 #include <time.h>
 
 class JsonValue;
+class NoteData;
 struct OnlineHttpResponse;
 class NoteDataWithScoring;
 class Song;
@@ -167,8 +169,14 @@ public:
 	bool ChatSay( const CString &sText );
 
 	/* The validity rules (section 10.1) that can be checked before the song
-	 * starts.  Returns why the play can't be ranked, or "" if it can. */
-	static CString GetUnrankedReason( PlayerNumber pn, const NoteDataWithScoring &nd, const Steps *pSteps );
+	 * starts (see OnlineRules).  GetPlaySetup is what they look at for the
+	 * player playing pSteps now; GetUnrankedRules adds every rule the play
+	 * breaks to out, in order, and GetUnrankedReason says why the play can't
+	 * be ranked, or "" if it can.  The online panel on the music select screen
+	 * checks GetPlaySetup too, with the chart's notes as loaded. */
+	static OnlinePlaySetup GetPlaySetup( PlayerNumber pn, const Steps *pSteps );
+	static void GetUnrankedRules( PlayerNumber pn, const NoteData &nd, const Steps *pSteps, vector<OnlineRules::Rule> &out );
+	static CString GetUnrankedReason( PlayerNumber pn, const NoteData &nd, const Steps *pSteps );
 
 private:
 	/* The server, as the preference had it when we last looked. */

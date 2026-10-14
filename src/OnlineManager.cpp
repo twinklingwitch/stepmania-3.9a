@@ -79,56 +79,52 @@ bool OnlineManager::IsEnabled() const
 
 /* The rules of section 10.1 that are known before the song starts.  The server
  * checks all of them again; this is so the player knows. */
-CString OnlineManager::GetUnrankedReason( PlayerNumber pn, const NoteDataWithScoring &nd, const Steps *pSteps )
+OnlinePlaySetup OnlineManager::GetPlaySetup( PlayerNumber pn, const Steps *pSteps )
 {
-	if( GAMESTATE->m_PlayMode != PLAY_MODE_REGULAR || GAMESTATE->IsCourseMode() || GAMESTATE->m_bDemonstrationOrJukebox )
-		return "only single songs in regular play are ranked";
-	if( GAMESTATE->m_PlayerController[pn] != PC_HUMAN || PREFSMAN->m_bAutoPlay )
-		return "autoplay";
-	if( !ChartMSD::IsSupported(pSteps) )
-		return "only 4-key dance-single charts are ranked";
-	for( int t = 0; t < nd.GetNumTracks(); ++t )
-		for( int r = 0; r < nd.GetNumRows(); ++r )
-		{
-			const TapNote::Type type = (TapNote::Type) nd.GetTapNoteX(t, r).type;
-			if( type == TapNote::attack )
-				return "the chart has attacks";
-			if( type == TapNote::hold_tail || type == TapNote::hold )
-				return "the chart has hold ends without a start";
-		}
+	OnlinePlaySetup s;
+	s.bRegularPlay = GAMESTATE->m_PlayMode == PLAY_MODE_REGULAR && !GAMESTATE->IsCourseMode() && !GAMESTATE->m_bDemonstrationOrJukebox;
+	s.bHuman = GAMESTATE->m_PlayerController[pn] == PC_HUMAN && !PREFSMAN->m_bAutoPlay;
+	s.bDanceSingle = pSteps != NULL && pSteps->m_StepsType == STEPS_TYPE_DANCE_SINGLE;
+	s.bAutogen = pSteps != NULL && pSteps->IsAutogen();
+	s.fRate = GAMESTATE->m_SongOptions.m_fMusicRate;
 
-	const float fRate = floorf( GAMESTATE->m_SongOptions.m_fMusicRate * 100 + 0.5f ) / 100;
-	if( fRate < 0.7f || fRate > 2.0f )
-		return "the music rate must be between 0.7x and 2.0x";
-
-	if( PREFSMAN->m_fJudgeWindowScale > 1.0f )
-		return "judges easier than Judge 4 aren't ranked";
-	if( PREFSMAN->m_fJudgeWindowAdd != 0 ||
-		PREFSMAN->m_fJudgeWindowSecondsMarvelous != 0.0225f ||
-		PREFSMAN->m_fJudgeWindowSecondsPerfect != 0.045f ||
-		PREFSMAN->m_fJudgeWindowSecondsGreat != 0.090f ||
-		PREFSMAN->m_fJudgeWindowSecondsGood != 0.135f ||
-		PREFSMAN->m_fJudgeWindowSecondsBoo != 0.180f ||
-		PREFSMAN->m_fJudgeWindowSecondsOK != 0.250f ||
-		PREFSMAN->m_fJudgeWindowSecondsMine != 0.090f ||
-		PREFSMAN->m_fJudgeWindowSecondsAttack != 0.135f )
-		return "the judge windows aren't 3.9's";
+	s.fJudgeScale = PREFSMAN->m_fJudgeWindowScale;
+	s.bDefaultWindows = PREFSMAN->m_fJudgeWindowAdd == 0 &&
+		PREFSMAN->m_fJudgeWindowSecondsMarvelous == 0.0225f &&
+		PREFSMAN->m_fJudgeWindowSecondsPerfect == 0.045f &&
+		PREFSMAN->m_fJudgeWindowSecondsGreat == 0.090f &&
+		PREFSMAN->m_fJudgeWindowSecondsGood == 0.135f &&
+		PREFSMAN->m_fJudgeWindowSecondsBoo == 0.180f &&
+		PREFSMAN->m_fJudgeWindowSecondsOK == 0.250f &&
+		PREFSMAN->m_fJudgeWindowSecondsMine == 0.090f &&
+		PREFSMAN->m_fJudgeWindowSecondsAttack == 0.135f;
 
 	const PlayerOptions &po = GAMESTATE->m_PlayerOptions[pn];
-	if( po.m_bTurns[PlayerOptions::TURN_LEFT] || po.m_bTurns[PlayerOptions::TURN_RIGHT] ||
-		po.m_bTurns[PlayerOptions::TURN_SHUFFLE] || po.m_bTurns[PlayerOptions::TURN_SUPER_SHUFFLE] )
-		return "turns other than Mirror aren't ranked";
+	s.bUnrankedTurn = po.m_bTurns[PlayerOptions::TURN_LEFT] || po.m_bTurns[PlayerOptions::TURN_RIGHT] ||
+		po.m_bTurns[PlayerOptions::TURN_SHUFFLE] || po.m_bTurns[PlayerOptions::TURN_SUPER_SHUFFLE];
+	s.bTransform = false;
 	for( int i = 0; i < PlayerOptions::NUM_TRANSFORMS; ++i )
 		if( po.m_bTransforms[i] )
-			return "options that add or remove notes aren't ranked";
-	if( po.m_fAppearances[PlayerOptions::APPEARANCE_RANDOMVANISH] != 0 )
-		return "RandomVanish isn't ranked";
+			s.bTransform = true;
+	s.bRandomVanish = po.m_fAppearances[PlayerOptions::APPEARANCE_RANDOMVANISH] != 0;
 
-	if( GAMESTATE->m_SongOptions.m_bAutoSync )
-		return "AutoSync";
-	if( PREFSMAN->m_fPadStickSeconds != 0 || PREFSMAN->m_fConstantUpdateDeltaSeconds != 0 )
-		return "PadStickSeconds and ConstantUpdateDeltaSeconds must be 0";
-	return "";
+	s.bAutoSync = GAMESTATE->m_SongOptions.m_bAutoSync;
+	s.bDefaultInput = PREFSMAN->m_fPadStickSeconds == 0 && PREFSMAN->m_fConstantUpdateDeltaSeconds == 0;
+	return s;
+}
+
+void OnlineManager::GetUnrankedRules( PlayerNumber pn, const NoteData &nd, const Steps *pSteps, vector<OnlineRules::Rule> &out )
+{
+	OnlineRules::CheckSetup( GetPlaySetup(pn, pSteps), out );
+	OnlineRules::CheckNotes( nd, out );
+	std::sort( out.begin(), out.end() );
+}
+
+CString OnlineManager::GetUnrankedReason( PlayerNumber pn, const NoteData &nd, const Steps *pSteps )
+{
+	vector<OnlineRules::Rule> v;
+	GetUnrankedRules( pn, nd, pSteps, v );
+	return v.empty()? CString(): CString( OnlineRules::GetReason(v[0]) );
 }
 
 void OnlineManager::Unranked( PlayerNumber pn, const CString &sWhy )

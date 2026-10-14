@@ -92,7 +92,12 @@ else
   test_onlinejson_objects += [stepmania.extract_objects('OnlineHttp_Curl.cpp')]
 endif
 
-test_discord_objects = [stepmania.extract_objects('DiscordIpc.cpp', 'OnlineJson.cpp')]
+test_onlinerules_objects = [stepmania.extract_objects(
+  'OnlineRules.cpp',
+  'NoteData.cpp',
+  'NoteTypes.cpp')]
+
+test_discord_objects =[stepmania.extract_objects('DiscordIpc.cpp', 'OnlineJson.cpp')]
 
 test_inc = [top_inc, src_inc]
 test_deps = deps
@@ -107,6 +112,7 @@ tests = {
   'test_wifescores': test_wifescores_objects,
   'test_minacalc': test_minacalc_objects,
   'test_onlinejson': test_onlinejson_objects,
+  'test_onlinerules': test_onlinerules_objects,
   'test_discord': test_discord_objects,
 }
 
