@@ -15,6 +15,17 @@ private:
 	CString root;
 };
 
+/* The same, but never writing or removing anything: files under it are found,
+ * and new ones go to another driver. */
+class RageFileDriverDirectReadOnly: public RageFileDriverDirect
+{
+public:
+	RageFileDriverDirectReadOnly( CString root ): RageFileDriverDirect( root ) { }
+
+	RageFileObj *Open( const CString &path, int mode, RageFile &p, int &err );
+	bool Remove( const CString &sPath ) { return false; }
+};
+
 #endif
 
 /*

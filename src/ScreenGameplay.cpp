@@ -38,9 +38,11 @@
 #include "NetworkSyncManager.h"
 #include "Foreach.h"
 #include "DancingCharacters.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "WifeManager.h"
 #include "OnlineManager.h"
 #include "OnlineRoom.h"
+#endif
 
 //
 // Defines
@@ -275,7 +277,9 @@ void ScreenGameplay::Init()
 	//m_fTimeLeftBeforeDancingComment = SECONDS_BETWEEN_COMMENTS;
 	
 	m_bZeroDeltaOnNextUpdate = false;
+#if !defined(WITHOUT_EXTRAS)
 	m_bWaitingForRoom = false;
+#endif
 	
 	// init old offset in case offset changes in song
 	if( GAMESTATE->IsCourseMode() )
@@ -971,9 +975,11 @@ void ScreenGameplay::LoadNextSong()
 		else
 			GAMESTATE->m_PlayerController[p] = PC_HUMAN;
 
+#if !defined(WITHOUT_EXTRAS)
 		/* This needs to know who is playing, so it comes after the above. */
 		WIFE->BeginSong( p, m_Player[p], pSong, pSteps );
 		ONLINE->BeginSong( p, m_Player[p], pSong, pSteps );
+#endif
 	}
 
 	m_textSongTitle.SetText( GAMESTATE->m_pCurSong->m_sMainTitle );
@@ -1134,7 +1140,9 @@ float ScreenGameplay::StartPlayingSong(float MinTimeToNotes, float MinTimeToMusi
 	/* Make sure GAMESTATE->m_fMusicSeconds is set up. */
 	GAMESTATE->m_fMusicSeconds = -5000;
 	UpdateSongPosition(0);
+#if !defined(WITHOUT_EXTRAS)
 	ONLINE->MusicStarted();
+#endif
 
 	ASSERT( GAMESTATE->m_fMusicSeconds > -4000 ); /* make sure the "fake timer" code doesn't trigger */
 
@@ -1228,6 +1236,7 @@ void ScreenGameplay::Update( float fDeltaTime )
 		return;
 	}
 
+#if !defined(WITHOUT_EXTRAS)
 	/* In a multiplayer room, everyone loads first, then the song starts for
 	 * all at once.  Until then, nothing moves. */
 	if( m_bFirstUpdate && !m_bDemonstration && ROOM->IsInRound() )
@@ -1253,7 +1262,9 @@ void ScreenGameplay::Update( float fDeltaTime )
 		StartPlayingSong( fMinTimeToNotes, fMinTimeToMusic );
 		m_In.StartTransitioning( SM_PlayReady );
 	}
-	else if( m_bFirstUpdate )
+	else
+#endif
+	if( m_bFirstUpdate )
 	{
 		SOUND->PlayOnceFromAnnouncer( "gameplay intro" );	// crowd cheer
 
@@ -1668,9 +1679,11 @@ void ScreenGameplay::Input( const DeviceInput& DeviceI, const InputEventType typ
 	if( type == IET_LEVEL_CHANGED )
 		return;
 
+#if !defined(WITHOUT_EXTRAS)
 	/* The online input log wants to know when a column is let go. */
 	if( type == IET_RELEASE  &&  StyleI.IsValid()  &&  ONLINE->IsRecording(StyleI.player) )
 		m_Player[StyleI.player].LogRelease( StyleI.col, DeviceI.ts );
+#endif
 
 	if( MenuI.IsValid()  &&  
 		m_DancingState != STATE_OUTRO  &&
@@ -1976,8 +1989,10 @@ void ScreenGameplay::SongFinished()
 	// save any statistics
     FOREACH_EnabledPlayer(p)
 	{
+#if !defined(WITHOUT_EXTRAS)
 		WIFE->EndSong( p );
 		ONLINE->EndSong( p, m_Player[p] );
+#endif
 
 		/* Note that adding stats is only meaningful for the counters (eg. RADAR_NUM_JUMPS),
 		 * not for the percentages (RADAR_AIR). */

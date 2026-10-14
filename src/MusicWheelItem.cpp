@@ -172,6 +172,7 @@ void MusicWheelItem::LoadFromWheelItemData( WheelItemData* pWID )
 	}
 }
 
+#if !defined(WITHOUT_EXTRAS)
 /* The grade of the best Wife3 score among the chart's high scores, or 3.9's
  * grade if none of them has one. */
 Grade MusicWheelItem::GetWifeGrade( PlayerNumber pn, Difficulty dc ) const
@@ -198,6 +199,7 @@ Grade MusicWheelItem::GetWifeGrade( PlayerNumber pn, Difficulty dc ) const
 		return hsl.GetTopScore().grade;
 	return ChartInfo::WifeToGrade( fBest );
 }
+#endif
 
 void MusicWheelItem::RefreshGrades()
 {
@@ -217,9 +219,12 @@ void MusicWheelItem::RefreshGrades()
 		else
 			dc = GAMESTATE->m_PreferredDifficulty[p];
 		Grade grade;
+#if !defined(WITHOUT_EXTRAS)
 		if( PREFSMAN->m_bWife && GRADES_FROM_WIFE )
 			grade = GetWifeGrade( (PlayerNumber) p, dc );
-		else if( PROFILEMAN->IsUsingProfile((PlayerNumber)p) )
+		else
+#endif
+		if( PROFILEMAN->IsUsingProfile((PlayerNumber)p) )
 			grade = PROFILEMAN->GetHighScoreForDifficulty( data->m_pSong, GAMESTATE->GetCurrentStyle(), (ProfileSlot)p, dc ).grade;
 		else
 			grade = PROFILEMAN->GetHighScoreForDifficulty( data->m_pSong, GAMESTATE->GetCurrentStyle(), PROFILE_SLOT_MACHINE, dc ).grade;

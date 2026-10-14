@@ -1,14 +1,18 @@
 #include "global.h"
 #include "ChartInfo.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "ChartMSD.h"
+#endif
 #include "GameState.h"
 #include "HighScore.h"
 #include "Profile.h"
 #include "ProfileManager.h"
 #include "RageUtil.h"
 #include "Steps.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "Wife.h"
 #include "WifeManager.h"
+#endif
 #include "song.h"
 
 #include <math.h>
@@ -22,10 +26,12 @@ CString ChartInfo::RateString( float fRate )
 	return s + "x";
 }
 
+#if !defined(WITHOUT_EXTRAS)
 CString ChartInfo::PercentString( float fFraction )
 {
 	return ssprintf( "%.2f%%", Wife3Truncate(fFraction) );
 }
+#endif
 
 CString ChartInfo::JudgeName( float fScale )
 {
@@ -36,6 +42,7 @@ CString ChartInfo::JudgeName( float fScale )
 	return ssprintf( "x%.2f", fScale );
 }
 
+#if !defined(WITHOUT_EXTRAS)
 Grade ChartInfo::WifeToGrade( float fWife )
 {
 	if( fWife >= 0.99955f )	return GRADE_TIER_1;
@@ -46,6 +53,7 @@ Grade ChartInfo::WifeToGrade( float fWife )
 	if( fWife >= 0.60f )	return GRADE_TIER_6;
 	return GRADE_TIER_7;
 }
+#endif
 
 static CString MinutesSeconds( float fSeconds )
 {
@@ -105,6 +113,7 @@ CString ChartInfo::NotesString( const Steps *pSteps )
 		(int) rv[RADAR_NUM_HOLDS], (int) rv[RADAR_NUM_MINES] );
 }
 
+#if !defined(WITHOUT_EXTRAS)
 CString ChartInfo::MSDString( const float fMSD[MINACALC_NUM_SKILLSETS] )
 {
 	return ssprintf( "MSD %.2f", fMSD[MINACALC_OVERALL] );
@@ -133,6 +142,7 @@ CString ChartInfo::SkillsetsString( const float fMSD[MINACALC_NUM_SKILLSETS] )
 		s += ssprintf( "  %s %.2f", ChartMSD::SkillsetName(iSecond), fMSD[iSecond] );
 	return s;
 }
+#endif
 
 static const Profile *GetProfile( PlayerNumber pn )
 {
@@ -154,6 +164,9 @@ CString ChartInfo::BestScoreString( PlayerNumber pn, const Song *pSong, const St
 		return ssprintf( "Best %s %.2f%%", GradeToThemedString(hs.grade).c_str(), hs.fPercentDP*100 );
 	}
 
+#if defined(WITHOUT_EXTRAS)
+	return "";
+#else
 	const CString sKey = WIFE->GetChartKey( pSong, pSteps );
 	vector<WifeScoreEntry> v;
 	WIFE->GetLeaderboard( pn, sKey, fRate, false, v );
@@ -164,4 +177,5 @@ CString ChartInfo::BestScoreString( PlayerNumber pn, const Song *pSong, const St
 	if( v.empty() )
 		return "No score yet";
 	return "Best " + PercentString( v[0].fWife ) + " " + GradeToThemedString( WifeToGrade(v[0].fWife) ) + " at " + RateString( v[0].fRate );
+#endif
 }

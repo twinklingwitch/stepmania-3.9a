@@ -187,10 +187,19 @@ if not jpeg_dep.found()
   conf.set('NO_JPEG_SUPPORT', 1)
 endif
 
+# The extras (Wife scoring and everything that hangs off it: MSD, local and
+# online leaderboards, chat and rooms) are the aura build.  Without them the
+# game is plain 3.9 with the fixes, and none of their code is built.
+extras = get_option('extras')
+if not extras
+  conf.set('WITHOUT_EXTRAS', 1)
+endif
+
 # Online scores need an HTTPS client: WinHTTP comes with Windows, libcurl is
 # optional elsewhere.  Without one the online code is built without a backend.
+# The vanilla build has no online code, so it needs neither.
 online_dep = not_found
-if not get_option('online').disabled()
+if extras and not get_option('online').disabled()
   if system == 'windows'
     online_dep = cc.find_library('winhttp', required: get_option('online'))
   elif system == 'darwin'
@@ -287,7 +296,11 @@ else
   pkgdocdir = get_option('prefix') / get_option('datadir') / 'doc' / 'stepmania'
 endif
 
-subdir('extern/MinaCalc')
+if extras
+  subdir('extern/MinaCalc')
+else
+  minacalc_dep = declare_dependency()
+endif
 subdir('src')
 
 foreach dir : ['Announcers', 'BGAnimations', 'CDTitles', 'Characters', 'Courses',

@@ -27,7 +27,9 @@
 #include "Style.h"
 #include "InputFilter.h"
 #include "ChartInfo.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "ChartMSD.h"
+#endif
 
 
 const int NUM_SCORE_DIGITS	=	9;
@@ -811,7 +813,11 @@ void ScreenSelectMusic::UpdateChartInfo( float fDeltaTime )
 	const Song *pSong = GAMESTATE->m_pCurSong;
 	const Steps *pSteps = pn == PLAYER_INVALID || pSong == NULL? NULL: GAMESTATE->m_pCurSteps[pn];
 	const float fRate = GAMESTATE->m_SongOptions.m_fMusicRate;
+#if !defined(WITHOUT_EXTRAS)
 	const bool bWife = PREFSMAN->m_bWife;
+#else
+	const bool bWife = false;
+#endif
 
 	m_fInfoSettled += fDeltaTime;
 	if( pSteps != m_pInfoSteps || fRate != m_fInfoRate )
@@ -835,6 +841,7 @@ void ScreenSelectMusic::UpdateChartInfo( float fDeltaTime )
 	if( !m_bInfoSlowPending  ||  m_fInfoSettled < INFO_SETTLE_SECONDS )
 		return;
 	m_bInfoSlowPending = false;
+#if !defined(WITHOUT_EXTRAS)
 	if( !bWife )
 		return;
 
@@ -849,6 +856,7 @@ void ScreenSelectMusic::UpdateChartInfo( float fDeltaTime )
 	}
 	if( m_bShowInfo[INFO_BEST] )
 		SetInfo( INFO_BEST, ChartInfo::BestScoreString(pn, pSong, pSteps, fRate, true) );
+#endif
 }
 
 void ScreenSelectMusic::SetInfo( int iLine, const CString &sText )
@@ -1409,6 +1417,7 @@ void ScreenSelectMusic::MenuStart( PlayerNumber pn )
 }
 
 
+#if !defined(WITHOUT_EXTRAS)
 bool ScreenSelectMusic::SelectRoomChart( Song *pSong, Steps *pSteps, float fRate )
 {
 	if( m_bMadeChoice || IsTransitioning() || GAMESTATE->IsCourseMode() || m_MusicWheel.IsRouletting() )
@@ -1452,6 +1461,7 @@ void ScreenSelectMusic::StartRoomRound()
 	if( !m_bMadeChoice )
 		MenuStart( PLAYER_INVALID );
 }
+#endif
 
 void ScreenSelectMusic::MenuBack( PlayerNumber pn )
 {

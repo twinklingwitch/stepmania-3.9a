@@ -11,6 +11,9 @@
 struct ConfOption
 {
 	static const ConfOption *Find( CString name );
+	/* An option this build doesn't have, like the aura build's in a plain 3.9
+	 * build: a theme's row for it is left out. */
+	static bool IsLeftOut( CString name );
 
 	/* Name of this option.  It's helpful to delimit this with newlines, as it'll
 	 * be the default display title. */

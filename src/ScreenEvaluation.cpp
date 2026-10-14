@@ -27,10 +27,12 @@
 #include "StepMania.h"
 #include "CryptManager.h"
 #include "Style.h"
+#include "ChartInfo.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "WifeManager.h"
 #include "OnlineManager.h"
-#include "ChartInfo.h"
 #include "ChartMSD.h"
+#endif
 
 const int NUM_SCORE_DIGITS	=	9;
 
@@ -469,9 +471,11 @@ void ScreenEvaluation::Init()
 		FOREACH_PlayerNumber( p )
 		{
 			gradeShown[p] = grade[p];
+#if !defined(WITHOUT_EXTRAS)
 			if( m_Type == stage  &&  PREFSMAN->m_bWife  &&  GRADE_FROM_WIFE  &&  GAMESTATE->IsPlayerEnabled(p)  &&
 				!stageStats.bFailed[p]  &&  WIFE->HasScore(p) )
 				gradeShown[p] = ChartInfo::WifeToGrade( WIFE->GetFinalPercent(p) );
+#endif
 		}
 
 		// Touch all possible grade files to make sure they're all present
@@ -920,6 +924,7 @@ void ScreenEvaluation::InitInfoArea( const StageStats &stageStats )
 		}
 	}
 
+#if !defined(WITHOUT_EXTRAS)
 	if( m_Type != stage  ||  !SHOW_WIFE_AREA  ||  !PREFSMAN->m_bWife )
 		return;
 
@@ -972,6 +977,7 @@ void ScreenEvaluation::InitInfoArea( const StageStats &stageStats )
 		sStats += ssprintf( "CB %i", iCB );
 		AddInfoText( m_textWifeStats[p], ssprintf("WifeStatsP%d",p+1), "wife info", sStats );
 	}
+#endif
 }
 
 void ScreenEvaluation::CommitScores(
@@ -1058,8 +1064,10 @@ void ScreenEvaluation::CommitScores(
 
 					ASSERT( pSteps );
 
+#if !defined(WITHOUT_EXTRAS)
 					WIFE->RecordStage( p, pSong, pSteps, hs );
 					ONLINE->RecordStage( p, pSong, pSteps, hs );
+#endif
 					PROFILEMAN->AddStepsScore( pSong, pSteps, p, hs, iPersonalHighScoreIndexOut[p], iMachineHighScoreIndexOut[p] );
 				}
 				break;

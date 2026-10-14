@@ -41,7 +41,9 @@ public:
 	void CrossedRow( int iNoteRow );
 	void CrossedMineRow( int iNoteRow );
 	void Step( int col, RageTimer tm );
+#if !defined(WITHOUT_EXTRAS)
 	void LogRelease( int col, const RageTimer &tm );
+#endif
 	void RandomiseNotes( int iNoteRow );
 	void FadeToFail();
 	int GetDancingCharacterState() const { return m_iDCState; };
@@ -56,9 +58,11 @@ protected:
 	void HandleTapRowScore( unsigned row );
 	void HandleHoldScore( HoldNoteScore holdScore, TapNoteScore tapScore );
 	void HandleAutosync(float fNoteOffset);
+#if !defined(WITHOUT_EXTRAS)
 	void WifeJudged( int col, int iRow, TapNote::Type type, float fSongSeconds, float fOffset, TapNoteScore score );
 	float GetWifeSongSeconds( const RageTimer &tm ) const;
 	float GetMusicSecondsOf( const RageTimer &tm ) const;
+#endif
 	void DrawTapJudgments();
 	void DrawHoldJudgments();
 

@@ -260,6 +260,7 @@ CString DiscordText::ChartLine( const CString &sDifficulty, int iMeter, float fR
 	return s;
 }
 
+#if !defined(WITHOUT_EXTRAS)
 int DiscordText::DominantSkillset( const float fMSD[MINACALC_NUM_SKILLSETS] )
 {
 	/* The pattern skillsets: Stream, Jumpstream, Handstream, JackSpeed and
@@ -290,6 +291,7 @@ int DiscordText::DominantSkillset( const float fMSD[MINACALC_NUM_SKILLSETS] )
 		return -1;
 	return iBest;
 }
+#endif
 
 CString DiscordText::UrlSegment( const CString &s )
 {

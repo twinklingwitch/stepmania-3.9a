@@ -65,39 +65,42 @@ test_file_errors_objects = [stepmania.extract_objects(
 
 test_timing_data_objects = [stepmania.extract_objects('TimingData.cpp')]
 
-test_wife_objects = [stepmania.extract_objects('Wife.cpp', 'WifeReplay.cpp')]
+# The aura build's own code: see the extras option.
+if extras
+  test_wife_objects = [stepmania.extract_objects('Wife.cpp', 'WifeReplay.cpp')]
 
-test_wifescores_objects = [stepmania.extract_objects(
-  'WifeScores.cpp',
-  'XmlFile.cpp',
-  'DateTime.cpp')]
+  test_wifescores_objects = [stepmania.extract_objects(
+    'WifeScores.cpp',
+    'XmlFile.cpp',
+    'DateTime.cpp')]
 
-test_chartkey_objects = [stepmania.extract_objects(
-  'ChartKey.cpp',
-  'CryptManager.cpp',
-  'CryptHelpers.cpp')]
+  test_chartkey_objects = [stepmania.extract_objects(
+    'ChartKey.cpp',
+    'CryptManager.cpp',
+    'CryptHelpers.cpp')]
 
-test_minacalc_objects = [stepmania.extract_objects(
-  'CalcRows.cpp',
-  'NoteData.cpp',
-  'NoteTypes.cpp',
-  'TimingData.cpp')]
+  test_minacalc_objects = [stepmania.extract_objects(
+    'CalcRows.cpp',
+    'NoteData.cpp',
+    'NoteTypes.cpp',
+    'TimingData.cpp')]
 
-test_onlinejson_objects = [stepmania.extract_objects('OnlineJson.cpp', 'OnlineInputLog.cpp', 'OnlineHttp.cpp')]
-if not online_dep.found()
-  test_onlinejson_objects += [stepmania.extract_objects('OnlineHttp_None.cpp')]
-elif system == 'windows'
-  test_onlinejson_objects += [stepmania.extract_objects('OnlineHttp_WinHttp.cpp')]
-else
-  test_onlinejson_objects += [stepmania.extract_objects('OnlineHttp_Curl.cpp')]
+  test_onlinejson_objects = [stepmania.extract_objects('OnlineJson.cpp', 'OnlineInputLog.cpp', 'OnlineHttp.cpp')]
+  if not online_dep.found()
+    test_onlinejson_objects += [stepmania.extract_objects('OnlineHttp_None.cpp')]
+  elif system == 'windows'
+    test_onlinejson_objects += [stepmania.extract_objects('OnlineHttp_WinHttp.cpp')]
+  else
+    test_onlinejson_objects += [stepmania.extract_objects('OnlineHttp_Curl.cpp')]
+  endif
+
+  test_onlinerules_objects = [stepmania.extract_objects(
+    'OnlineRules.cpp',
+    'NoteData.cpp',
+    'NoteTypes.cpp')]
+
+  test_discord_objects =[stepmania.extract_objects('DiscordIpc.cpp', 'OnlineJson.cpp')]
 endif
-
-test_onlinerules_objects = [stepmania.extract_objects(
-  'OnlineRules.cpp',
-  'NoteData.cpp',
-  'NoteTypes.cpp')]
-
-test_discord_objects =[stepmania.extract_objects('DiscordIpc.cpp', 'OnlineJson.cpp')]
 
 test_inc = [top_inc, src_inc]
 test_deps = deps
@@ -107,14 +110,18 @@ tests = {
   'test_file_readers': [],
   'test_file_errors': test_file_errors_objects,
   'test_timing_data': test_timing_data_objects,
-  'test_wife': test_wife_objects,
-  'test_chartkey': test_chartkey_objects,
-  'test_wifescores': test_wifescores_objects,
-  'test_minacalc': test_minacalc_objects,
-  'test_onlinejson': test_onlinejson_objects,
-  'test_onlinerules': test_onlinerules_objects,
-  'test_discord': test_discord_objects,
 }
+if extras
+  tests += {
+    'test_wife': test_wife_objects,
+    'test_chartkey': test_chartkey_objects,
+    'test_wifescores': test_wifescores_objects,
+    'test_minacalc': test_minacalc_objects,
+    'test_onlinejson': test_onlinejson_objects,
+    'test_onlinerules': test_onlinerules_objects,
+    'test_discord': test_discord_objects,
+  }
+endif
 
 foreach name, objects : tests
   exe = executable(name,

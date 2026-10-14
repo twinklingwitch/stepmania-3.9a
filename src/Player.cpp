@@ -18,8 +18,10 @@
 #include "LifeMeter.h"
 #include "CombinedLifeMeter.h"
 #include "PlayerAI.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "WifeManager.h"
 #include "OnlineManager.h"
+#endif
 #include "NoteFieldPositioning.h"
 #include "NoteDataUtil.h"
 #include "ScreenGameplay.h" /* for SM_ComboStopped */
@@ -407,10 +409,12 @@ void PlayerMinus::Update( float fDeltaTime )
 		{
 			/* this note has been judged */
 			HandleHoldScore( hns, tns );
+#if !defined(WITHOUT_EXTRAS)
 			if( hns == HNS_NG  &&  WIFE->IsActive(m_PlayerNumber) )
 				WIFE->HoldDropped( m_PlayerNumber, hn.iTrack, hn.iStartRow, WIFE_SUBTYPE_HOLD );
 			if( ONLINE->IsRecording(m_PlayerNumber) )
 				ONLINE->LogHold( m_PlayerNumber, hn.iTrack, hn.iStartRow, hns == HNS_OK, GAMESTATE->m_fMusicSeconds );
+#endif
 			m_HoldJudgment[hn.iTrack].SetHoldJudgment( hns );
 
 			int ms_error = (hns == HNS_OK)? 0:MAX_PRO_TIMING_ERROR;
@@ -427,6 +431,7 @@ void PlayerMinus::Update( float fDeltaTime )
 		SetHoldNoteScore(hn, hns);
 	}
 
+#if !defined(WITHOUT_EXTRAS)
 	/* A hold whose head was missed never gets a result of its own.  Wife scoring
 	 * charges it as a dropped hold once it's over. */
 	if( WIFE->IsActive(m_PlayerNumber) )
@@ -439,6 +444,7 @@ void PlayerMinus::Update( float fDeltaTime )
 				WIFE->HoldDropped( m_PlayerNumber, hn.iTrack, hn.iStartRow, WIFE_SUBTYPE_HOLD );
 		}
 	}
+#endif
 
 	{
 		// Why was this originally "BeatToNoteRowNotRounded"?  It should be rounded.  -Chris
@@ -869,11 +875,13 @@ void PlayerMinus::Step( int col, RageTimer tm )
 		if( score != TNS_NONE )
 			SetTapNoteOffset(col, iIndexOverlappingNote, -fNoteOffset);
 
+#if !defined(WITHOUT_EXTRAS)
 		if( WIFE->IsActive(m_PlayerNumber) )
 			WifeJudged( col, iIndexOverlappingNote, (TapNote::Type) tn.type, fMusicSeconds, -fNoteOffset, score );
 		if( ONLINE->IsRecording(m_PlayerNumber) )
 			ONLINE->LogStep( m_PlayerNumber, m_bStepFromMine, col, fMusicSeconds, fPositionSeconds, GAMESTATE->m_fCurBPS,
 				iIndexOverlappingNote, -fNoteOffset, score );
+#endif
 
 		if( GAMESTATE->m_PlayerController[m_PlayerNumber] == PC_HUMAN  && 
 			score >= TNS_GREAT ) 
@@ -917,14 +925,17 @@ void PlayerMinus::Step( int col, RageTimer tm )
 	else
 	{
 		m_pNoteField->Step( col, TNS_NONE );
+#if !defined(WITHOUT_EXTRAS)
 		if( WIFE->IsActive(m_PlayerNumber) && !m_bStepFromMine )
 			WIFE->Press( m_PlayerNumber, col, GetWifeSongSeconds(tm), -1, 0, WIFE_TYPE_INVALID, WIFE_SUBTYPE_INVALID );
 		if( ONLINE->IsRecording(m_PlayerNumber) )
 			ONLINE->LogStep( m_PlayerNumber, m_bStepFromMine, col, GetMusicSecondsOf(tm), fPositionSeconds, GAMESTATE->m_fCurBPS,
 				-1, 0, TNS_NONE );
+#endif
 	}
 }
 
+#if !defined(WITHOUT_EXTRAS)
 /* The music time of an input, worked out the way Step works out fMusicSeconds. */
 float PlayerMinus::GetMusicSecondsOf( const RageTimer &tm ) const
 {
@@ -974,6 +985,7 @@ void PlayerMinus::WifeJudged( int col, int iRow, TapNote::Type type, float fSong
 	else if( score != TNS_NONE  &&  (type == TapNote::tap || type == TapNote::hold_head) )
 		WIFE->TapHit( m_PlayerNumber, col, iRow, fOffset );
 }
+#endif
 
 void PlayerMinus::HandleAutosync(float fNoteOffset)
 {
@@ -1108,11 +1120,13 @@ void PlayerMinus::UpdateTapNotesMissedOlderThan( float fMissIfOlderThanSeconds )
 				// A normal note.  Penalize for not stepping on it.
 				MissedNoteOnThisRow = true;
 				SetTapNoteScore(t, r, TNS_MISS);
+#if !defined(WITHOUT_EXTRAS)
 				if( WIFE->IsActive(m_PlayerNumber) )
 					WIFE->TapMissed( m_PlayerNumber, t, r, GetTapNote(t, r).type == TapNote::hold_head? WIFE_TYPE_HOLD_HEAD: WIFE_TYPE_TAP,
 						GetTapNote(t, r).type == TapNote::hold_head? WIFE_SUBTYPE_HOLD: WIFE_SUBTYPE_INVALID );
 				if( ONLINE->IsRecording(m_PlayerNumber) )
 					ONLINE->LogMiss( m_PlayerNumber, t, r, GAMESTATE->m_fMusicSeconds );
+#endif
 				g_CurStageStats.iTotalError[m_PlayerNumber] += MAX_PRO_TIMING_ERROR;
 				m_ProTimingDisplay.SetJudgment( MAX_PRO_TIMING_ERROR, TNS_MISS );
 			}

@@ -16,7 +16,9 @@
 #ifndef DISCORD_IPC_H
 #define DISCORD_IPC_H
 
+#if !defined(WITHOUT_EXTRAS)
 #include "minacalc_c.h"
+#endif
 
 namespace DiscordIpc
 {
@@ -73,10 +75,12 @@ namespace DiscordText
 	CString ChartLine( const CString &sDifficulty, int iMeter, float fRate, float fMSD, const char *szSkillset );
 	/* "1.20x" */
 	CString Rate( float fRate );
+#if !defined(WITHOUT_EXTRAS)
 	/* The pattern skillset (Stream, Jumpstream, Handstream, JackSpeed or
 	 * Chordjack) that clearly stands above the others and is close to the
 	 * Overall, or -1. */
 	int DominantSkillset( const float fMSD[MINACALC_NUM_SKILLSETS] );
+#endif
 	/* A URL path segment, percent-encoded. */
 	CString UrlSegment( const CString &s );
 }

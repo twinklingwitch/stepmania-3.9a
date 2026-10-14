@@ -20,7 +20,9 @@
  * It's public, not a secret.  DiscordAppId in StepMania.ini overrides it. */
 #define DISCORD_DEFAULT_APP_ID "1559247505366188054"
 
+#if !defined(WITHOUT_EXTRAS)
 #include "ChartMSD.h"
+#endif
 
 class RageThread;
 class Song;
@@ -53,6 +55,7 @@ private:
 	float m_fPlayTime;		// on the gameplay screen, for this song
 	int64_t m_iEndMs;
 
+#if !defined(WITHOUT_EXTRAS)
 	/* Its MSD, worked out on the thread unless it's known already. */
 	bool m_bHaveMSD;
 	float m_fMSD[MINACALC_NUM_SKILLSETS];
@@ -61,11 +64,14 @@ private:
 	unsigned m_uMSDHash;
 	ChartMSDTable m_MSDTable;	// worked out on the thread,
 	bool m_bStoreMSD;			// and to go in the song cache after the song
+#endif
 
 	void StartThread();
 	CString BuildActivity();
 	void StartSong( const Song *pSong, const Steps *pSteps, float fRate );
+#if !defined(WITHOUT_EXTRAS)
 	void CollectMSD();
+#endif
 };
 
 extern DiscordPresence *DISCORD;	// global and accessable from anywhere in our program

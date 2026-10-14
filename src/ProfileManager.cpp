@@ -18,7 +18,9 @@
 #include "RageUtil.h"
 #include "ThemeManager.h"
 #include "MemoryCardManager.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "WifeScores.h"
+#endif
 #include "XmlFile.h"
 #include "StepsUtil.h"
 #include "Style.h"
@@ -292,6 +294,7 @@ bool ProfileManager::DeleteLocalProfile( CString sProfileID )
 	// remove edits dir
 	FILEMAN->Remove( sProfileDir + "/" + EDITS_SUBDIR );
 
+#if !defined(WITHOUT_EXTRAS)
 	// delete replays, if there are any
 	if( DoesFileExist( WifeScores::GetReplayDir(sProfileDir + "/") ) )
 	{
@@ -301,6 +304,7 @@ bool ProfileManager::DeleteLocalProfile( CString sProfileID )
 			FILEMAN->Remove( asReplays[i] );
 		FILEMAN->Remove( WifeScores::GetReplayDir(sProfileDir + "/") );
 	}
+#endif
 
 	// remove profile dir
 	return FILEMAN->Remove( sProfileDir );

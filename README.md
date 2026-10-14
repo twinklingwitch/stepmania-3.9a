@@ -27,12 +27,14 @@
 >   **F8** opens a chat with everyone else who is online, and **F10** the
 >   multiplayer rooms: play a chart together with a live scoreboard.
 >
-> With Wife off (the default), none of that exists: no counter, no panels, no
-> network traffic.  Just 3.9.
+> All of that is the **3.9a** build, where Wife is on from the start.  Turn it
+> off and none of it exists: no counter, no panels, no network traffic.  Just
+> 3.9.  The **3.9** build is the same game without any of it in it at all
+> (see [Two builds](#two-builds)).
 
-**Play online in three steps:** turn on Wife Scoring in Gameplay Options,
-register at [aurasm.online](https://aurasm.online) with an invite code, and press
-F7 on the song select screen to log in.  More in [Etterna-style
+**Play online in two steps:** with the 3.9a build, register at
+[aurasm.online](https://aurasm.online) with an invite code, and press F7 on the
+song select screen to log in.  More in [Etterna-style
 scoring](#etterna-style-scoring) and [Online](#online).
 
 The few intentional differences:
@@ -91,8 +93,25 @@ are supported.  The build uses [Meson](https://mesonbuild.com/) (1.1 or newer). 
 
 Optional features are `auto` by default and can be forced with
 `-D<name>=enabled` or `-D<name>=disabled`: `ffmpeg`, `vorbis`, `mad`, `jpeg`,
-`online` (libcurl).  The boolean options are `networking`, `crash_handler` and
-`tests`.  `meson configure build` lists them all.
+`online` (libcurl).  The boolean options are `extras`, `networking`,
+`crash_handler` and `tests`.  `meson configure build` lists them all.
+
+### Two builds
+
+The same source builds two games:
+
+- **3.9a**, the default: everything in this README, with Wife scoring on from
+  the start.
+- **3.9**, with `-Dextras=false`: plain StepMania 3.9 with the fixes, the
+  rate keys, Remember Options and Discord, and none of the rest built in: no
+  Wife scoring, MSD, local leaderboards and replays, online scores, chat or
+  rooms, and no libcurl.  Discord shows what you play, without the online
+  buttons.  The Wife options aren't in Gameplay Options, and the themes'
+  Wife lines on the music select and results screens stay empty.
+
+Both are `stepmania`, and both read the same songs, themes and settings files.
+The only difference on disk is the 3.9a build's user folder (see [Where user
+files go](#where-user-files-go)), so the two can be installed side by side.
 
 Lua 5.0 is bundled and built with the game.  Everything else comes from the
 system and is found with pkg-config where possible.
@@ -134,6 +153,14 @@ the installed files:
 The macOS app always does this, since it must not write into itself (see
 [macOS](#macos)).
 
+The 3.9a build's folder is `~/.stepmania-3.9a` (`%APPDATA%\StepMania\3.9a`,
+`~/Library/Application Support/StepMania/3.9a`), so it never touches the plain
+3.9 one.  The first time it makes it, it copies `Data/` over from the 3.9
+folder if there is one (preferences, profiles and scores, the online login),
+and it finds the songs, themes and so on in the 3.9 folder as well as its own,
+without changing or removing anything there.  New ones go into the 3.9a
+folder.
+
 ### Uninstalling
 
 If you installed with `meson install`, run this from the source tree, with the
@@ -154,7 +181,8 @@ On Windows, delete the game folder; on macOS, StepMania.app.
 
 Your own files (see above) aren't removed by any of this.  Delete
 `~/.stepmania-3.9` (`%APPDATA%\StepMania\3.9` on Windows,
-`~/Library/Application Support/StepMania/3.9` on macOS) to remove them too.
+`~/Library/Application Support/StepMania/3.9` on macOS), or the same with
+`3.9a` for the 3.9a build, to remove them too.
 Back up `Data/` first if you want to keep your profiles and scores.
 
 ## Running from the build directory
@@ -225,9 +253,10 @@ The game is started full screen by default.  Set `Windowed=1` in
 
 ## Etterna-style scoring
 
-An optional extra for people who also play [Etterna](https://etternaonline.com):
-score every song the way Etterna does, next to 3.9's own scoring.  It is **off by
-default**, and with it off the game behaves exactly as without it: the same
+An extra for people who also play [Etterna](https://etternaonline.com): score
+every song the way Etterna does, next to 3.9's own scoring.  It is in the 3.9a
+build only, **on by default** there, and with it off the game behaves exactly as
+without it: the same
 judgments, scores, grades, life and combo, the same saved profiles, screens and
 keys, and nothing extra is drawn or written.
 
@@ -242,8 +271,8 @@ judges); the default is Judge 4, which is also 3.9's default timing.
 `JudgeWindowAdd` isn't taken into account.  Wife% is in addition to the score,
 grade and percent 3.9 keeps, which are not touched.
 
-**Turning it on.**  Options, Gameplay Options, Wife Scoring: ON (or `Wife=1` in
-`Data/StepMania.ini`).  "Show Wife% In Gameplay" there hides the gameplay counter
+**Turning it on or off.**  Options, Gameplay Options, Wife Scoring (or `Wife=1` in
+`Data/StepMania.ini`); in the 3.9a build it starts on.  "Show Wife% In Gameplay" there hides the gameplay counter
 (`ShowWifeInGameplay=0`).  Only the default and Nocturnal Dream themes have these
 two lines; with another theme use the ini file, or add `conf,Wife` and `conf,ShowWifeInGameplay`
 lines to its `ScreenGameplayOptions` metrics.
@@ -366,8 +395,8 @@ in the default theme.
 Optional online scores: an account on a score server, leaderboards for every
 chart, and a player rating, Etterna style.  The server is
 [AURA Stepmania 3.9](https://aurasm.online) by default.  **Online only works with
-Wife on**: with Wife off (the default) nothing goes over the network and nothing
-changes.  The server is a
+Wife on**, in the 3.9a build: with Wife off nothing goes over the network and
+nothing changes.  The server is a
 separate project, [39server](https://github.com/raccoon-byte/39server); the
 protocol, including how scores are checked and ratings worked out, is in its
 `docs/API.md`.
@@ -789,7 +818,8 @@ Range").  Give it in hex in `Data/StepMania.ini`:
   pipeline, so a core profile only driver will not do.
 - No installer.  If the folder is not writable (`C:\Program Files`), the game
   stores preferences, profiles, the song cache and logs in
-  `%APPDATA%\StepMania\3.9`, and looks there for added songs and themes.
+  `%APPDATA%\StepMania\3.9` (`3.9a` for the 3.9a build), and looks there for
+  added songs and themes.
 
 ## macOS
 
@@ -799,7 +829,7 @@ universal binary.
 
 It has been built and played on an Apple Silicon Mac.  If something goes
 wrong, `log.txt` and `info.txt` in `~/Library/Application Support/StepMania/3.9`
-are what's needed to look into it.
+(`3.9a` for the 3.9a build) are what's needed to look into it.
 
 It differs from the other systems like this:
 
@@ -820,7 +850,8 @@ It differs from the other systems like this:
 - No memory card or lights drivers.
 - StepMania.app never writes into itself (that would break its signature):
   preferences, profiles, the song cache, screenshots and logs always go to
-  `~/Library/Application Support/StepMania/3.9`, and songs, themes and so on
+  `~/Library/Application Support/StepMania/3.9` (`3.9a` for the 3.9a build),
+  and songs, themes and so on
   that you put in its `Songs`, `Themes`, ... folders are found next to the ones
   in the app.  The Library folder is hidden; in the Finder use Go, Go to Folder
   (Shift+Cmd+G).  Run from a plain folder (as from the build directory below),

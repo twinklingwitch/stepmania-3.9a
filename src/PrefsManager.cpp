@@ -188,16 +188,20 @@ void PrefsManager::Init()
 	m_ShowSongOptions = YES;
 	m_bDancePointsForOni = false;
 	m_bPercentageScoring = false;
-	m_bWife = false;
+#if !defined(WITHOUT_EXTRAS)
+	m_bWife = true;		// the aura build is the one with Wife: it starts on
 	m_bShowWifeInGameplay = true;
+#endif
 	m_bConstantCSpeed = true;
 	m_bRememberOptions = true;
 	m_bDiscordRichPresence = true;
 	m_sDiscordAppId = DISCORD_DEFAULT_APP_ID;
+#if !defined(WITHOUT_EXTRAS)
 	m_sOnlineServer = "https://aurasm.online";
 	m_bOnlineAutoSubmit = true;
 	m_bOnlineAllowInsecureHttp = false;
 	m_bOnlineWriteTestVectors = false;
+#endif
 	FOREACH_PlayerNumber( p )
 	{
 		m_sRememberedPlayerOptions[p] = "";
@@ -518,16 +522,20 @@ void PrefsManager::ReadPrefsFromFile( CString sIni )
 	ini.GetValue( "Options", "SoloSingle",						m_bSoloSingle );
 	ini.GetValue( "Options", "DancePointsForOni",				m_bDancePointsForOni );
 	ini.GetValue( "Options", "PercentageScoring",				m_bPercentageScoring );
+#if !defined(WITHOUT_EXTRAS)
 	ini.GetValue( "Options", "Wife",							m_bWife );
 	ini.GetValue( "Options", "ShowWifeInGameplay",				m_bShowWifeInGameplay );
+#endif
 	ini.GetValue( "Options", "ConstantCSpeed",					m_bConstantCSpeed );
 	ini.GetValue( "Options", "RememberOptions",					m_bRememberOptions );
 	ini.GetValue( "Options", "DiscordRichPresence",				m_bDiscordRichPresence );
 	ini.GetValue( "Options", "DiscordAppId",					m_sDiscordAppId );
+#if !defined(WITHOUT_EXTRAS)
 	ini.GetValue( "Options", "OnlineServer",					m_sOnlineServer );
 	ini.GetValue( "Options", "OnlineAutoSubmit",				m_bOnlineAutoSubmit );
 	ini.GetValue( "Options", "OnlineAllowInsecureHttp",			m_bOnlineAllowInsecureHttp );
 	ini.GetValue( "Options", "OnlineWriteTestVectors",			m_bOnlineWriteTestVectors );
+#endif
 	FOREACH_PlayerNumber( p )
 	{
 		ini.GetValue( "Options", ssprintf("RememberedPlayerOptionsP%d",p+1),	m_sRememberedPlayerOptions[p] );
@@ -764,8 +772,10 @@ void PrefsManager::SaveGlobalPrefsToDisk() const
 	ini.SetValue( "Options", "SoloSingle",						m_bSoloSingle );
 	ini.SetValue( "Options", "DancePointsForOni",				m_bDancePointsForOni );
 	ini.SetValue( "Options", "PercentageScoring",				m_bPercentageScoring );
+#if !defined(WITHOUT_EXTRAS)
 	ini.SetValue( "Options", "Wife",							m_bWife );
 	ini.SetValue( "Options", "ShowWifeInGameplay",				m_bShowWifeInGameplay );
+#endif
 	ini.SetValue( "Options", "ConstantCSpeed",					m_bConstantCSpeed );
 	ini.SetValue( "Options", "RememberOptions",					m_bRememberOptions );
 	ini.SetValue( "Options", "DiscordRichPresence",				m_bDiscordRichPresence );
@@ -773,10 +783,12 @@ void PrefsManager::SaveGlobalPrefsToDisk() const
 	 * everyone who didn't set one. */
 	if( m_sDiscordAppId != DISCORD_DEFAULT_APP_ID )
 		ini.SetValue( "Options", "DiscordAppId",				m_sDiscordAppId );
+#if !defined(WITHOUT_EXTRAS)
 	ini.SetValue( "Options", "OnlineServer",					m_sOnlineServer );
 	ini.SetValue( "Options", "OnlineAutoSubmit",				m_bOnlineAutoSubmit );
 	ini.SetValue( "Options", "OnlineAllowInsecureHttp",			m_bOnlineAllowInsecureHttp );
 	ini.SetValue( "Options", "OnlineWriteTestVectors",			m_bOnlineWriteTestVectors );
+#endif
 	FOREACH_PlayerNumber( p )
 	{
 		ini.SetValue( "Options", ssprintf("RememberedPlayerOptionsP%d",p+1),	m_sRememberedPlayerOptions[p] );

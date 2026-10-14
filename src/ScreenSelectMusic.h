@@ -40,11 +40,13 @@ public:
 	virtual void MenuStart( PlayerNumber pn );
 	virtual void MenuBack( PlayerNumber pn );
 
+#if !defined(WITHOUT_EXTRAS)
 	/* Multiplayer rooms (OnlineRoom): put the wheel on the room's chart and
 	 * rate, and say whether it's there.  StartRoomRound then starts it as if
 	 * Start was pressed. */
 	bool SelectRoomChart( Song *pSong, Steps *pSteps, float fRate );
 	void StartRoomRound();
+#endif
 
 protected:
 	void TweenOnScreen();

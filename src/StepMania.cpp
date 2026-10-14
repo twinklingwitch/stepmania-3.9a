@@ -1,7 +1,9 @@
 #include "global.h"
 
 #include "StepMania.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "ChartExport.h"
+#endif
 
 //
 // Rage global classes
@@ -58,10 +60,12 @@
 #include "ModelManager.h"
 #include "CryptManager.h"
 #include "NetworkSyncManager.h"
+#include "DiscordPresence.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "WifeManager.h"
 #include "OnlineManager.h"
 #include "OnlineRoom.h"
-#include "DiscordPresence.h"
+#endif
 #include <sched.h>
 
 #define ZIPS_DIR "Packages/"
@@ -627,6 +631,7 @@ int main(int argc, char* argv[])
 	PREFSMAN->ReadGlobalPrefsFromDisk();
 	ApplyLogPreferences();
 
+#if !defined(WITHOUT_EXTRAS)
 	/* Writing out a pack's charts for the online server replaces the game. */
 	{
 		CString sPackDir, sOutFile;
@@ -636,6 +641,7 @@ int main(int argc, char* argv[])
 			return ChartExportMain( sPackDir, sOutFile );
 		}
 	}
+#endif
 	
 	SetupSDL();
 
@@ -699,9 +705,11 @@ int main(int argc, char* argv[])
 	MEMCARDMAN	= new MemoryCardManager;
 	PROFILEMAN	= new ProfileManager;
 	PROFILEMAN->Init();				// must load after SONGMAN
+#if !defined(WITHOUT_EXTRAS)
 	WIFE		= new WifeManager;
 	ONLINE		= new OnlineManager;
 	ROOM		= new OnlineRoom;
+#endif
 	DISCORD		= new DiscordPresence;
 	UNLOCKMAN	= new UnlockSystem;
     NSMAN       = new NetworkSyncManager( loading_window ); 
@@ -785,9 +793,11 @@ int main(int argc, char* argv[])
 	SAFE_DELETE( INPUTMAPPER );
 	SAFE_DELETE( INPUTFILTER );
 	SAFE_DELETE( MODELMAN );
+#if !defined(WITHOUT_EXTRAS)
 	SAFE_DELETE( ROOM );
 	SAFE_DELETE( ONLINE );
 	SAFE_DELETE( WIFE );
+#endif
 	SAFE_DELETE( PROFILEMAN );	// PROFILEMAN needs the songs still loaded
 	SAFE_DELETE( UNLOCKMAN );
 	SAFE_DELETE( CRYPTMAN );
@@ -907,10 +917,12 @@ void InsertCredit()
  * the key should be sent on to screens. */
 bool HandleGlobalInputs( DeviceInput DeviceI, InputEventType type, GameInput GameI, MenuInput MenuI, StyleInput StyleI )
 {
+#if !defined(WITHOUT_EXTRAS)
 	/* The online chat and rooms take the keyboard while open: repeats and
 	 * releases too. */
 	if( SCREENMAN->ChatInput( DeviceI, type ) )
 		return true;
+#endif
 
 	/* None of the globals keys act on types other than FIRST_PRESS */
 	if( type != IET_FIRST_PRESS ) 
@@ -1040,9 +1052,11 @@ bool HandleGlobalInputs( DeviceInput DeviceI, InputEventType type, GameInput Gam
 		return true;
 	}
 
+#if !defined(WITHOUT_EXTRAS)
 	/* The keys of the Wife overlay and the online panel, if they are on. */
 	if( (PREFSMAN->m_bWife || ONLINE->IsEnabled())  &&  SCREENMAN->WifeInput( DeviceI, type ) )
 		return true;
+#endif
 
 	return false;
 }
@@ -1185,12 +1199,16 @@ static void GameLoop()
 				fDeltaTime = 0; /* both; stop time */
 			else
 				fDeltaTime *= 4;
+#if !defined(WITHOUT_EXTRAS)
 			ONLINE->DebugTimeKeysUsed();
+#endif
 		}
 		else if( INPUTFILTER->IsBeingPressed( DeviceInput(DEVICE_KEYBOARD, KEY_ACCENT) ) )
 		{
 			fDeltaTime /= 4;
+#if !defined(WITHOUT_EXTRAS)
 			ONLINE->DebugTimeKeysUsed();
+#endif
 		}
 
 		DISPLAY->Update( fDeltaTime );

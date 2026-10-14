@@ -3,10 +3,6 @@
  * font every theme falls back to) and draws nothing and handles no keys unless
  * the Wife preference is on or an online server is set.
  *
- * The one thing it does regardless is the music rate popup (ShowRate), which
- * the music select screen asks for when the rate keys are pressed; the system
- * layer updates and draws that part on its own when Wife is off.
- *
  *   music select:  F5 shows or hides the local leaderboard of the chart that is
  *                  selected, with its difficulty (MSD) per skillset at the current
  *                  rate in a column beside it; F6
@@ -71,12 +67,6 @@ public:
 
 	void Update( float fDeltaTime );
 	void DrawPrimitives();
-
-	/* "Rate 1.20x" for a moment.  iLimit is -1 or +1 if the rate is at its
-	 * lowest or highest, to say so.  Works with Wife off. */
-	void ShowRate( float fRate, int iLimit );
-	void UpdatePopup( float fDeltaTime );
-	void DrawPopup();
 
 	/* Returns true if the key was ours. */
 	bool Input( const DeviceInput &DeviceI, InputEventType type );
@@ -143,10 +133,6 @@ private:
 	float m_fRowY;
 	float m_fPanelBottom;
 
-	bool m_bPopupInit;
-	float m_fPopupLeft;		// seconds it stays up, 0 if it isn't
-	Quad m_PopupBack;
-	BitmapText m_textPopup;
 
 	Quad m_CounterBack[NUM_PLAYERS];
 	BitmapText m_textCounter[NUM_PLAYERS];

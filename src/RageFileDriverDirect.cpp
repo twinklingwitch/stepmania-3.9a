@@ -19,6 +19,12 @@ static struct FileDriverEntry_DIR: public FileDriverEntry
 	RageFileDriver *Create( CString Root ) const { return new RageFileDriverDirect( Root ); }
 } const g_RegisterDriver;
 
+static struct FileDriverEntry_DIRRO: public FileDriverEntry
+{
+	FileDriverEntry_DIRRO(): FileDriverEntry( "DIRRO" ) { }
+	RageFileDriver *Create( CString Root ) const { return new RageFileDriverDirectReadOnly( Root ); }
+} const g_RegisterDriverReadOnly;
+
 /* This driver handles direct file access. */
 
 class RageFileObjDirect: public RageFileObj
@@ -115,6 +121,16 @@ RageFileObj *RageFileDriverDirect::Open( const CString &path, int mode, RageFile
 	}
 
 	return MakeFileObjDirect( root + sPath, mode, p, err );
+}
+
+RageFileObj *RageFileDriverDirectReadOnly::Open( const CString &path, int mode, RageFile &p, int &err )
+{
+	if( mode & RageFile::WRITE )
+	{
+		err = ERROR_WRITING_NOT_SUPPORTED;
+		return NULL;
+	}
+	return RageFileDriverDirect::Open( path, mode, p, err );
 }
 
 bool RageFileDriverDirect::Remove( const CString &path )

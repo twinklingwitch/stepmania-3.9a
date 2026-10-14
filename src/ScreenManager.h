@@ -39,9 +39,11 @@ public:
 	void PopTopScreen( ScreenMessage SM = SM_None );
 	void SystemMessage( CString sMessage );
 	void SystemMessageNoAnimate( CString sMessage );
+#if !defined(WITHOUT_EXTRAS)
 	bool WifeInput( const DeviceInput& DeviceI, const InputEventType type );	// the Wife overlay's keys
 	bool ChatInput( const DeviceInput& DeviceI, const InputEventType type );	// F8, F10 and, while their panels are open, the keyboard
-	void ShowRate( float fRate, int iLimit );	// the music rate popup (iLimit -1 or +1 at the ends); doesn't need Wife
+#endif
+	void ShowRate( float fRate, int iLimit );	// the music rate popup (iLimit -1 or +1 at the ends)
 
 	void PostMessageToTopScreen( ScreenMessage SM, float fDelay );
 	void SendMessageToTopScreen( ScreenMessage SM );

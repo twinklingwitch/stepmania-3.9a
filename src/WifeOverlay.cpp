@@ -53,17 +53,9 @@ static const float MSD_SETTLE_SECONDS = 0.25f;
 static const float COUNTER_Y = 441;
 static const float COUNTER_X[NUM_PLAYERS] = { 254, SCREEN_WIDTH-254 };
 
-/* How long the rate popup stays, and how much of that it fades out in. */
-static const float POPUP_SECONDS = 1.5f;
-static const float POPUP_FADE_SECONDS = 0.3f;
-static const float POPUP_Y = 36;
-static const float POPUP_ZOOM = 0.9f;
-
 WifeOverlay::WifeOverlay()
 {
 	m_bInit = false;
-	m_bPopupInit = false;
-	m_fPopupLeft = 0;
 	m_bShowSelect = false;
 	m_bAllProfiles = false;
 	m_bShowEval = false;
@@ -869,48 +861,10 @@ void WifeOverlay::Update( float fDeltaTime )
 	UpdateCounters();
 }
 
-void WifeOverlay::ShowRate( float fRate, int iLimit )
-{
-	if( !m_bPopupInit )
-	{
-		m_bPopupInit = true;
-		m_textPopup.LoadFromFont( THEME->GetPathToF( "Common normal" ) );
-		m_textPopup.SetZoom( POPUP_ZOOM );
-		m_textPopup.SetXY( CENTER_X, POPUP_Y );
-		m_PopupBack.SetDiffuse( RageColor(0,0,0,0.75f) );
-	}
-
-	m_textPopup.SetText( ssprintf( "Rate %.2fx%s", fRate, iLimit < 0? " (min)": iLimit > 0? " (max)": "" ) );
-	const float fHalfWidth = m_textPopup.GetZoomedWidth() / 2 + 14;
-	m_PopupBack.StretchTo( RectF(CENTER_X-fHalfWidth, POPUP_Y-14, CENTER_X+fHalfWidth, POPUP_Y+14) );
-	m_fPopupLeft = POPUP_SECONDS;
-}
-
-void WifeOverlay::UpdatePopup( float fDeltaTime )
-{
-	if( m_fPopupLeft > 0 )
-		m_fPopupLeft = max( 0.0f, m_fPopupLeft - fDeltaTime );
-}
-
-void WifeOverlay::DrawPopup()
-{
-	if( !m_bPopupInit || m_fPopupLeft <= 0 )
-		return;
-
-	const float fAlpha = min( 1.0f, m_fPopupLeft / POPUP_FADE_SECONDS );
-	m_PopupBack.SetDiffuse( RageColor(0,0,0,0.75f*fAlpha) );
-	m_textPopup.SetDiffuse( RageColor(1,1,1,fAlpha) );
-	m_PopupBack.Draw();
-	m_textPopup.Draw();
-}
-
 void WifeOverlay::DrawPrimitives()
 {
 	if( !m_bInit )
-	{
-		DrawPopup();
 		return;
-	}
 
 	if( m_bPanelVisible )
 	{
@@ -940,8 +894,6 @@ void WifeOverlay::DrawPrimitives()
 			m_CounterBack[p].Draw();
 			m_textCounter[p].Draw();
 		}
-
-	DrawPopup();
 }
 
 char TypedChar( const DeviceInput &DeviceI )

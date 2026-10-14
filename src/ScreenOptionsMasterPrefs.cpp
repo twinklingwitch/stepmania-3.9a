@@ -248,8 +248,10 @@ static void WheelSpeed( int &sel, bool ToSel, const CStringArray &choices )
 /* Gameplay options */
 MOVE( SoloSingles,			PREFSMAN->m_bSoloSingle );
 MOVE( HiddenSongs,			PREFSMAN->m_bHiddenSongs );
+#if !defined(WITHOUT_EXTRAS)
 MOVE( Wife,					PREFSMAN->m_bWife );
 MOVE( ShowWifeInGameplay,	PREFSMAN->m_bShowWifeInGameplay );
+#endif
 MOVE( ConstantCSpeed,		PREFSMAN->m_bConstantCSpeed );
 MOVE( RememberOptions,		PREFSMAN->m_bRememberOptions );
 MOVE( DiscordRichPresence,	PREFSMAN->m_bDiscordRichPresence );
@@ -480,8 +482,10 @@ static const ConfOption g_ConfOptions[] =
 	/* Gameplay options */
 	ConfOption( "Solo\nSingles",		SoloSingles,		"OFF","ON" ),
 	ConfOption( "Hidden\nSongs",		HiddenSongs,		"OFF","ON" ),
+#if !defined(WITHOUT_EXTRAS)
 	ConfOption( "Wife",					Wife,				"OFF","ON" ),
 	ConfOption( "Show Wife\nIn Gameplay",	ShowWifeInGameplay,	"OFF","ON" ),
+#endif
 	ConfOption( "Constant\nC Speed",	ConstantCSpeed,		"OFF","ON" ),
 	ConfOption( "Remember\nOptions",		RememberOptions,	"OFF","ON" ),
 	ConfOption( "Discord Rich\nPresence",	DiscordRichPresence,	"OFF","ON" ),
@@ -583,6 +587,17 @@ const ConfOption *ConfOption::Find( CString name )
 	}
 
 	return NULL;
+}
+
+bool ConfOption::IsLeftOut( CString name )
+{
+#if defined(WITHOUT_EXTRAS)
+	static const char *szExtras[] = { "Wife", "ShowWifeInGameplay" };
+	for( unsigned i = 0; i < ARRAYSIZE(szExtras); ++i )
+		if( !name.CompareNoCase(szExtras[i]) )
+			return true;
+#endif
+	return false;
 }
 
 void ConfOption::MakeOptionsList( CStringArray &out ) const

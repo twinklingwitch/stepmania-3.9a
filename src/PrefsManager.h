@@ -160,18 +160,22 @@ public:
 	bool			m_bSoloSingle;
 	bool			m_bDancePointsForOni;	//DDR-Extreme style dance points instead of max2 percent
 	bool			m_bPercentageScoring;
+#if !defined(WITHOUT_EXTRAS)
 	bool			m_bWife;				// Etterna-style Wife3 scoring on the side
 	bool			m_bShowWifeInGameplay;	// the Wife% counter, if Wife is on
+#endif
 	bool			m_bConstantCSpeed;		// C speeds look the same at any music rate
 	bool			m_bRememberOptions;		// bring back the last player and song options of each player
 	CString			m_sRememberedPlayerOptions[NUM_PLAYERS];	// for players without a profile
 	CString			m_sRememberedSongOptions[NUM_PLAYERS];
 	bool			m_bDiscordRichPresence;	// show what's being played in Discord
 	CString			m_sDiscordAppId;		// the Discord application; empty turns Rich Presence off
+#if !defined(WITHOUT_EXTRAS)
 	CString			m_sOnlineServer;		// URL of the online server; empty is no online at all.  Only used with Wife on.
 	bool			m_bOnlineAutoSubmit;	// send scores when a stage ends, not only on request
 	bool			m_bOnlineAllowInsecureHttp;	// plain http:// to hosts other than this machine, for testing
 	bool			m_bOnlineWriteTestVectors;	// write every play out for the server's judge tests
+#endif
 	float			m_fMinPercentageForMachineSongHighScore;
 	float			m_fMinPercentageForMachineCourseHighScore;
 	bool			m_bDisqualification;

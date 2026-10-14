@@ -10,6 +10,7 @@
 #include "ProductInfo.h"
 
 #include <cerrno>
+#include <dirent.h>
 #if defined(UNIX) || defined(WINDOWS)
 #include <sys/stat.h>
 #include <unistd.h>
@@ -150,6 +151,72 @@ RageFileManager::RageFileManager( CString argv0 )
 	RageFileManager::Mount( "mem", "(cache)", "@mem" );
 }
 
+#if !defined(WITHOUT_EXTRAS)
+static bool IsDir( const CString &sPath )
+{
+	struct stat st;
+	return DoStat( sPath, &st ) == 0 && (st.st_mode & S_IFDIR);
+}
+
+static bool CopyOneFile( const CString &sFrom, const CString &sTo, int iMode )
+{
+	const int in = DoOpen( sFrom, O_RDONLY|O_BINARY );
+	if( in == -1 )
+		return false;
+	/* With the same permissions: online login files are for their owner only. */
+	const int out = DoOpen( sTo, O_WRONLY|O_CREAT|O_TRUNC|O_BINARY, iMode & 0777 );
+	if( out == -1 )
+	{
+		close( in );
+		return false;
+	}
+	bool bOK = true;
+	char buf[1024*64];
+	for(;;)
+	{
+		const int iGot = read( in, buf, sizeof(buf) );
+		if( iGot <= 0 )
+		{
+			bOK = iGot == 0;
+			break;
+		}
+		if( write(out, buf, iGot) != iGot )
+		{
+			bOK = false;
+			break;
+		}
+	}
+	close( in );
+	if( close(out) == -1 )
+		bOK = false;
+	return bOK;
+}
+
+/* Copies the files and folders in sFrom into sTo, which is created. */
+static void CopyTree( const CString &sFrom, const CString &sTo )
+{
+	DoMkdir( sTo, 0755 );
+	DIR *d = opendir( sFrom );
+	if( d == NULL )
+		return;
+	while( struct dirent *ent = readdir(d) )
+	{
+		if( !strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..") )
+			continue;
+		const CString sSrc = sFrom + "/" + ent->d_name;
+		const CString sDst = sTo + "/" + ent->d_name;
+		struct stat st;
+		if( DoStat(sSrc, &st) == -1 )
+			continue;
+		if( st.st_mode & S_IFDIR )
+			CopyTree( sSrc, sDst );
+		else if( !CopyOneFile(sSrc, sDst, st.st_mode) )
+			fprintf( stderr, "Couldn't copy %s to %s\n", sSrc.c_str(), sDst.c_str() );
+	}
+	closedir( d );
+}
+#endif
+
 void RageFileManager::MountInitialFilesystems()
 {
 	/* Add file search paths, higher priority first. */
@@ -241,10 +308,36 @@ void RageFileManager::MountInitialFilesystems()
 		static const char *UserSubdirs[] = {
 			"Announcers", "BGAnimations", "CDTitles", "Characters", "Courses", "Data",
 			"NoteSkins", "Packages", "RandomMovies", "Songs", "Themes", "Visualizations" };
+
+#if !defined(WITHOUT_EXTRAS)
+		/* The aura build's user directory is 3.9a, apart from plain 3.9's (and
+		 * from the one aura builds used before).  The first time, the settings,
+		 * profiles, scores and online login come over from the 3.9 one; the
+		 * songs, themes and the rest there are found below ours, but never
+		 * changed or removed. */
+		CString sPlainUserDir;
+		if( sUserDir.Right(1) == "a" )
+			sPlainUserDir = sUserDir.Left( sUserDir.size()-1 );
+		if( sPlainUserDir != "" && IsDir(sPlainUserDir) )
+		{
+			if( !IsDir(sUserDir + "/Data") && IsDir(sPlainUserDir + "/Data") )
+				CopyTree( sPlainUserDir + "/Data", sUserDir + "/Data" );
+		}
+		else
+			sPlainUserDir = "";
+#endif
+
 		for( unsigned i = 0; i < ARRAYSIZE(UserSubdirs); ++i )
 			DoMkdir( sUserDir + "/" + UserSubdirs[i], 0755 );
 
 		RageFileManager::Mount( "dir", sUserDir, "" );
+
+#if !defined(WITHOUT_EXTRAS)
+		if( sPlainUserDir != "" )
+			for( unsigned i = 0; i < ARRAYSIZE(UserSubdirs); ++i )
+				if( strcmp(UserSubdirs[i], "Data") && IsDir(sPlainUserDir + "/" + UserSubdirs[i]) )
+					RageFileManager::Mount( "dirro", sPlainUserDir + "/" + UserSubdirs[i], UserSubdirs[i] );
+#endif
 	}
 
 	RageFileManager::Mount( "dir", Root, "" );

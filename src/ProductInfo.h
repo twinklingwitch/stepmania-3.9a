@@ -1,5 +1,11 @@
 #define PRODUCT_NAME "StepMania"
+/* The aura build (the extras) is 3.9a, so its user folder (~/.stepmania-3.9a,
+ * %APPDATA%\StepMania\3.9a, ...) is apart from plain 3.9's. */
+#if defined(WITHOUT_EXTRAS)
 #define PRODUCT_VER "3.9"
+#else
+#define PRODUCT_VER "3.9a"
+#endif
 #define PRODUCT_NAME_VER PRODUCT_NAME " " PRODUCT_VER
 
 /*

@@ -1,11 +1,15 @@
 #include "global.h"
 #include "DiscordPresence.h"
 #include "DiscordIpc.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "ChartMSD.h"
+#endif
 #include "Course.h"
 #include "GameState.h"
 #include "OnlineJson.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "OnlineManager.h"
+#endif
 #include "PrefsManager.h"
 #include "RageLog.h"
 #include "RageThreads.h"
@@ -26,7 +30,9 @@
 #include "StageStats.h"
 #include "Steps.h"
 #include "Trail.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "WifeManager.h"
+#endif
 #include "song.h"
 
 #include <math.h>
@@ -50,6 +56,7 @@ struct DiscordShared
 	CString sAppId;
 	CString sActivity;		// JSON
 
+#if !defined(WITHOUT_EXTRAS)
 	/* An MSD to work out: the whole table, or at one rate if fRate isn't 0. */
 	int iJob;				// counts up; only the latest is wanted
 	vector<minacalc_row> rows;
@@ -61,13 +68,18 @@ struct DiscordShared
 	bool bJobOK;
 	ChartMSDTable table;
 	float fAtRate[MINACALC_NUM_SKILLSETS];
+#endif
 
 	/* Posted to wake the thread when the game quits, and by the thread when it's done. */
 	RageSemaphore wake;
 	RageSemaphore exited;
 
+#if !defined(WITHOUT_EXTRAS)
 	DiscordShared(): mutex( "Discord" ), bQuit( false ), bEnabled( false ), iJob( 0 ), iKeyCount( 4 ), fRate( 0 ),
 		iJobDone( 0 ), bJobOK( false ), wake( "DiscordWake" ), exited( "DiscordExited" ) { }
+#else
+	DiscordShared(): mutex( "Discord" ), bQuit( false ), bEnabled( false ), wake( "DiscordWake" ), exited( "DiscordExited" ) { }
+#endif
 };
 
 /*
@@ -85,9 +97,14 @@ namespace
 	class Worker
 	{
 	public:
+#if !defined(WITHOUT_EXTRAS)
 		Worker( DiscordShared &sh ): m_Shared( sh ), m_State( CLOSED ), m_iNextTry( 0 ), m_iLastSend( 0 ),
 			m_iReadyDeadline( 0 ), m_bSentAny( false ), m_iNonce( 0 ), m_iPid( DiscordIpc::GetPid() ), m_pCalc( NULL ) { }
 		~Worker() { if( m_pCalc != NULL ) minacalc_destroy( m_pCalc ); }
+#else
+		Worker( DiscordShared &sh ): m_Shared( sh ), m_State( CLOSED ), m_iNextTry( 0 ), m_iLastSend( 0 ),
+			m_iReadyDeadline( 0 ), m_bSentAny( false ), m_iNonce( 0 ), m_iPid( DiscordIpc::GetPid() ) { }
+#endif
 		void Run();
 
 	private:
@@ -103,10 +120,12 @@ namespace
 		CString m_sLastProblem;	// what Discord last complained about, logged once
 		unsigned m_iNonce;
 		unsigned m_iPid;
+#if !defined(WITHOUT_EXTRAS)
 		/* Our own, so the game's never waits for ours (see ChartMSD). */
 		minacalc_handle *m_pCalc;
 
 		void DoJob();
+#endif
 		void Connect( const CString &sAppId, int64_t iNow );
 		void Disconnect( const CString &sWhy, bool bLog );
 		bool SendActivity( const CString &sActivity );
@@ -123,6 +142,7 @@ void Worker::Problem( const CString &s )
 	LOG->Info( "Discord: %s", s.c_str() );
 }
 
+#if !defined(WITHOUT_EXTRAS)
 void Worker::DoJob()
 {
 	int iJob;
@@ -160,6 +180,7 @@ void Worker::DoJob()
 	else if( bOK )
 		memcpy( m_Shared.fAtRate, fAtRate, sizeof(fAtRate) );
 }
+#endif
 
 void Worker::Connect( const CString &sAppId, int64_t iNow )
 {
@@ -298,7 +319,9 @@ void Worker::Run()
 			sActivity = m_Shared.sActivity;
 		}
 
+#if !defined(WITHOUT_EXTRAS)
 		DoJob();
+#endif
 
 		const int64_t iNow = DiscordIpc::NowMs();
 
@@ -384,11 +407,13 @@ DiscordPresence::DiscordPresence()
 	m_iPlayStage = -1;
 	m_fPlayTime = 0;
 	m_iEndMs = 0;
+#if !defined(WITHOUT_EXTRAS)
 	m_bHaveMSD = false;
 	ZERO( m_fMSD );
 	m_iMSDJob = 0;
 	m_uMSDHash = 0;
 	m_bStoreMSD = false;
+#endif
 }
 
 DiscordPresence::~DiscordPresence()
@@ -445,7 +470,9 @@ void DiscordPresence::Update( float fDeltaTime )
 		StartThread();
 
 	m_fPlayTime += fElapsed;
+#if !defined(WITHOUT_EXTRAS)
 	CollectMSD();
+#endif
 	m_bHold = false;
 	const CString sActivity = BuildActivity();
 
@@ -456,7 +483,7 @@ void DiscordPresence::Update( float fDeltaTime )
 		m_pShared->sActivity = sActivity;
 }
 
-/* The MSD of the chart that's starting, if it has one: from what's known
+/* The chart that's starting, and its MSD, if it has one: from what's known
  * already, or else worked out on the thread. */
 void DiscordPresence::StartSong( const Song *pSong, const Steps *pSteps, float fRate )
 {
@@ -465,6 +492,7 @@ void DiscordPresence::StartSong( const Song *pSong, const Steps *pSteps, float f
 	m_fPlayRate = fRate;
 	m_fPlayTime = 0;
 	m_iEndMs = 0;
+#if !defined(WITHOUT_EXTRAS)
 	m_bHaveMSD = false;
 	m_iMSDJob = 0;
 	if( m_bStoreMSD )
@@ -493,8 +521,10 @@ void DiscordPresence::StartSong( const Song *pSong, const Steps *pSteps, float f
 	m_pShared->iKeyCount = ChartMSD::GetKeyCount( pSteps );
 	m_pShared->fRate = fRate >= 0.7f? 0: fRate;
 	m_iMSDJob = ++m_pShared->iJob;
+#endif
 }
 
+#if !defined(WITHOUT_EXTRAS)
 void DiscordPresence::CollectMSD()
 {
 	if( m_iMSDJob == 0 )
@@ -526,6 +556,7 @@ void DiscordPresence::CollectMSD()
 		m_fMSD[s] = table.Get( m_fPlayRate, s );
 	m_bHaveMSD = true;
 }
+#endif
 
 /* The player whose chart is shown: the first human one, if any. */
 static PlayerNumber MainPlayer()
@@ -549,6 +580,7 @@ static CString Dot()
 	return " \xC2\xB7 ";
 }
 
+#if !defined(WITHOUT_EXTRAS)
 /* "https://aurasm.online/path" -> "aurasm.online" */
 static CString UrlHost( const CString &sURL )
 {
@@ -558,6 +590,7 @@ static CString UrlHost( const CString &sURL )
 		s.erase( i );
 	return s;
 }
+#endif
 
 CString DiscordPresence::BuildActivity()
 {
@@ -584,9 +617,11 @@ CString DiscordPresence::BuildActivity()
 	if( state != PLAYING )
 	{
 		m_pPlaySong = NULL;
+#if !defined(WITHOUT_EXTRAS)
 		if( m_bStoreMSD )
 			ChartMSD::StoreMSD( m_sMSDKey, m_uMSDHash, m_MSDTable, true );
 		m_bStoreMSD = false;
+#endif
 	}
 
 	DiscordActivity a;
@@ -644,10 +679,14 @@ CString DiscordPresence::BuildActivity()
 		CString sChart;
 		if( pSteps != NULL )
 		{
+#if !defined(WITHOUT_EXTRAS)
 			const float fMSD = m_bHaveMSD? m_fMSD[0]: 0;
 			int iSkill = m_bHaveMSD? DiscordText::DominantSkillset( m_fMSD ): -1;
 			sChart = DiscordText::ChartLine( DifficultyToString(pSteps->GetDifficulty()), pSteps->GetMeter(), fRate,
 				fMSD, iSkill == -1? NULL: ChartMSD::SkillsetName(iSkill) );
+#else
+			sChart = DiscordText::ChartLine( DifficultyToString(pSteps->GetDifficulty()), pSteps->GetMeter(), fRate, 0, NULL );
+#endif
 		}
 
 		if( bCourse )
@@ -689,8 +728,10 @@ CString DiscordPresence::BuildActivity()
 		 * out once, complete, rather than in pieces. */
 		if( m_iEndMs == 0 && m_fPlayTime < 3 )
 			m_bHold = true;
+#if !defined(WITHOUT_EXTRAS)
 		if( m_iMSDJob != 0 && m_fPlayTime < 3 )
 			m_bHold = true;
+#endif
 		break;
 	}
 	case RESULTS:
@@ -712,6 +753,7 @@ CString DiscordPresence::BuildActivity()
 
 		const Grade g = g_CurStageStats.GetGrade( pn );
 		a.sState = g == GRADE_FAILED? CString("Failed"): GradeToOldString( g );
+#if !defined(WITHOUT_EXTRAS)
 		if( PREFSMAN->m_bWife && !bCourse && WIFE->HasScore(pn) )
 		{
 			a.sState += Dot() + ssprintf( "%.2f%% Wife", WIFE->GetFinalPercent(pn) * 100 );
@@ -719,6 +761,7 @@ CString DiscordPresence::BuildActivity()
 			if( r.bValid && r.iRankProfile == 1 )
 				a.sState += Dot() + "new best";
 		}
+#endif
 		/* Discord wants two characters at least. */
 		if( a.sState.size() < 2 )
 			a.sState = "Grade " + a.sState;
@@ -732,6 +775,7 @@ CString DiscordPresence::BuildActivity()
 		a.iPartyMax = iPlayers;
 	}
 
+#if !defined(WITHOUT_EXTRAS)
 	/* The online scores: a link to the rankings, and the player's profile if
 	 * they're logged in. */
 	const CString sServer = PREFSMAN->m_sOnlineServer;
@@ -766,6 +810,7 @@ CString DiscordPresence::BuildActivity()
 			a.AddButton( sLabel, sBase + "/users/" + DiscordText::UrlSegment(sUser) );
 		}
 	}
+#endif
 
 	return a.ToJson();
 }

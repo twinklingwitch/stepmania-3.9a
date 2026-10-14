@@ -40,11 +40,14 @@
 #include "MemoryCardManager.h"
 #include "CodeDetector.h"
 #include "StepMania.h"
+#include "RatePopup.h"
+#if !defined(WITHOUT_EXTRAS)
 #include "WifeOverlay.h"
 #include "ChatOverlay.h"
 #include "RoomOverlay.h"
 #include "OnlineRoom.h"
 #include "OnlineManager.h"
+#endif
 
 ScreenManager*	SCREENMAN = NULL;	// global and accessable from anywhere in our program
 
@@ -75,11 +78,14 @@ class ScreenSystemLayer: public Screen
 	int m_LastSkip;
 	Quad m_SkipBackground;
 
+	RatePopup m_RatePopup;
+#if !defined(WITHOUT_EXTRAS)
 	/* Only touched when the Wife preference is on or an online server is set. */
 	WifeOverlay m_WifeOverlay;
 	/* Only open with an online server set. */
 	ChatOverlay m_ChatOverlay;
 	RoomOverlay m_RoomOverlay;
+#endif
 
 	RageTimer SkipTimer;
 	void AddTimestampLine( const CString &txt, RageColor color );
@@ -93,9 +99,11 @@ public:
 	void RefreshCreditsMessages();
 	void Update( float fDeltaTime );
 	void DrawPrimitives();
+	void ShowRate( float fRate, int iLimit ) { m_RatePopup.Show( fRate, iLimit ); }
+#if !defined(WITHOUT_EXTRAS)
 	bool WifeInput( const DeviceInput& DeviceI, const InputEventType type ) { return m_WifeOverlay.Input( DeviceI, type ); }
-	void ShowRate( float fRate, int iLimit ) { m_WifeOverlay.ShowRate( fRate, iLimit ); }
 	bool ChatInput( const DeviceInput& DeviceI, const InputEventType type );
+#endif
 };
 
 ScreenSystemLayer::ScreenSystemLayer() : Screen("ScreenSystemLayer")
@@ -365,11 +373,12 @@ void ScreenSystemLayer::Update( float fDeltaTime )
 
 	UpdateTimestampAndSkips();
 
+	m_RatePopup.Update( fDeltaTime );
+#if !defined(WITHOUT_EXTRAS)
 	if( ONLINE )
 		ONLINE->Update( fDeltaTime );
 	if( PREFSMAN  &&  (PREFSMAN->m_bWife || (ONLINE && ONLINE->IsEnabled())) )
 		m_WifeOverlay.Update( fDeltaTime );
-	m_WifeOverlay.UpdatePopup( fDeltaTime );
 	if( ROOM )
 		ROOM->Update( fDeltaTime );
 	if( ONLINE )
@@ -377,7 +386,10 @@ void ScreenSystemLayer::Update( float fDeltaTime )
 		m_ChatOverlay.Update( fDeltaTime );
 		m_RoomOverlay.Update( fDeltaTime );
 	}
+#endif
 }
+
+#if !defined(WITHOUT_EXTRAS)
 
 /* An open panel gets the keys first; a key that opens one closes the other. */
 bool ScreenSystemLayer::ChatInput( const DeviceInput& DeviceI, const InputEventType type )
@@ -405,19 +417,24 @@ bool ScreenSystemLayer::ChatInput( const DeviceInput& DeviceI, const InputEventT
 	}
 	return false;
 }
+#endif
 
 void ScreenSystemLayer::DrawPrimitives()
 {
 	Screen::DrawPrimitives();
 
+#if !defined(WITHOUT_EXTRAS)
 	if( PREFSMAN  &&  (PREFSMAN->m_bWife || (ONLINE && ONLINE->IsEnabled())) )
 		m_WifeOverlay.Draw();
-	else
-		m_WifeOverlay.DrawPopup();	/* the rate popup doesn't depend on Wife */
+#endif
+	m_RatePopup.Draw();
+#if !defined(WITHOUT_EXTRAS)
 	m_RoomOverlay.Draw();
 	m_ChatOverlay.Draw();
+#endif
 }
 
+#if !defined(WITHOUT_EXTRAS)
 bool ScreenManager::ChatInput( const DeviceInput& DeviceI, const InputEventType type )
 {
 	return m_SystemLayer->ChatInput( DeviceI, type );
@@ -427,6 +444,7 @@ bool ScreenManager::WifeInput( const DeviceInput& DeviceI, const InputEventType 
 {
 	return m_SystemLayer->WifeInput( DeviceI, type );
 }
+#endif
 
 void ScreenManager::ShowRate( float fRate, int iLimit )
 {

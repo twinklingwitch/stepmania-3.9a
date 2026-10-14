@@ -76,21 +76,16 @@ data_structures = files(
   'Attack.cpp',
   'BannerCache.cpp',
   'CatalogXml.cpp',
-  'CalcRows.cpp',
-  'ChartExport.cpp',
-  'ChatOverlay.cpp',
   'ChartInfo.cpp',
-  'ChartKey.cpp',
-  'ChartMSD.cpp',
   'Character.cpp',
   'CharacterHead.cpp',
   'CodeDetector.cpp',
   'Difficulty.cpp',
-  'DiscordIpc.cpp',
-  'DiscordPresence.cpp',
   'Course.cpp',
   'CourseUtil.cpp',
   'DateTime.cpp',
+  'DiscordIpc.cpp',
+  'DiscordPresence.cpp',
   'Font.cpp',
   'FontCharAliases.cpp',
   'FontCharmaps.cpp',
@@ -114,19 +109,13 @@ data_structures = files(
   'NotesLoaderSM.cpp',
   'NotesWriterDWI.cpp',
   'NotesWriterSM.cpp',
-  'OnlineHttp.cpp',
-  'OnlineInputLog.cpp',
   'OnlineJson.cpp',
-  'OnlineManager.cpp',
-  'OnlineRoom.cpp',
-  'OnlineRules.cpp',
-  'OnlineServer.cpp',
   'PlayerAI.cpp',
   'PlayerNumber.cpp',
   'PlayerOptions.cpp',
   'Profile.cpp',
   'RandomSample.cpp',
-  'RoomOverlay.cpp',
+  'RatePopup.cpp',
   'RadarValues.cpp',
   'ScoreKeeperMAX2.cpp',
   'ScoreKeeperRave.cpp',
@@ -140,11 +129,6 @@ data_structures = files(
   'Style.cpp',
   'StyleUtil.cpp',
   'TimingData.cpp',
-  'Wife.cpp',
-  'WifeManager.cpp',
-  'WifeOverlay.cpp',
-  'WifeReplay.cpp',
-  'WifeScores.cpp',
   'Trail.cpp',
   'TrailUtil.cpp',
   'TitleSubstitution.cpp',
@@ -423,11 +407,35 @@ if use_networking
   stepmania_sources += files('ezsockets.cpp')
 endif
 
-if online_dep.found()
-  stepmania_sources += files(system == 'windows' ? 'OnlineHttp_WinHttp.cpp' : 'OnlineHttp_Curl.cpp')
-  deps += online_dep
-else
-  stepmania_sources += files('OnlineHttp_None.cpp')
+# The aura build's own code: see the extras option.
+extras_sources = files(
+  'CalcRows.cpp',
+  'ChartExport.cpp',
+  'ChartKey.cpp',
+  'ChartMSD.cpp',
+  'ChatOverlay.cpp',
+  'OnlineHttp.cpp',
+  'OnlineInputLog.cpp',
+  'OnlineManager.cpp',
+  'OnlineRoom.cpp',
+  'OnlineRules.cpp',
+  'OnlineServer.cpp',
+  'RoomOverlay.cpp',
+  'Wife.cpp',
+  'WifeManager.cpp',
+  'WifeOverlay.cpp',
+  'WifeReplay.cpp',
+  'WifeScores.cpp',
+)
+
+if extras
+  stepmania_sources += extras_sources
+  if online_dep.found()
+    stepmania_sources += files(system == 'windows' ? 'OnlineHttp_WinHttp.cpp' : 'OnlineHttp_Curl.cpp')
+    deps += online_dep
+  else
+    stepmania_sources += files('OnlineHttp_None.cpp')
+  endif
 endif
 
 if use_crash_handler

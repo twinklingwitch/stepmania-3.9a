@@ -169,7 +169,9 @@ protected:
 	RageSound		m_soundBattleTrickLevel3;
 
 	bool			m_bZeroDeltaOnNextUpdate;
+#if !defined(WITHOUT_EXTRAS)
 	bool			m_bWaitingForRoom;	// loaded, and waiting for the room's other players
+#endif
 	bool			m_bDemonstration;
 
 	RageSound		m_soundAssistTick;

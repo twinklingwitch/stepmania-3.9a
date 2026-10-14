@@ -208,6 +208,16 @@ ScreenOptionsMaster::ScreenOptionsMaster( CString sClassName ):
 
 	CStringArray asLineNames;
 	split( LINE_NAMES, ",", asLineNames );
+	/* Leave out the rows of options this build doesn't have, so the same
+	 * themes work in the plain 3.9 build and the aura one. */
+	for( int j = (int) asLineNames.size()-1; j >= 0; --j )
+	{
+		CString sRow = LINE( asLineNames[j] );
+		TrimLeft( sRow );
+		TrimRight( sRow );
+		if( sRow.Left(5).CompareNoCase("conf,") == 0  &&  ConfOption::IsLeftOut(sRow.substr(5)) )
+			asLineNames.erase( asLineNames.begin()+j );
+	}
 	if( asLineNames.empty() )
 		RageException::Throw( "%s::LineNames is empty.", m_sName.c_str() );
 
