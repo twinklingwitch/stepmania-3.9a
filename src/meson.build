@@ -462,8 +462,11 @@ stepmania_sources += sound_readers
 
 if system == 'windows'
   windows = import('windows')
+  # The version info says 3.9 or 3.9a, as ProductInfo.h does.
   stepmania_sources += windows.compile_resources('archutils/Win32/stepmania.rc',
-    depend_files: ['archutils/Win32/stepmania.ico', 'archutils/Win32/stepmania.manifest'])
+    args: extras ? [] : ['-DWITHOUT_EXTRAS'],
+    include_directories: src_inc,
+    depend_files: ['archutils/Win32/stepmania.ico', 'archutils/Win32/stepmania.manifest', 'ProductInfo.h'])
 endif
 
 stepmania = executable('stepmania',

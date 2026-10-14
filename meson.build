@@ -275,7 +275,7 @@ if system == 'windows'
   # The compiler runtimes are built in, so only the SDL and codec DLLs need to ship
   # next to the exe.
   exe_link_args += ['-static-libgcc', '-static-libstdc++',
-                    '-Wl,-Bstatic,--whole-archive', '-lwinpthread', '-Wl,--no-whole-archive,-Bdynamic']
+                    '-Wl,-Bstatic', '-lwinpthread', '-Wl,-Bdynamic']
 endif
 if use_crash_handler and cc.has_link_argument('-no-pie')
   exe_link_args += '-no-pie'
