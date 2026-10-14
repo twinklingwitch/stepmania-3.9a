@@ -11,6 +11,8 @@
 
 #define ZERO(x)	memset(&x, 0, sizeof(x))
 #define COPY(a,b) { ASSERT(sizeof(a)==sizeof(b)); memcpy(&(a), &(b), sizeof(a)); }
+/* winnt.h has its own; use ours everywhere. */
+#undef ARRAYSIZE
 #define ARRAYSIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 /* Common harmless mismatches.  All min(T,T) and max(T,T) cases are handled
