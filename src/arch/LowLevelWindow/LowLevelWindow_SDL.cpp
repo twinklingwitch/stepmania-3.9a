@@ -5,6 +5,7 @@
 #include "RageDisplay.h" // for REFRESH_DEFAULT
 #include "PrefsManager.h"
 #include "StepMania.h"
+#include "RageTimer.h"
 
 #if defined(DARWIN)
 #include <OpenGL/gl.h>
@@ -12,6 +13,31 @@
 #include <GL/gl.h>
 #endif
 #include <string.h>
+
+/*
+ * GL_ARB_sync, to keep track of when the GPU has finished a frame without
+ * waiting for it (see SwapBuffers).  We only need it on X11.
+ */
+#if !defined(_WIN32) && !defined(DARWIN)
+#define HAVE_FRAME_FENCE
+#ifndef GL_SYNC_GPU_COMMANDS_COMPLETE
+#define GL_SYNC_GPU_COMMANDS_COMPLETE	0x9117
+#define GL_SYNC_FLUSH_COMMANDS_BIT	0x00000001
+#endif
+namespace
+{
+	typedef struct FrameFence *Fence;
+	typedef Fence (*FenceSyncFunc)( GLenum condition, GLbitfield flags );
+	typedef GLenum (*ClientWaitSyncFunc)( Fence sync, GLbitfield flags, uint64_t timeout );
+	typedef void (*DeleteSyncFunc)( Fence sync );
+	FenceSyncFunc g_FenceSync = NULL;
+	ClientWaitSyncFunc g_ClientWaitSync = NULL;
+	DeleteSyncFunc g_DeleteSync = NULL;
+
+	/* Set after the last frame's commands, or NULL. */
+	Fence g_LastFrame = NULL;
+}
+#endif
 
 LowLevelWindow_SDL::LowLevelWindow_SDL()
 {
@@ -44,6 +70,14 @@ LowLevelWindow_SDL::~LowLevelWindow_SDL()
 
 void LowLevelWindow_SDL::DestroyWindow()
 {
+#if defined(HAVE_FRAME_FENCE)
+	/* The fence belongs to the context. */
+	if( g_LastFrame )
+		g_DeleteSync( g_LastFrame );
+	g_LastFrame = NULL;
+	g_FenceSync = NULL;
+#endif
+
 	if( m_pContext )
 		SDL_GL_DestroyContext( m_pContext );
 	m_pContext = NULL;
@@ -143,6 +177,17 @@ CString LowLevelWindow_SDL::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 		}
 
 		m_iWindowBpp = p.bpp;
+
+#if defined(HAVE_FRAME_FENCE)
+		if( SDL_GL_ExtensionSupported("GL_ARB_sync") )
+		{
+			g_FenceSync = (FenceSyncFunc) SDL_GL_GetProcAddress( "glFenceSync" );
+			g_ClientWaitSync = (ClientWaitSyncFunc) SDL_GL_GetProcAddress( "glClientWaitSync" );
+			g_DeleteSync = (DeleteSyncFunc) SDL_GL_GetProcAddress( "glDeleteSync" );
+			if( !g_ClientWaitSync || !g_DeleteSync )
+				g_FenceSync = NULL;
+		}
+#endif
 		m_iWindowedWidth = p.width;
 		m_iWindowedHeight = p.height;
 		mySDL_SetWindowIcon( m_pWindow, p.sIconFile );
@@ -242,8 +287,36 @@ void LowLevelWindow_SDL::SwapBuffers()
 	/* On X11 the driver lets us queue up frames ahead of the display, so what's
 	 * shown is older than it needs to be.  Wait for the swap to finish.  Wayland
 	 * already throttles us to the compositor, so don't bother there. */
-	if( PREFSMAN->m_bFastRendering && !strcmp(SDL_GetCurrentVideoDriver(), "x11") )
-		glFinish();
+	if( !PREFSMAN->m_bFastRendering || strcmp(SDL_GetCurrentVideoDriver(), "x11") )
+		return;
+
+#if defined(HAVE_FRAME_FENCE)
+	/* Without vsync, frames aren't held for the display, so the queue that adds
+	 * latency is just the GPU's.  Finishing each frame here would keep the GPU
+	 * idle while we update and draw the next one, so let it draw this frame
+	 * meanwhile, but don't get more than that one frame ahead. */
+	static bool bOff = getenv("SM_FENCE_OFF") != NULL;	/* TEMP */
+	if( !CurrentParams.vsync && g_FenceSync && !bOff )
+	{
+		Fence ThisFrame = g_FenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+		if( g_LastFrame )
+		{
+			/* Give up after a second, in case the driver never signals. */
+			g_ClientWaitSync( g_LastFrame, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000 );
+			g_DeleteSync( g_LastFrame );
+		}
+		g_LastFrame = ThisFrame;
+		return;
+	}
+#endif
+
+	{ /* TEMP timing */
+	static double fTot = 0; static int n = 0;
+	const RageTimer t;
+	glFinish();
+	fTot += t.Ago();
+	if( ++n == 500 ) { LOG->Info( "FINISHTIME avg %.3f ms", fTot/n*1000 ); fTot = 0; n = 0; }
+	}
 }
 
 float LowLevelWindow_SDL::GetRefreshRate() const

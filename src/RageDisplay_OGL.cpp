@@ -683,6 +683,113 @@ void RageDisplay_OGL::ResolutionChanged()
 		EndFrame();
 }
 
+/*
+ * Most frames never touch the depth buffer: actors don't test or write Z unless
+ * asked to.  A depth test that always passes and doesn't write does nothing, so
+ * the depth test is only enabled while something tests or writes Z, and the
+ * depth buffer is only cleared when it's about to be used, rather than at the
+ * start of every frame (and on every ClearZBuffer).  The result is the same;
+ * the depth buffer just isn't read, written or cleared when nobody looks at it.
+ */
+extern bool g_bGpuOptOff;	/* TEMP harness */
+namespace
+{
+	struct DepthState
+	{
+		bool bWrite, bTest;	// what was last asked for
+		bool bClearPending;	// the depth buffer must be cleared before it's used
+		bool bDirty;		// one of the above changed since the last draw
+	};
+	DepthState g_Depth = { true, true, true, true };
+}
+
+/* Called before each draw. */
+static inline void UpdateDepthState()
+{
+	if( g_bGpuOptOff ) { if( g_State.iDepthTest != 1 ) { glEnable( GL_DEPTH_TEST ); g_State.iDepthTest = 1; } return; }
+	if( !g_Depth.bDirty )
+		return;
+	g_Depth.bDirty = false;
+
+	const bool bUsed = g_Depth.bWrite || g_Depth.bTest;
+	if( !bUsed )
+	{
+		if( g_State.iDepthTest != 0 )
+		{
+			glDisable( GL_DEPTH_TEST );
+			g_State.iDepthTest = 0;
+		}
+		return;
+	}
+
+	if( g_Depth.bClearPending )
+	{
+		/* Clearing is affected by the depth mask. */
+		if( !g_Depth.bWrite )
+			glDepthMask( true );
+		glClear( GL_DEPTH_BUFFER_BIT );
+		if( !g_Depth.bWrite )
+			glDepthMask( false );
+		g_Depth.bClearPending = false;
+	}
+
+	if( g_State.iDepthTest != 1 )
+	{
+		glEnable( GL_DEPTH_TEST );
+		g_State.iDepthTest = 1;
+	}
+}
+
+
+/* TEMP GPU stats */
+#include <map>
+typedef void (APIENTRY *PFNGENQ)(GLsizei, GLuint*);
+typedef void (APIENTRY *PFNBEGQ)(GLenum, GLuint);
+typedef void (APIENTRY *PFNENDQ)(GLenum);
+typedef void (APIENTRY *PFNGETQ)(GLuint, GLenum, GLuint*);
+static int g_iStatsEvery = getenv("SM_GPUSTATS")? atoi(getenv("SM_GPUSTATS")): 0;
+static int g_iStatsFrame = 0;
+static bool g_bStatsThisFrame = false;
+static GLuint g_StatsQuery = 0;
+static PFNGENQ pGenQ; static PFNBEGQ pBegQ; static PFNENDQ pEndQ; static PFNGETQ pGetQ;
+static CString g_sStatsTex;
+struct StatEnt { int draws; double px; };
+static std::map<CString,StatEnt> g_Stats;
+static double g_fStatsTotal = 0;
+static void StatsBegin()
+{
+	if( !g_bStatsThisFrame ) return;
+	if( !g_StatsQuery ) {
+		pGenQ = (PFNGENQ) wind->GetProcAddress("glGenQueries"); pBegQ = (PFNBEGQ) wind->GetProcAddress("glBeginQuery");
+		pEndQ = (PFNENDQ) wind->GetProcAddress("glEndQuery"); pGetQ = (PFNGETQ) wind->GetProcAddress("glGetQueryObjectuiv");
+		pGenQ( 1, &g_StatsQuery );
+	}
+	pBegQ( GL_SAMPLES_PASSED, g_StatsQuery );
+}
+static void StatsEnd()
+{
+	if( !g_bStatsThisFrame ) return;
+	pEndQ( GL_SAMPLES_PASSED );
+	GLuint n = 0; pGetQ( g_StatsQuery, GL_QUERY_RESULT, &n );
+	GLint src, dst; glGetIntegerv( GL_BLEND_SRC, &src ); glGetIntegerv( GL_BLEND_DST, &dst );
+	CString key = ssprintf( "%s %s%s", glIsEnabled(GL_BLEND)? (dst==GL_ONE? "add": "blend"): "opaque", glIsEnabled(GL_TEXTURE_2D)? "": "notex ", g_sStatsTex.c_str() );
+	StatEnt &e = g_Stats[key]; e.draws++; e.px += n; g_fStatsTotal += n;
+}
+static bool StatsCmp( const std::pair<CString,StatEnt> &a, const std::pair<CString,StatEnt> &b ) { return a.second.px > b.second.px; }
+static void StatsFrameEnd()
+{
+	if( g_bStatsThisFrame )
+	{
+		int w, h; wind->GetFramebufferSize( w, h );
+		vector< std::pair<CString,StatEnt> > v( g_Stats.begin(), g_Stats.end() );
+		sort( v.begin(), v.end(), StatsCmp );
+		LOG->Info( "GPUSTATS frame total=%.0f px = %.2f screens", g_fStatsTotal, g_fStatsTotal/(w*h) );
+		for( unsigned i = 0; i < v.size() && i < 25; ++i )
+			LOG->Info( "GPUSTATS %8.0f px %5.2f scr %4d draws  %s", v[i].second.px, v[i].second.px/(w*h), v[i].second.draws, v[i].first.c_str() );
+		g_Stats.clear(); g_fStatsTotal = 0;
+	}
+	g_bStatsThisFrame = g_iStatsEvery && ++g_iStatsFrame % g_iStatsEvery == 0;
+}
 // Return true if mode change was successful.
 // bNewDeviceOut is set true if a new device was created and textures
 // need to be reloaded.
@@ -696,6 +803,7 @@ CString RageDisplay_OGL::TryVideoMode( VideoModeParams p, bool &bNewDeviceOut )
 
 	/* We may have a new context. */
 	g_State.Invalidate();
+	g_Depth.bDirty = true;
 	if( bNewDeviceOut )
 		g_State.bMatricesSent = false;
 
@@ -719,6 +827,7 @@ CString RageDisplay_OGL::TryVideoMode( VideoModeParams p, bool &bNewDeviceOut )
 
 	/* Which units we track depends on the extensions. */
 	g_State.Invalidate();
+	g_Depth.bDirty = true;
 
 	/* Set vsync the Windows way, if we can.  (What other extensions are there
 	 * to do this, for other archs?) */
@@ -753,7 +862,12 @@ bool RageDisplay_OGL::BeginFrame()
 {
 	glClearColor( 0,0,0,1 );
 	SetZWrite( true );
+	if( g_bGpuOptOff )
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+	else {
+	glClear( GL_COLOR_BUFFER_BIT );
+	g_Depth.bClearPending = true;
+	}
 	return true;
 }
 
@@ -764,6 +878,7 @@ void RageDisplay_OGL::EndFrame()
 	if( IsPacing() )
 		glFinish();
 
+	StatsFrameEnd();
 	FrameSwapping();
 	wind->SwapBuffers();
 	FrameSwapped();
@@ -1223,64 +1338,83 @@ void RageDisplay_OGL::DrawQuadsInternal( const RageSpriteVertex v[], int iNumVer
 {
 	TurnOffHardwareVBO();
 	FlushTextureEnables();
+	UpdateDepthState();
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
+	StatsBegin();
 	glDrawArrays( GL_QUADS, 0, iNumVerts );
+	StatsEnd();
 }
 
 void RageDisplay_OGL::DrawQuadStripInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	TurnOffHardwareVBO();
 	FlushTextureEnables();
+	UpdateDepthState();
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
+	StatsBegin();
 	glDrawArrays( GL_QUAD_STRIP, 0, iNumVerts );
+	StatsEnd();
 }
 
 void RageDisplay_OGL::DrawFanInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	TurnOffHardwareVBO();
 	FlushTextureEnables();
+	UpdateDepthState();
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
+	StatsBegin();
 	glDrawArrays( GL_TRIANGLE_FAN, 0, iNumVerts );
+	StatsEnd();
 }
 
 void RageDisplay_OGL::DrawStripInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	TurnOffHardwareVBO();
 	FlushTextureEnables();
+	UpdateDepthState();
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
+	StatsBegin();
 	glDrawArrays( GL_TRIANGLE_STRIP, 0, iNumVerts );
+	StatsEnd();
 }
 
 void RageDisplay_OGL::DrawTrianglesInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	TurnOffHardwareVBO();
 	FlushTextureEnables();
+	UpdateDepthState();
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
+	StatsBegin();
 	glDrawArrays( GL_TRIANGLES, 0, iNumVerts );
+	StatsEnd();
 }
 
 void RageDisplay_OGL::DrawCompiledGeometryInternal( const RageCompiledGeometry *p, int iMeshIndex )
 {
 	TurnOffHardwareVBO();
 	FlushTextureEnables();
+	UpdateDepthState();
 	SendCurrentMatrices();
 
+	StatsBegin();
 	p->Draw( iMeshIndex );
+	StatsEnd();
 }
 
 void RageDisplay_OGL::DrawLineStripInternal( const RageSpriteVertex v[], int iNumVerts, float LineWidth )
 {
 	TurnOffHardwareVBO();
+	UpdateDepthState();
 
 	if( !GetVideoModeParams().bSmoothLines )
 	{
@@ -1416,6 +1550,7 @@ void RageDisplay_OGL::SetTexture( int iTextureUnitIndex, RageTexture* pTexture )
 	}
 
 	g_State.iTexture2DWanted[iTextureUnitIndex] = pTexture != NULL;
+	if( iTextureUnitIndex == 0 ) g_sStatsTex = pTexture? Basename(pTexture->GetID().filename): CString("-");
 
 	if( pTexture )
 		BindTexture( pTexture->GetTexHandle() );
@@ -1546,10 +1681,14 @@ bool RageDisplay_OGL::IsZTestEnabled() const
 
 void RageDisplay_OGL::ClearZBuffer()
 {
+	if( g_bGpuOptOff ) {
 	bool write = IsZWriteEnabled();
 	SetZWrite( true );
     glClear( GL_DEPTH_BUFFER_BIT );
 	SetZWrite( write );
+	return; }
+	g_Depth.bClearPending = true;
+	g_Depth.bDirty = true;
 }
 
 void RageDisplay_OGL::SetZWrite( bool b )
@@ -1558,15 +1697,14 @@ void RageDisplay_OGL::SetZWrite( bool b )
 		return;
 	glDepthMask( b );
 	g_State.iZWrite = b;
+	g_Depth.bWrite = b;
+	g_Depth.bDirty = true;
 }
 
 void RageDisplay_OGL::SetZTestMode( ZTestMode mode )
 {
-	if( g_State.iDepthTest != 1 )
-	{
-		glEnable( GL_DEPTH_TEST );
-		g_State.iDepthTest = 1;
-	}
+	g_Depth.bTest = mode != ZTEST_OFF;
+	g_Depth.bDirty = true;
 	GLenum func;
 	switch( mode )
 	{

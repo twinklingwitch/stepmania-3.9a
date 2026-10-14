@@ -348,6 +348,19 @@ void MovieTexture_FFMpeg::ConvertFrame()
 	sws_scale( decoder->m_sws, decoder->frame->data, decoder->frame->linesize,
 			0, decoder->m_codec->height, data, linesize );
 
+	/* The top bit of RGB555 is our alpha.  Old swscale set it, current swscale
+	 * leaves it 0, which made every pixel of 16-bit movies transparent.  Set it
+	 * over the image; the padding past it stays transparent, as it always was. */
+	if( AVPixelFormats[m_AVTexfmt].pf == AV_PIX_FMT_RGB555 )
+	{
+		for( int y = 0; y < decoder->m_codec->height; ++y )
+		{
+			uint16_t *pRow = (uint16_t *) ((uint8_t *) m_img->pixels + y*m_img->pitch);
+			for( int x = 0; x < decoder->m_codec->width; ++x )
+				pRow[x] |= 0x8000;
+		}
+	}
+
 	m_ImageWaiting = FRAME_WAITING;
 }
 
