@@ -85,6 +85,85 @@ The few intentional differences:
 Linux, FreeBSD, OpenBSD, Windows 10/11 and macOS 14 and later on Apple Silicon
 are supported.  The build uses [Meson](https://mesonbuild.com/) (1.1 or newer).  Windows and macOS have their own sections, [Windows](#windows) and [macOS](#macos).
 
+## Downloads
+
+Ready-made builds are on the
+[Releases](https://github.com/twinklingwitch/stepmania-3.9a/releases) page.
+There are two flavors, the [two builds](#two-builds):
+
+- **vanilla**, `StepMania-3.9-<version>-<system>.zip`: plain StepMania 3.9 with
+  the fixes (`-Dextras=false`): no Wife scoring, MSD, leaderboards, online
+  scores, chat or rooms.
+- **aura**, `StepMania-3.9a-<version>-<system>.zip`: 3.9a, everything in this
+  README.
+
+Each comes for `windows-x64`, `linux-x64` and `macos-arm64`.  The zip holds a
+game folder (on macOS an app) that runs as it is: the game, the libraries it
+needs, and the themes, noteskins, announcers, courses and the three songs that
+come with the game.  Put your own songs in its `Songs` folder (see [Where
+user files go](#where-user-files-go) for where they go if the folder isn't
+writable).  The two flavors can be installed side by side, and keep their
+settings apart.
+
+- **Windows** 10 or 11, x64: unzip, then run `stepmania.exe` in the
+  `StepMania-3.9` or `StepMania-3.9a` folder.  The executable isn't signed,
+  so SmartScreen may warn about it the first time: More info, Run anyway.
+- **Linux**, x64: unzip, then run `./stepmania` in the folder.  It needs glibc
+  2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 or later, any current
+  rolling release), an OpenGL driver, OpenSSL 3 (`libcrypto.so.3`) and, for
+  aura, libcurl (`libcurl.so.4`).  These are part of every desktop install.  SDL
+  3, FFmpeg and the other libraries are in the folder's `lib`; SDL uses the
+  system's X11 or Wayland and PipeWire, PulseAudio or ALSA.
+- **macOS** 14 or later on Apple Silicon: unzip and move the app to
+  Applications.  vanilla is `StepMania.app`, aura `StepMania-aura.app`.  Neither
+  is notarized, so macOS refuses to open it at first; see
+  [Gatekeeper](#gatekeeper).
+
+### Making a release
+
+Push a tag that starts with `v`:
+
+    git tag v0.3.0
+    git push origin v0.3.0
+
+`.github/workflows/release.yml` then builds both flavors for the three
+systems, runs the tests, and makes a GitHub release for the tag with the six
+zips, named as above with the tag as the version, and notes generated from the
+pull requests and commits since the previous release.  It takes 10 to 15
+minutes.  If a build fails there is no release; fix it, then delete the tag
+(`git push origin :v0.3.0`, `git tag -d v0.3.0`) and tag again.
+
+The same workflow can be started by hand to try the builds without making a
+release: Actions, Release, Run workflow (or `gh workflow run release.yml --ref
+<branch>`).  The zips are then the run's artifacts, with the commit instead of
+a tag in their names.  GitHub only offers manual workflows that are on the
+default branch, but they can build any branch.
+
+How each system is built:
+
+- Windows is cross-compiled in a Debian 13 container against MSYS2's
+  libraries (see [Cross-compiling from Linux](#cross-compiling-from-linux)),
+  and the tests run under Wine.  `Utils/msys2-sysroot.py` pins nothing: it
+  takes the packages MSYS2 has on the day (checked against MSYS2's own
+  checksums), so two releases can ship different versions of SDL and the
+  other DLLs.  FFmpeg is built there, trimmed to what decoding movies takes,
+  which makes for a few DLLs instead of MSYS2's hundred.
+- Linux is built in an Ubuntu 22.04 container, which sets the glibc it needs.
+  SDL 3 and the same trimmed FFmpeg are built there (their versions are set
+  in the workflow), and `Utils/linux-bundle.sh build <folder>` makes the game
+  folder: it copies the game, its data and every library it uses that isn't
+  in the list above into the folder, and points the game at them with an
+  `$ORIGIN` run path (needs `patchelf`).
+- macOS is built on GitHub's macOS 14 runner with Homebrew's libraries (as
+  they are on the day, like MSYS2's), and `Utils/macos-bundle.sh` makes the
+  app (see [Making StepMania.app](#making-stepmaniaapp)); the app needs the
+  macOS it was built on or later.
+
+Each build job also uploads its meson logs as an artifact if it fails; the
+macOS jobs always upload theirs, with the game's log and a screenshot from
+trying to start it on the runner, which has no real GPU, so that part may fail
+without anything being wrong.
+
 ## Building
 
     meson setup build
@@ -189,7 +268,7 @@ build directory is gone, remove the installed files by hand (with the default
 
 If you run the game from the source tree or any other folder you can write to,
 it never writes outside that folder, so deleting the folder removes everything.
-On Windows, delete the game folder; on macOS, StepMania.app.
+On Windows, delete the game folder; on macOS, StepMania.app or StepMania-aura.app.
 
 Your own files (see above) aren't removed by any of this.  Delete
 `~/.stepmania-3.9` (`%APPDATA%\StepMania\3.9` on Windows,
@@ -896,9 +975,11 @@ as on the other systems:
 
     Utils/macos-bundle.sh build
 
-makes `build/StepMania.app` (a second argument puts it elsewhere): the game,
-its data in `Contents/Resources`, and the Homebrew libraries it uses in
-`Contents/Frameworks`, so it runs on Macs without Homebrew.  The script points
+makes `build/StepMania-aura.app`, or `build/StepMania.app` for a build with
+`-Dextras=false` (a second argument puts it elsewhere): the game, its data in
+`Contents/Resources`, and the Homebrew libraries it uses in
+`Contents/Frameworks`, so it runs on Macs without Homebrew.  The two have
+different bundle identifiers, so both can be in Applications.  The script points
 the game at those copies with `install_name_tool` and signs the app ad hoc
 (`codesign -s -`), which Apple Silicon requires.  Move it to Applications or
 anywhere else.  The data is copied from the source tree as it is, the same
@@ -908,7 +989,7 @@ directories `meson install` installs.
 
 The app is signed ad hoc, not with an Apple Developer ID, and it isn't
 notarized.  On the Mac that built it, it opens normally.  A copy that was
-downloaded (for example the one GitHub Actions builds) is quarantined, and
+downloaded (for example from the [releases](#downloads)) is quarantined, and
 macOS refuses to open it at first ("Apple could not verify..."):
 
 - macOS 14: Control-click (or right-click) the app, choose Open, then Open.
@@ -917,6 +998,7 @@ macOS refuses to open it at first ("Apple could not verify..."):
 - Or remove the quarantine in Terminal:
 
       xattr -dr com.apple.quarantine /Applications/StepMania.app
+      xattr -dr com.apple.quarantine /Applications/StepMania-aura.app
 
 If macOS says the app "is damaged", that's the quarantine too; the `xattr`
 command fixes it.  Getting rid of all this takes notarizing the app, which needs
@@ -925,22 +1007,6 @@ isn't set up.
 
 ### Building on GitHub Actions
 
-`.github/workflows/macos.yml` builds the game on an Apple Silicon runner, runs
-the tests, makes StepMania.app and uploads it.  It only runs when started by
-hand, so it doesn't use any Actions minutes otherwise (macOS minutes count ten
-times for private repositories).  GitHub only offers manual workflows that are
-on the default branch, so the file has to be there; then use Actions, macOS,
-Run workflow, and pick the branch to build.  With the GitHub CLI:
-
-    gh workflow run macos.yml --ref <branch>
-
-It builds on macOS 14 by default.  Homebrew's libraries are built for the
-macOS they're installed on, so an app built on the macOS 15 runner (the other
-choice, for when GitHub retires the macOS 14 one) needs macOS 15.
-
-The `StepMania-macos-arm64` artifact holds the zipped app (zipped, because
-GitHub's own zip would lose its executable bits and signature), so unzip twice,
-then see [Gatekeeper](#gatekeeper).  The
-`logs` artifact has the meson logs, and the game's log and a screenshot from
-trying to start it on the runner, which has no real GPU, so that part may fail
-without anything being wrong.
+The [release workflow](#making-a-release) builds both apps on an Apple Silicon
+runner, runs the tests, and uploads them as zips.  Started by hand, it only
+builds, so that's the way to try a branch on a Mac without having one.

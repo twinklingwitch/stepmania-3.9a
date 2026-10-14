@@ -3,6 +3,10 @@
 #
 #   Utils/macos-bundle.sh <build dir> [<output dir>]
 #
+# That's for a plain 3.9 build (-Dextras=false).  A build with the extras (the
+# default) makes StepMania-aura.app instead, with its own bundle identifier, so
+# that it can sit next to StepMania.app.
+#
 # The app gets the executable, the game data in Contents/Resources, and every
 # library the game needs that isn't part of macOS (the Homebrew ones) in
 # Contents/Frameworks, with the paths to them pointed there.  Then everything
@@ -31,9 +35,27 @@ exe=$(cd "$(dirname "$exe")" && pwd)/stepmania
 out=$(cd "$out" && pwd)
 
 brew_prefix=$(brew --prefix 2>/dev/null || echo /opt/homebrew)
-version=$(sed -n 's/^#define PRODUCT_VER "\(.*\)"/\1/p' "$top/src/ProductInfo.h")
 
-app="$out/StepMania.app"
+# Plain 3.9 or the one with the extras.  Builds from before the option
+# existed have the extras.
+extras=$(python3 -c '
+import json, sys
+opts = [o for o in json.load(open(sys.argv[1])) if o["name"] == "extras"]
+print("false" if opts and not opts[0]["value"] else "true")
+' "$build/meson-info/intro-buildoptions.json" 2>/dev/null || echo true)
+# ProductInfo.h has the plain version first, then the one with the extras.
+versions=$(sed -n 's/^#define PRODUCT_VER "\(.*\)"/\1/p' "$top/src/ProductInfo.h")
+if [ "$extras" = true ]; then
+	app_name=StepMania-aura
+	identifier=io.github.raccoon-byte.stepmania-39a
+	version=$(echo "$versions" | tail -n 1)
+else
+	app_name=StepMania
+	identifier=io.github.raccoon-byte.stepmania-39
+	version=$(echo "$versions" | head -n 1)
+fi
+
+app="$out/$app_name.app"
 contents="$app/Contents"
 fw="$contents/Frameworks"
 target_exe="$contents/MacOS/stepmania"
@@ -42,17 +64,20 @@ echo "Making $app"
 rm -rf "$app"
 mkdir -p "$contents/MacOS" "$contents/Resources" "$fw"
 
-sed "s/@VERSION@/$version/g" "$top/Utils/macos/Info.plist.in" > "$contents/Info.plist"
+sed -e "s/@VERSION@/$version/g" -e "s/@NAME@/$app_name/g" -e "s/@IDENTIFIER@/$identifier/g" \
+	"$top/Utils/macos/Info.plist.in" > "$contents/Info.plist"
 printf 'APPL????' > "$contents/PkgInfo"
 cp "$top/Utils/macos/StepMania.icns" "$contents/Resources/"
 cp "$exe" "$target_exe"
 chmod 755 "$target_exe"
 
-# The game data, as "meson install" would put it in share/stepmania.
+# The game data, as "meson install" would install it.
 for d in Announcers BGAnimations CDTitles Characters Courses Data NoteSkins \
 	Packages RandomMovies Songs Themes Visualizations; do
 	cp -R "$top/$d" "$contents/Resources/"
 done
+# Nocturnal Dream comes with the extras only (see meson.build).
+[ "$extras" = true ] || rm -rf "$contents/Resources/Themes/Nocturnal Dream"
 mkdir -p "$contents/Resources/Docs"
 cp -R "$top/Docs/." "$contents/Resources/Docs/"
 cp "$top/NEWS" "$top/README-FIRST.html" "$top/FAQ.html" "$top/README.md" "$contents/Resources/Docs/"
@@ -92,7 +117,7 @@ rpaths() {
 
 # Find the file an install name refers to, from the file that refers to it.
 resolve() {
-	local ref=$1 from=$2 dir cand="" rp
+	local ref="$1" from="$2" dir cand="" rp
 	dir=$(dirname "$from")
 	case "$ref" in
 	@loader_path/*)
@@ -126,7 +151,7 @@ resolve() {
 # Copy what <original> links to into Frameworks, and point <copy> at the copies.
 # Dependencies are looked up from the original, so @loader_path still works.
 bundle_libs() {
-	local orig=$1 copy=$2 ref path name list
+	local orig="$1" copy="$2" ref path name list
 	list=$(deps "$orig")
 	local IFS='
 '

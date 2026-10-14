@@ -5,17 +5,17 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>StepMania</string>
+	<string>@NAME@</string>
 	<key>CFBundleExecutable</key>
 	<string>stepmania</string>
 	<key>CFBundleIconFile</key>
 	<string>StepMania</string>
 	<key>CFBundleIdentifier</key>
-	<string>io.github.raccoon-byte.stepmania-39</string>
+	<string>@IDENTIFIER@</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>StepMania</string>
+	<string>@NAME@</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

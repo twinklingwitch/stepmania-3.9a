@@ -1,0 +1,385 @@
+# Build the game for Windows, Linux and macOS, in two flavors, and put the zips
+# on a GitHub release:
+#
+#   vanilla  StepMania-3.9-*.zip, plain StepMania 3.9 with the fixes
+#            (-Dextras=false)
+#   aura     StepMania-3.9a-*.zip (StepMania-aura.app on macOS), with the
+#            extras: Wife scoring, online scores, chat and rooms
+#            (-Dextras=true, the default)
+#
+# Pushing a tag v* (git tag v0.3.0 && git push origin v0.3.0) builds
+# everything and makes the release for the tag.  Started by hand (Actions,
+# Release, Run workflow, or gh workflow run release.yml --ref <branch>), it
+# only builds, and the zips are the run's artifacts.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # Not sh, which containers get otherwise.
+    shell: bash
+
+env:
+  # Everything but the extras is the same in both flavors.
+  COMMON_OPTIONS: -Dtests=true -Dffmpeg=enabled -Dvorbis=enabled -Dmad=enabled -Djpeg=enabled
+  # Built for Windows and Linux with only what playing movies takes, which
+  # leaves out the hundred or so codec libraries a distribution's FFmpeg
+  # brings along.
+  FFMPEG_VERSION: 7.1.5
+  FFMPEG_OPTIONS: >-
+    --enable-shared --disable-static --disable-programs --disable-doc
+    --disable-network --disable-autodetect --enable-zlib --disable-avdevice
+    --disable-avfilter --disable-encoders --disable-muxers --disable-filters
+    --disable-devices
+
+jobs:
+  # Cross-compiled with mingw-w64 against MSYS2's libraries (see the README,
+  # "Cross-compiling from Linux"), and tested under Wine.  In Debian 13, for
+  # its newer mingw-w64 (12) and Wine (10).
+  windows:
+    name: Windows x64 (${{ matrix.flavor }})
+    runs-on: ubuntu-24.04
+    container: debian:trixie
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: vanilla
+            version: '3.9'
+            options: -Dextras=false
+          - flavor: aura
+            version: '3.9a'
+            options: -Dextras=true -Donline=enabled
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      WINEDEBUG: -all
+      # Wine won't use $HOME, which isn't root's in the container.
+      WINEPREFIX: /root/.wine
+      # No Mono or Gecko install prompts.
+      WINEDLLOVERRIDES: mscoree=;mshtml=
+    steps:
+      - name: Install the compiler
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git curl xz-utils make gcc libc6-dev \
+            gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix meson ninja-build pkgconf \
+            python3 zstd zip nasm wine wine64
+          echo "SYSROOT=$RUNNER_TEMP/sysroot" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - name: Download the libraries
+        run: python3 Utils/msys2-sysroot.py "$SYSROOT"
+
+      # Installed into the sysroot like the MSYS2 packages; the cache holds
+      # the installed files.
+      - uses: actions/cache@v6
+        id: ffmpeg
+        with:
+          path: ${{ runner.temp }}/ffmpeg
+          key: windows-ffmpeg-${{ env.FFMPEG_VERSION }}-debian13-1
+
+      - name: Build FFmpeg
+        if: steps.ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/src" && cd "$RUNNER_TEMP/src"
+          curl -fsSL "https://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz" | tar -xJ
+          cd "ffmpeg-$FFMPEG_VERSION"
+          ./configure --prefix="$SYSROOT/mingw64" --target-os=mingw32 --arch=x86_64 \
+            --cross-prefix=x86_64-w64-mingw32- --cc=x86_64-w64-mingw32-gcc-posix \
+            --pkg-config=pkg-config --extra-cflags="-I$SYSROOT/mingw64/include" \
+            --extra-ldflags="-L$SYSROOT/mingw64/lib" $FFMPEG_OPTIONS
+          make -j"$(nproc)"
+          make install DESTDIR="$RUNNER_TEMP/ffmpeg"
+
+      - name: Configure
+        run: |
+          cp -R "$RUNNER_TEMP/ffmpeg$SYSROOT/." "$SYSROOT/"
+          # Run the tests (and meson's compiler checks) with Wine.
+          sed -i "/^\[binaries\]/a exe_wrapper = 'wine'" "$SYSROOT/cross.ini"
+          wineboot --init
+          meson setup build --cross-file "$SYSROOT/cross.ini" --prefix=/stepmania \
+            $COMMON_OPTIONS ${{ matrix.options }}
+
+      - name: Build
+        run: meson compile -C build
+
+      - name: Test
+        run: |
+          gcc_dlls=$(dirname "$(x86_64-w64-mingw32-gcc-posix -print-file-name=libgcc_s_seh-1.dll)")
+          export WINEPATH="$SYSROOT/mingw64/bin;$gcc_dlls"
+          meson test -C build --print-errorlogs
+
+      - name: Make the zip
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then tag=$GITHUB_REF_NAME; else tag=${GITHUB_SHA:0:7}; fi
+          folder=StepMania-${{ matrix.version }}
+          zip=$folder-$tag-windows-x64.zip
+          meson install -C build --strip --destdir "$PWD/out"
+          mv out/stepmania "out/$folder"
+          (cd out && zip -r -9 -q "../$zip" "$folder")
+          ls -l "$zip"
+          echo "ZIP=$zip" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.ZIP }}
+          archive: false
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: logs-windows-${{ matrix.version }}
+          path: build/meson-logs/
+          if-no-files-found: ignore
+
+  # Built in an Ubuntu 22.04 container, so that it runs with glibc 2.35 and
+  # later.  SDL 3 isn't in 22.04, and its FFmpeg is old and comes with lots of
+  # codec libraries, so both are built here, and Utils/linux-bundle.sh puts
+  # them and the other libraries that aren't always installed in the folder.
+  linux:
+    name: Linux x64 (${{ matrix.flavor }})
+    runs-on: ubuntu-24.04
+    container: ubuntu:22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: vanilla
+            version: '3.9'
+            options: -Dextras=false
+          - flavor: aura
+            version: '3.9a'
+            options: -Dextras=true -Donline=enabled
+    env:
+      SDL_VERSION: 3.4.18
+      DEPS: /opt/deps
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install the dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git curl xz-utils zstd \
+            zip build-essential pkg-config cmake ninja-build nasm patchelf file python3 python3-pip \
+            libgl-dev libglu1-mesa-dev libpng-dev zlib1g-dev libsqlite3-dev libssl-dev \
+            libpcre2-dev libsamplerate0-dev libjpeg-dev libvorbis-dev libmad0-dev \
+            libcurl4-openssl-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
+            libxss-dev libxtst-dev libxkbcommon-dev libwayland-dev libdecor-0-dev \
+            libegl1-mesa-dev libdrm-dev libgbm-dev libasound2-dev libpulse-dev \
+            libpipewire-0.3-dev libdbus-1-dev libudev-dev
+          # 22.04's meson is too old.
+          pip3 install meson
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/cache@v6
+        id: cache
+        with:
+          path: /opt/deps
+          key: linux-deps-ubuntu22.04-sdl${{ env.SDL_VERSION }}-ffmpeg${{ env.FFMPEG_VERSION }}-1
+
+      - name: Build SDL 3 and FFmpeg
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/src" && cd "$RUNNER_TEMP/src"
+          curl -fsSL "https://github.com/libsdl-org/SDL/releases/download/release-$SDL_VERSION/SDL3-$SDL_VERSION.tar.gz" | tar -xz
+          # The video and sound backends are loaded at run time, from the
+          # player's system.
+          cmake -S "SDL3-$SDL_VERSION" -B sdl-build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$DEPS" -DCMAKE_INSTALL_LIBDIR=lib -DSDL_STATIC=OFF \
+            -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
+          cmake --build sdl-build
+          cmake --install sdl-build
+
+          curl -fsSL "https://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz" | tar -xJ
+          cd "ffmpeg-$FFMPEG_VERSION"
+          ./configure --prefix="$DEPS" $FFMPEG_OPTIONS
+          make -j"$(nproc)"
+          make install
+
+      - name: Configure
+        run: |
+          PKG_CONFIG_PATH="$DEPS/lib/pkgconfig" meson setup build $COMMON_OPTIONS ${{ matrix.options }}
+
+      - name: Build
+        run: meson compile -C build
+
+      - name: Test
+        run: LD_LIBRARY_PATH="$DEPS/lib" meson test -C build --print-errorlogs
+
+      - name: Make the zip
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then tag=$GITHUB_REF_NAME; else tag=${GITHUB_SHA:0:7}; fi
+          folder=StepMania-${{ matrix.version }}
+          zip=$folder-$tag-linux-x64.zip
+          LD_LIBRARY_PATH="$DEPS/lib" Utils/linux-bundle.sh build "out/$folder"
+          (cd out && zip -r -9 -q -y "../$zip" "$folder")
+          ls -l "$zip"
+          echo "ZIP=$zip" >> "$GITHUB_ENV"
+          echo "FOLDER=out/$folder" >> "$GITHUB_ENV"
+
+      - name: Load songs with the folder's own executable
+        if: matrix.flavor == 'aura'
+        run: |
+          # No window: checks that the bundled libraries load and that the
+          # data is found next to the executable.
+          mkdir -p smoke/Pack/Tiny smoke/Pack/Fancy
+          cp src/tests/chartkey/tiny.sm smoke/Pack/Tiny/
+          cp src/tests/chartkey/fancy-one.sm smoke/Pack/Fancy/
+          for d in Tiny Fancy; do
+            python3 -c 'import wave, sys; w = wave.open(sys.argv[1], "wb"); w.setnchannels(2); w.setsampwidth(2); w.setframerate(44100); w.writeframes(bytes(4 * 44100 * 5)); w.close()' smoke/Pack/$d/music.wav
+          done
+          "$FOLDER/stepmania" --export-charts="$PWD/smoke/Pack" --export-out="$PWD/smoke/pack.json"
+          python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); print(len(d["charts"]), "charts"); sys.exit(len(d["charts"]) != 5)' smoke/pack.json
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.ZIP }}
+          archive: false
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: logs-linux-${{ matrix.version }}
+          path: build/meson-logs/
+          if-no-files-found: ignore
+
+  # Apple Silicon, against Homebrew's libraries, which Utils/macos-bundle.sh
+  # copies into the app.  The app needs the macOS it was built on or later.
+  macos:
+    name: macOS arm64 (${{ matrix.flavor }})
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: vanilla
+            version: '3.9'
+            options: -Dextras=false
+            app: StepMania
+          - flavor: aura
+            version: '3.9a'
+            options: -Dextras=true -Donline=enabled
+            app: StepMania-aura
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '14.0'
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+      HOMEBREW_NO_ENV_HINTS: 1
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install the dependencies
+        run: |
+          brew install meson ninja pkgconf sdl3 libpng pcre2 libsamplerate openssl@3 \
+            libvorbis mad jpeg-turbo ffmpeg
+
+      - name: Configure
+        run: |
+          # openssl@3 (and jpeg-turbo, if it is keg-only) aren't on pkg-config's path.
+          export PKG_CONFIG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix jpeg-turbo)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+          meson setup build $COMMON_OPTIONS ${{ matrix.options }}
+
+      - name: Build
+        run: meson compile -C build
+
+      - name: Make the app
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then tag=$GITHUB_REF_NAME; else tag=${GITHUB_SHA:0:7}; fi
+          zip=StepMania-${{ matrix.version }}-$tag-macos-arm64.zip
+          Utils/macos-bundle.sh build out
+          # ditto keeps the executable bits and the signatures.
+          ditto -c -k --sequesterRsrc --keepParent "out/${{ matrix.app }}.app" "$zip"
+          ls -l "$zip"
+          echo "ZIP=$zip" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.ZIP }}
+          archive: false
+          if-no-files-found: error
+
+      - name: Load songs with the app's own executable
+        if: matrix.flavor == 'aura'
+        run: |
+          # Runs from the bundle without a window: checks that the bundled
+          # libraries load, that the data is found in Contents/Resources, and
+          # MinaCalc on ARM.
+          mkdir -p smoke/Pack/Tiny smoke/Pack/Fancy
+          cp src/tests/chartkey/tiny.sm smoke/Pack/Tiny/
+          cp src/tests/chartkey/fancy-one.sm smoke/Pack/Fancy/
+          # Songs without music aren't loaded; five seconds of silence will do.
+          for d in Tiny Fancy; do
+            python3 -c 'import wave, sys; w = wave.open(sys.argv[1], "wb"); w.setnchannels(2); w.setsampwidth(2); w.setframerate(44100); w.writeframes(bytes(4 * 44100 * 5)); w.close()' smoke/Pack/$d/music.wav
+          done
+          "out/${{ matrix.app }}.app/Contents/MacOS/stepmania" --export-charts="$PWD/smoke/Pack" --export-out="$PWD/smoke/pack.json"
+          python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); print(len(d["charts"]), "charts:", [(c.get("title"), c["msd"][3][0] if c.get("msd") else None) for c in d["charts"]]); sys.exit(len(d["charts"]) != 5)' smoke/pack.json
+
+      - name: Try starting the game
+        # The runner is a virtual machine without a real GPU, so OpenGL may not
+        # work here.  The log and a screenshot are in the logs artifact.
+        continue-on-error: true
+        run: |
+          user="$HOME/Library/Application Support/StepMania/${{ matrix.version }}"
+          mkdir -p "$user/Data"
+          printf '[Options]\nWindowed=1\n' > "$user/Data/StepMania.ini"
+          "out/${{ matrix.app }}.app/Contents/MacOS/stepmania" > game-stdout.txt 2>&1 &
+          pid=$!
+          sleep 30
+          screencapture -x game-screen.png || true
+          kill $pid || true
+          sleep 3
+          kill -9 $pid 2>/dev/null || true
+          cp "$user/log.txt" game-log.txt || true
+          cp "$user/info.txt" game-info.txt || true
+          tail -n 40 game-log.txt || true
+
+      - name: Test
+        run: meson test -C build --print-errorlogs
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: logs-macos-${{ matrix.version }}
+          path: |
+            build/meson-logs/
+            smoke/pack.json
+            game-*.txt
+            game-screen.png
+          if-no-files-found: ignore
+
+  release:
+    name: Release
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: StepMania-3.9*
+          path: dist
+          merge-multiple: true
+          # They're the zips themselves, not to be unpacked.
+          skip-decompress: true
+
+      - name: List the zips
+        run: ls -l dist
+
+      - name: Make the release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes='**StepMania-3.9** (vanilla) is plain StepMania 3.9 with the fixes.  **StepMania-3.9a** (aura) adds Wife scoring, online scores, chat and multiplayer rooms; on macOS it is StepMania-aura.app.  Each comes for Windows (x64), Linux (x64) and macOS (Apple Silicon); the README says what each needs.'
+          gh release create "$GITHUB_REF_NAME" dist/*.zip --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --title "$GITHUB_REF_NAME" --notes "$notes" --generate-notes
