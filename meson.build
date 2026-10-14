@@ -307,9 +307,12 @@ endif
 subdir('src')
 
 foreach dir : ['Announcers', 'BGAnimations', 'CDTitles', 'Characters', 'Courses',
-               'Data', 'NoteSkins', 'RandomMovies', 'Songs', 'Themes', 'Visualizations']
+               'Data', 'NoteSkins', 'RandomMovies', 'Songs', 'Visualizations']
   install_subdir(dir, install_dir: pkgdatadir)
 endforeach
+# Nocturnal Dream shows the extras off, so it comes with the 3.9a build only.
+install_subdir('Themes', install_dir: pkgdatadir,
+  exclude_directories: extras ? [] : ['Nocturnal Dream'])
 install_subdir('Packages', install_dir: pkgdatadir)
 if system == 'windows'
   install_subdir('Docs', install_dir: pkgdocdir)

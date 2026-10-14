@@ -107,7 +107,9 @@ The same source builds two games:
   Wife scoring, MSD, local leaderboards and replays, online scores, chat or
   rooms, and no libcurl.  Discord shows what you play, without the online
   buttons.  The Wife options aren't in Gameplay Options, and the themes'
-  Wife lines on the music select and results screens stay empty.
+  Wife lines on the music select and results screens stay empty.  It comes
+  with 3.9's own themes only, `default` and `techno`: Nocturnal Dream is
+  3.9a's.
 
 Both read the same songs, themes and settings files, and both can be
 installed side by side: where a name of the 3.9a build would clash with plain
@@ -353,7 +355,8 @@ MinaCalc's in `extern/MinaCalc/LICENSE`.
 
 A new install starts with 3.9's `default` theme, as always; `techno` is there
 too.  A third theme, **Nocturnal Dream** (an anime theme for 3.9 by Anime
-Toshokan), comes with the game and shows more about the charts and your scores.
+Toshokan), comes with the 3.9a build and shows more about the charts and your
+scores.
 Pick it in Options, Appearance Options, Theme, or set `Theme=Nocturnal Dream` in
 the game's section of `Data/GamePrefs.ini`.
 
