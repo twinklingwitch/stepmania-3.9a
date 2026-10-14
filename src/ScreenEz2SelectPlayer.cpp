@@ -27,8 +27,6 @@
 #define BOUNCE_JOIN_MESSAGE		THEME->GetMetricB("ScreenEz2SelectPlayer","BounceJoinMessage")
 #define FOLD_ON_JOIN			THEME->GetMetricB("ScreenEz2SelectPlayer","FoldOnJoin")
 
-const float TWEEN_TIME		= 0.35f;
-
 
 /************************************
 ScreenEz2SelectPlayer (Constructor)

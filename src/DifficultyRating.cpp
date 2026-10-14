@@ -4,7 +4,6 @@
 #include "RageUtil.h"
 
 const int ORIENTATION_LEFT = 0;
-const int ORIENTATION_CENTER = 1;
 
 #define ELEMSPACING		THEME->GetMetricF("ScreenEz2SelectMusic","DifficultyRatingSpacing")
 

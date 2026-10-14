@@ -53,8 +53,6 @@
 
 #define USE_MODE_SWITCHER THEME->GetMetricI("ScreenEz2SelectMusic","UseModeSwitcher")
 
-const float TWEEN_TIME		= 0.5f;
-
 const ScreenMessage SM_NoSongs	= ScreenMessage(SM_User+3);
 
 ScreenEz2SelectMusic::ScreenEz2SelectMusic( CString sName ) : ScreenWithMenuElements( sName )

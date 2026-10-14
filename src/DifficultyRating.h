@@ -19,7 +19,6 @@ public:
 	virtual void Update(float fDeltaTime);
 private:
 	int iMaxElements;
-	int iOrientation;
 	int iCurrentDifficulty;
 	vector<Sprite*>	m_apSprites;	// stores the list of elements (left to right)
 };

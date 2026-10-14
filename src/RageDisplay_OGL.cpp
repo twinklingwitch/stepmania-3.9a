@@ -95,10 +95,6 @@ int g_gluVersion;
 /* Available extensions: */
 set<string> g_glExts;
 
-/* We don't actually use normals (we don't tunr on lighting), there's just
- * no GL_T2F_C4F_V3F. */
-const GLenum RageSpriteVertexFormat = GL_T2F_C4F_N3F_V3F;
-
 
 LowLevelWindow *wind;
 

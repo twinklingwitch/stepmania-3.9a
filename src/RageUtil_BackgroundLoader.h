@@ -6,8 +6,6 @@
 #include "RageThreads.h"
 #include <map>
 
-class RageFileDriverCached;
-
 class BackgroundLoader
 {
 public:
@@ -55,7 +53,6 @@ private:
 	bool m_sThreadIsActive;
 	bool m_sThreadShouldAbort;
 
-	RageFileDriverCached *m_pDriver;
 };
 
 #endif

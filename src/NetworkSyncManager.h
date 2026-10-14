@@ -141,11 +141,6 @@ private:
 	float m_lastOffset[2];	//This is used to determine how much
 						//the last step was off.
 
-	int m_playerID;  //these are currently unused, but need to stay
-	int m_step;
-	int m_score;
-	int m_combo;
-    
 	int m_startupStatus;	//Used to see if attempt was sucessful or not.
 
 	bool m_scoreboardchange[NUM_NSSB_CATEGORIES];

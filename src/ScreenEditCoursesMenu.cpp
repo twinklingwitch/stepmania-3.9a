@@ -14,8 +14,6 @@
 
 #define EXPLANATION_TEXT			THEME->GetMetric (m_sName,"ExplanationText")
 
-const ScreenMessage SM_RefreshSelector	=	(ScreenMessage)(SM_User+1);
-
 ScreenEditCoursesMenu::ScreenEditCoursesMenu( CString sName ) : ScreenWithMenuElements( sName )
 {
 	LOG->Trace( "ScreenEditCoursesMenu::ScreenEditCoursesMenu()" );

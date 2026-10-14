@@ -568,7 +568,7 @@ int main( int argc, char *argv[] )
 	
 	for( int i = 0; files[i].fn; ++i )
 	{
-		if( !test_file( files[i], 0 ) )
+		if( !test_file( files[i], FILTER_NONE ) )
 			LOG->Trace(" ");
 	}
 

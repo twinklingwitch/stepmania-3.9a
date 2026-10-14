@@ -33,7 +33,6 @@ class SoundReader_Preload: public SoundReader
 
 	int samplerate;
 	unsigned channels;
-	float OffsetFix;
 
 public:
 	/* Return true if the sound has been preloaded, in which case source will

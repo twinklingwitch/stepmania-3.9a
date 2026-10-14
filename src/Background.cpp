@@ -492,8 +492,6 @@ void Background::UpdateCurBGChange( float fCurrentTime )
 			m_pCurrentBGA->Update( max( fDeltaTime, 0 ) );
 	}
 
-	float fDeltaTime = fCurrentTime - m_fLastMusicSeconds;
-	fDeltaTime /= fRate;
 	if( m_pFadingBGA )
 		m_pFadingBGA->Update( max( fCurrentTime - m_fLastMusicSeconds, 0 ) );
 	m_fLastMusicSeconds = fCurrentTime;

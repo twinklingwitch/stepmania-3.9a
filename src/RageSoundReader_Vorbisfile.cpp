@@ -38,8 +38,6 @@ static long OggRageFile_tell_func( void *datasource )
 	return f->Tell();
 }
 
-const int read_block_size = 1024;
-
 
 static CString ov_ssprintf( int err, const char *fmt, ...)
 {

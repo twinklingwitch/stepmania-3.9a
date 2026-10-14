@@ -121,7 +121,6 @@ RageFileObj *RageFileObjTest::Copy( RageFile &p ) const
 	return ret;
 }
 
-static const unsigned int BUFSIZE = 1024*64;
 RageFileObjTest::RageFileObjTest( const CString &path_, RageFile &p ):
 	RageFileObj( p )
 {

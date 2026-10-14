@@ -18,7 +18,7 @@ class MusicList : public ActorFrame
 
 	vector<group> m_ContentsText;
 
-	int NumGroups, CurGroup;
+	int CurGroup;
 	
 public:
 	MusicList();
