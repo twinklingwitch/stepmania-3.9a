@@ -615,9 +615,20 @@ bool ThemeManager::GetMetricB( CString sClassName, CString sValueName )
 
 RageColor ThemeManager::GetMetricC( CString sClassName, CString sValueName )
 {
+	/* Parsing colors is slow, and some are read every frame.  The color only
+	 * depends on the string, so remember the ones that parse. */
+	static map<CString, RageColor> s_ParsedColors;
+
+	const CString sValue = GetMetricRaw( sClassName, sValueName );
+	map<CString, RageColor>::const_iterator it = s_ParsedColors.find( sValue );
+	if( it != s_ParsedColors.end() )
+		return it->second;
+
 	RageColor ret(1,1,1,1);
-	if( !ret.FromString( GetMetricRaw(sClassName,sValueName) ) )
+	if( !ret.FromString( sValue ) )
 		LOG->Warn( "The color value '%s' for NoteSkin metric '%s : %s' is invalid.", GetMetricRaw(sClassName,sValueName).c_str(), sClassName.c_str(), sValueName.c_str() );
+	else
+		s_ParsedColors[sValue] = ret;
 	return ret;
 }
 
