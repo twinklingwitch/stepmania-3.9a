@@ -582,7 +582,7 @@ void Font::LoadFontPageSettings(FontPageSettings &cfg, IniFile &ini, const CStri
 					sscanf(matches[3].c_str(), "%x", &last);
 					if(last < first)
 						RageException::Throw("Font definition '%s' has an invalid range '%s': %i < %i.",
-							ini.GetPath().c_str(), val.c_str(), last < first );
+							ini.GetPath().c_str(), val.c_str(), last, first );
 
 					cnt = last-first+1;
 				}
@@ -617,7 +617,7 @@ void Font::LoadFontPageSettings(FontPageSettings &cfg, IniFile &ini, const CStri
 
 				if(int(wdata.size()) > NumFramesWide)
 					RageException::Throw("The font definition \"%s\" assigns %i characters to row %i (\"%ls\"), but the font only has %i characters wide",
-						ini.GetPath().c_str(), wdata.size(), row, wdata.c_str(), NumFramesWide);
+						ini.GetPath().c_str(), int(wdata.size()), row, wdata.c_str(), NumFramesWide);
 
 				for(unsigned i = 0; i < wdata.size(); ++i)
 					cfg.CharToGlyphNo[wdata[i]] = first_frame+i;

@@ -170,7 +170,7 @@ void RageFileDriverZip::ReadEndCentralRecord( RageFile &zip, end_central_dir_rec
     const int expect_ecrec_offset = ec.offset_start_central_directory + ec.size_central_directory;
     if( expect_ecrec_offset > OrigPos  )
 		RageException::Throw( "Couldn't open %s: missing %ld bytes in zipfile", zip.GetPath().c_str(),
-			expect_ecrec_offset - OrigPos  );
+			long(expect_ecrec_offset - OrigPos)  );
 }
 
 void RageFileDriverZip::ParseZipfile()

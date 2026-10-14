@@ -207,7 +207,7 @@ int RageSoundReader_Vorbisfile::Read(char *buf, unsigned len)
 				ASSERT( vi != NULL );
 
 				if( (unsigned) vi->channels != channels )
-					RageException::Throw( "File \"%s\" changes channel count from %i to %i; not supported", channels, vi->channels );
+					RageException::Throw( "File \"%s\" changes channel count from %i to %i; not supported", filename.c_str(), channels, vi->channels );
 			}
 
 
