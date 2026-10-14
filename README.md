@@ -733,7 +733,7 @@ In an MSYS2 `MINGW64` or `UCRT64` shell:
 
 Add `$MINGW_PACKAGE_PREFIX-ffmpeg` for movie backgrounds.  It pulls in about a
 hundred codec DLLs, which the install step copies too, so the folder grows from
-about 30MB to 160MB; pass `-Dffmpeg=disabled` to leave it out even if it is
+about 70MB to 230MB; pass `-Dffmpeg=disabled` to leave it out even if it is
 installed.
 
 The install step produces a folder that can be copied anywhere (or zipped):
