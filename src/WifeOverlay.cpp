@@ -658,11 +658,14 @@ void WifeOverlay::UpdateOnlinePanel( float fDeltaTime )
 	}
 
 	/* The chart is ranked, but the player's plays of it wouldn't be as things
-	 * are set: say why beside the leaderboard.  (The note wraps, which drops
-	 * empty lines, so they get a space.) */
+	 * are set: say why beside the leaderboard, short, as the column is narrow
+	 * and the whole sentences of several rules don't fit on the screen.  (The
+	 * note wraps, which drops empty lines, so they get a space.) */
 	if( !vRules.empty() )
 	{
-		const CString sWarning = "Unranked: your plays won't count online.\n \n" + ExplainRules( vRules, "\n \n" );
+		CString sWarning = "Unranked: your plays won't count online:";
+		for( unsigned i = 0; i < vRules.size(); ++i )
+			sWarning += CString( "\n \n" ) + OnlineRules::GetReason( vRules[i] );
 		SetRatingTable( m_Table[0], a, sWho, sProblem.empty()? sWarning: sProblem + "\n \n" + sWarning );
 	}
 

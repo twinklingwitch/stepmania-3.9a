@@ -83,7 +83,10 @@ OnlinePlaySetup OnlineManager::GetPlaySetup( PlayerNumber pn, const Steps *pStep
 {
 	OnlinePlaySetup s;
 	s.bRegularPlay = GAMESTATE->m_PlayMode == PLAY_MODE_REGULAR && !GAMESTATE->IsCourseMode() && !GAMESTATE->m_bDemonstrationOrJukebox;
-	s.bHuman = GAMESTATE->m_PlayerController[pn] == PC_HUMAN && !PREFSMAN->m_bAutoPlay;
+	/* Not m_PlayerController: before the song it's still what the last one
+	 * (or the attract screen's demonstration) left there.  This is what
+	 * ScreenGameplay will set it to. */
+	s.bHuman = !GAMESTATE->IsCpuPlayer(pn) && !PREFSMAN->m_bAutoPlay;
 	s.bDanceSingle = pSteps != NULL && pSteps->m_StepsType == STEPS_TYPE_DANCE_SINGLE;
 	s.bAutogen = pSteps != NULL && pSteps->IsAutogen();
 	s.fRate = GAMESTATE->m_SongOptions.m_fMusicRate;
