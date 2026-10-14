@@ -36,7 +36,7 @@ void NORETURN sm_crash( const char *reason )
 	}
 	abort();
 #else
-	*(char*)0=0;
+	*(volatile char*)0=0;
 
 	/* This isn't actually reached.  We just do this to convince the compiler that the
 	 * function really doesn't return. */
