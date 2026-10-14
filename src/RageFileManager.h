@@ -46,7 +46,8 @@ public:
 	bool GetRealWritablePath( CString sPath, CString &sRealOut );
 
 	/* Used only by RageFile: */
-	RageFileObj *Open( CString sPath, int mode, RageFile &p, int &err );
+	/* May add flags to mode, which the RageFile keeps as its open mode. */
+	RageFileObj *Open( CString sPath, int &mode, RageFile &p, int &err );
 	void Close( RageFileObj *obj );
 	RageFileObj *CopyFileObj( const RageFileObj *cpy, RageFile &p );
 

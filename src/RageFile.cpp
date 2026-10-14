@@ -71,7 +71,8 @@ bool RageFile::Open( const CString& path, int mode )
 	}
 
 	int error;
-	m_File = FILEMAN->Open( path, mode, *this, error );
+	/* This sets SLOW_FLUSH in m_Mode for paths that need it. */
+	m_File = FILEMAN->Open( path, m_Mode, *this, error );
 
 	if( m_File == NULL )
 	{

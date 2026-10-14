@@ -621,7 +621,7 @@ static bool PathUsesSlowFlush( const CString &sPath )
 }
 
 /* Used only by RageFile: */
-RageFileObj *RageFileManager::Open( CString sPath, int mode, RageFile &p, int &err )
+RageFileObj *RageFileManager::Open( CString sPath, int &mode, RageFile &p, int &err )
 {
 	LockMut( *g_Mutex );
 
