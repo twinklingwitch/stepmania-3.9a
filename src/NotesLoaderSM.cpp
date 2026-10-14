@@ -62,7 +62,7 @@ void SMLoader::LoadFromSMTokens(
 
 void SMLoader::GetApplicableFiles( CString sPath, CStringArray &out )
 {
-	GetDirListing( sPath + CString("*.sm"), out );
+	GetSimfiles( sPath, "sm", out );
 }
 
 bool SMLoader::LoadTimingFromFile( const CString &fn, TimingData &out )
@@ -386,12 +386,16 @@ bool SMLoader::LoadFromDir( CString sPath, Song &out )
 	CStringArray aFileNames;
 	GetApplicableFiles( sPath, aFileNames );
 
+	/* We should have one; if we had none, we shouldn't have been called to
+	 * begin with.  With several, use the one GetSimfiles puts first, rather
+	 * than refusing to start over one song. */
+	ASSERT( !aFileNames.empty() );
 	if( aFileNames.size() > 1 )
-		RageException::Throw( "There is more than one SM file in '%s'.  There should be only one!", sPath.c_str() );
-
-	/* We should have exactly one; if we had none, we shouldn't have been
-	 * called to begin with. */
-	ASSERT( aFileNames.size() == 1 );
+	{
+		CStringArray asOthers( aFileNames.begin()+1, aFileNames.end() );
+		LOG->Warn( "There is more than one SM file in '%s'.  Using '%s', not %s.",
+			sPath.c_str(), aFileNames[0].c_str(), join(", ", asOthers).c_str() );
+	}
 
 	return LoadFromSMFile( sPath + aFileNames[0], out );
 }

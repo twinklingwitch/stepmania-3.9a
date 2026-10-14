@@ -437,7 +437,7 @@ bool BMSLoader::LoadFromBMSFile( const CString &sPath, Steps &out )
 
 void BMSLoader::GetApplicableFiles( CString sPath, CStringArray &out )
 {
-	GetDirListing( sPath + CString("*.bms"), out );
+	GetSongFiles( sPath, "bms", out );
 }
 
 bool BMSLoader::LoadFromDir( CString sDir, Song &out )

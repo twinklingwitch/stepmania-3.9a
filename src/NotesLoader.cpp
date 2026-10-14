@@ -2,6 +2,42 @@
 #include "NotesLoader.h"
 #include "NoteTypes.h"
 #include "GameManager.h"
+#include "RageUtil.h"
+
+#include <algorithm>
+
+void NotesLoader::GetSongFiles( const CString &sDir, const CString &sExtension, CStringArray &out )
+{
+	GetDirListing( sDir + "*." + sExtension, out );
+	for( int i = (int) out.size()-1; i >= 0; --i )
+		if( out[i].Left(1) == "." )
+			out.erase( out.begin()+i );
+}
+
+static bool CompareNoCase( const CString &a, const CString &b )
+{
+	return a.CompareNoCase( b ) < 0;
+}
+
+void NotesLoader::GetSimfiles( const CString &sDir, const CString &sExtension, CStringArray &out )
+{
+	GetSongFiles( sDir, sExtension, out );
+	sort( out.begin(), out.end(), CompareNoCase );
+
+	CString sFolder = sDir;
+	if( sFolder.Right(1) == "/" )
+		sFolder.erase( sFolder.size()-1 );
+	sFolder = Basename( sFolder );
+	for( unsigned i = 1; i < out.size(); ++i )
+	{
+		if( SetExtension(out[i], "").CompareNoCase(sFolder) != 0 )
+			continue;
+		const CString s = out[i];
+		out.erase( out.begin()+i );
+		out.insert( out.begin(), s );
+		break;
+	}
+}
 
 bool NotesLoader::Loadable( CString sPath )
 {

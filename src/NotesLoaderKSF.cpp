@@ -168,7 +168,7 @@ bool KSFLoader::LoadFromKSFFile( const CString &sPath, Steps &out, const Song &s
 
 void KSFLoader::GetApplicableFiles( CString sPath, CStringArray &out )
 {
-	GetDirListing( sPath + CString("*.ksf"), out );
+	GetSongFiles( sPath, "ksf", out );
 }
 
 void KSFLoader::LoadTags( const CString &str, Song &out )

@@ -20,6 +20,15 @@ public:
 	virtual bool LoadFromDir( CString sPath, Song &out ) = 0;
 	virtual void TidyUpData( Song &song, bool cache ) { }
 	bool Loadable( CString sPath );
+
+	/* The files with this extension in a song's folder sDir (names only),
+	 * leaving out hidden files, which aren't simfiles: archives made on a
+	 * Mac carry a "._song.sm" next to each "song.sm". */
+	static void GetSongFiles( const CString &sDir, const CString &sExtension, CStringArray &out );
+	/* The same, with the one a song uses first: the file named after the
+	 * folder if there is one, else the first by name.  The loaders and the
+	 * file the song is saved to go by this, so they agree. */
+	static void GetSimfiles( const CString &sDir, const CString &sExtension, CStringArray &out );
 };
 
 #endif

@@ -511,7 +511,7 @@ bool DWILoader::LoadFromDWIFile( CString sPath, Song &out )
 
 void DWILoader::GetApplicableFiles( CString sPath, CStringArray &out )
 {
-	GetDirListing( sPath + CString("*.dwi"), out );
+	GetSimfiles( sPath, "dwi", out );
 }
 
 bool DWILoader::LoadFromDir( CString sPath, Song &out )
@@ -519,12 +519,16 @@ bool DWILoader::LoadFromDir( CString sPath, Song &out )
 	CStringArray aFileNames;
 	GetApplicableFiles( sPath, aFileNames );
 
+	/* We should have one; if we had none, we shouldn't have been called to
+	 * begin with.  With several, use the one GetSimfiles puts first, rather
+	 * than refusing to start over one song. */
+	ASSERT( !aFileNames.empty() );
 	if( aFileNames.size() > 1 )
-		RageException::Throw( "There is more than one DWI file in '%s'.  There should be only one!", sPath.c_str() );
-
-	/* We should have exactly one; if we had none, we shouldn't have been
-	 * called to begin with. */
-	ASSERT( aFileNames.size() == 1 );
+	{
+		CStringArray asOthers( aFileNames.begin()+1, aFileNames.end() );
+		LOG->Warn( "There is more than one DWI file in '%s'.  Using '%s', not %s.",
+			sPath.c_str(), aFileNames[0].c_str(), join(", ", asOthers).c_str() );
+	}
 
 	return LoadFromDWIFile( sPath + aFileNames[0], out );
 }

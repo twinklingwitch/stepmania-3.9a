@@ -743,11 +743,11 @@ void Song::TidyUpData()
 		 */
 		m_sSongFileName = m_sSongDir;
 		CStringArray asFileNames;
-		GetDirListing( m_sSongDir+"*.sm", asFileNames );
+		NotesLoader::GetSimfiles( m_sSongDir, "sm", asFileNames );
 		if( !asFileNames.empty() )
 			m_sSongFileName += asFileNames[0];
 		else {
-			GetDirListing( m_sSongDir+"*.dwi", asFileNames );
+			NotesLoader::GetSimfiles( m_sSongDir, "dwi", asFileNames );
 			if( !asFileNames.empty() ) {
 				m_sSongFileName += SetExtension( asFileNames[0], "sm" );
 			} else {
