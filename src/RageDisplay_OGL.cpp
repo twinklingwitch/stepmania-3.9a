@@ -691,7 +691,6 @@ void RageDisplay_OGL::ResolutionChanged()
  * start of every frame (and on every ClearZBuffer).  The result is the same;
  * the depth buffer just isn't read, written or cleared when nobody looks at it.
  */
-extern bool g_bGpuOptOff;	/* TEMP harness */
 namespace
 {
 	struct DepthState
@@ -706,7 +705,6 @@ namespace
 /* Called before each draw. */
 static inline void UpdateDepthState()
 {
-	if( g_bGpuOptOff ) { if( g_State.iDepthTest != 1 ) { glEnable( GL_DEPTH_TEST ); g_State.iDepthTest = 1; } return; }
 	if( !g_Depth.bDirty )
 		return;
 	g_Depth.bDirty = false;
@@ -740,56 +738,6 @@ static inline void UpdateDepthState()
 	}
 }
 
-
-/* TEMP GPU stats */
-#include <map>
-typedef void (APIENTRY *PFNGENQ)(GLsizei, GLuint*);
-typedef void (APIENTRY *PFNBEGQ)(GLenum, GLuint);
-typedef void (APIENTRY *PFNENDQ)(GLenum);
-typedef void (APIENTRY *PFNGETQ)(GLuint, GLenum, GLuint*);
-static int g_iStatsEvery = getenv("SM_GPUSTATS")? atoi(getenv("SM_GPUSTATS")): 0;
-static int g_iStatsFrame = 0;
-static bool g_bStatsThisFrame = false;
-static GLuint g_StatsQuery = 0;
-static PFNGENQ pGenQ; static PFNBEGQ pBegQ; static PFNENDQ pEndQ; static PFNGETQ pGetQ;
-static CString g_sStatsTex;
-struct StatEnt { int draws; double px; };
-static std::map<CString,StatEnt> g_Stats;
-static double g_fStatsTotal = 0;
-static void StatsBegin()
-{
-	if( !g_bStatsThisFrame ) return;
-	if( !g_StatsQuery ) {
-		pGenQ = (PFNGENQ) wind->GetProcAddress("glGenQueries"); pBegQ = (PFNBEGQ) wind->GetProcAddress("glBeginQuery");
-		pEndQ = (PFNENDQ) wind->GetProcAddress("glEndQuery"); pGetQ = (PFNGETQ) wind->GetProcAddress("glGetQueryObjectuiv");
-		pGenQ( 1, &g_StatsQuery );
-	}
-	pBegQ( GL_SAMPLES_PASSED, g_StatsQuery );
-}
-static void StatsEnd()
-{
-	if( !g_bStatsThisFrame ) return;
-	pEndQ( GL_SAMPLES_PASSED );
-	GLuint n = 0; pGetQ( g_StatsQuery, GL_QUERY_RESULT, &n );
-	GLint src, dst; glGetIntegerv( GL_BLEND_SRC, &src ); glGetIntegerv( GL_BLEND_DST, &dst );
-	CString key = ssprintf( "%s %s%s", glIsEnabled(GL_BLEND)? (dst==GL_ONE? "add": "blend"): "opaque", glIsEnabled(GL_TEXTURE_2D)? "": "notex ", g_sStatsTex.c_str() );
-	StatEnt &e = g_Stats[key]; e.draws++; e.px += n; g_fStatsTotal += n;
-}
-static bool StatsCmp( const std::pair<CString,StatEnt> &a, const std::pair<CString,StatEnt> &b ) { return a.second.px > b.second.px; }
-static void StatsFrameEnd()
-{
-	if( g_bStatsThisFrame )
-	{
-		int w, h; wind->GetFramebufferSize( w, h );
-		vector< std::pair<CString,StatEnt> > v( g_Stats.begin(), g_Stats.end() );
-		sort( v.begin(), v.end(), StatsCmp );
-		LOG->Info( "GPUSTATS frame total=%.0f px = %.2f screens", g_fStatsTotal, g_fStatsTotal/(w*h) );
-		for( unsigned i = 0; i < v.size() && i < 25; ++i )
-			LOG->Info( "GPUSTATS %8.0f px %5.2f scr %4d draws  %s", v[i].second.px, v[i].second.px/(w*h), v[i].second.draws, v[i].first.c_str() );
-		g_Stats.clear(); g_fStatsTotal = 0;
-	}
-	g_bStatsThisFrame = g_iStatsEvery && ++g_iStatsFrame % g_iStatsEvery == 0;
-}
 // Return true if mode change was successful.
 // bNewDeviceOut is set true if a new device was created and textures
 // need to be reloaded.
@@ -862,12 +810,9 @@ bool RageDisplay_OGL::BeginFrame()
 {
 	glClearColor( 0,0,0,1 );
 	SetZWrite( true );
-	if( g_bGpuOptOff )
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-	else {
 	glClear( GL_COLOR_BUFFER_BIT );
 	g_Depth.bClearPending = true;
-	}
+	g_Depth.bDirty = true;
 	return true;
 }
 
@@ -878,7 +823,6 @@ void RageDisplay_OGL::EndFrame()
 	if( IsPacing() )
 		glFinish();
 
-	StatsFrameEnd();
 	FrameSwapping();
 	wind->SwapBuffers();
 	FrameSwapped();
@@ -1342,9 +1286,7 @@ void RageDisplay_OGL::DrawQuadsInternal( const RageSpriteVertex v[], int iNumVer
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
-	StatsBegin();
 	glDrawArrays( GL_QUADS, 0, iNumVerts );
-	StatsEnd();
 }
 
 void RageDisplay_OGL::DrawQuadStripInternal( const RageSpriteVertex v[], int iNumVerts )
@@ -1355,9 +1297,7 @@ void RageDisplay_OGL::DrawQuadStripInternal( const RageSpriteVertex v[], int iNu
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
-	StatsBegin();
 	glDrawArrays( GL_QUAD_STRIP, 0, iNumVerts );
-	StatsEnd();
 }
 
 void RageDisplay_OGL::DrawFanInternal( const RageSpriteVertex v[], int iNumVerts )
@@ -1368,9 +1308,7 @@ void RageDisplay_OGL::DrawFanInternal( const RageSpriteVertex v[], int iNumVerts
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
-	StatsBegin();
 	glDrawArrays( GL_TRIANGLE_FAN, 0, iNumVerts );
-	StatsEnd();
 }
 
 void RageDisplay_OGL::DrawStripInternal( const RageSpriteVertex v[], int iNumVerts )
@@ -1381,9 +1319,7 @@ void RageDisplay_OGL::DrawStripInternal( const RageSpriteVertex v[], int iNumVer
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
-	StatsBegin();
 	glDrawArrays( GL_TRIANGLE_STRIP, 0, iNumVerts );
-	StatsEnd();
 }
 
 void RageDisplay_OGL::DrawTrianglesInternal( const RageSpriteVertex v[], int iNumVerts )
@@ -1394,9 +1330,7 @@ void RageDisplay_OGL::DrawTrianglesInternal( const RageSpriteVertex v[], int iNu
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
-	StatsBegin();
 	glDrawArrays( GL_TRIANGLES, 0, iNumVerts );
-	StatsEnd();
 }
 
 void RageDisplay_OGL::DrawCompiledGeometryInternal( const RageCompiledGeometry *p, int iMeshIndex )
@@ -1406,9 +1340,7 @@ void RageDisplay_OGL::DrawCompiledGeometryInternal( const RageCompiledGeometry *
 	UpdateDepthState();
 	SendCurrentMatrices();
 
-	StatsBegin();
 	p->Draw( iMeshIndex );
-	StatsEnd();
 }
 
 void RageDisplay_OGL::DrawLineStripInternal( const RageSpriteVertex v[], int iNumVerts, float LineWidth )
@@ -1550,7 +1482,6 @@ void RageDisplay_OGL::SetTexture( int iTextureUnitIndex, RageTexture* pTexture )
 	}
 
 	g_State.iTexture2DWanted[iTextureUnitIndex] = pTexture != NULL;
-	if( iTextureUnitIndex == 0 ) g_sStatsTex = pTexture? Basename(pTexture->GetID().filename): CString("-");
 
 	if( pTexture )
 		BindTexture( pTexture->GetTexHandle() );
@@ -1681,12 +1612,7 @@ bool RageDisplay_OGL::IsZTestEnabled() const
 
 void RageDisplay_OGL::ClearZBuffer()
 {
-	if( g_bGpuOptOff ) {
-	bool write = IsZWriteEnabled();
-	SetZWrite( true );
-    glClear( GL_DEPTH_BUFFER_BIT );
-	SetZWrite( write );
-	return; }
+	/* Cleared when it's next used; see UpdateDepthState. */
 	g_Depth.bClearPending = true;
 	g_Depth.bDirty = true;
 }
