@@ -48,7 +48,7 @@ The few intentional differences:
   deleted on the first start, which reloads every song once.
 - The menu timer is off by default ("Menu Timer" in Machine Options turns it back
   on).  A `MenuTimer` value already in your `StepMania.ini` is kept.
-- Remember Options is on by default: the options a player last used on the player
+- In 3.9a, Remember Options is on by default: the options a player last used on the player
   and song options screens come back in the next game, with or without a profile
   (see [Remember Options](#remember-options)).  Turn "Remember Options" off in
   Gameplay Options (or `RememberOptions=0` in `StepMania.ini`) to get exactly 3.9's
@@ -67,13 +67,13 @@ The few intentional differences:
   [Etterna-style scoring](#etterna-style-scoring)).
 - Optional online scores on top of it, at https://aurasm.online by default.
   Like the rest of Wife they're off while Wife is off (see [Online](#online)).
-- On the music select screen `-`, `=` and `+` change the music rate by 0.1x, from
-  0.5x to 2.0x; in 3.9 those keys do nothing there.  They are two new buttons,
+- In 3.9a, on the music select screen `-`, `=` and `+` change the music rate by
+  0.1x, from 0.5x to 2.0x; in 3.9 those keys do nothing there.  They are two new buttons,
   "Rate Up" and "Rate Down", so Config Key/Joy has two more rows at the end of
   each game's list, and you can map them to other keys or to pad and joystick
   buttons (see [Music rate keys](#music-rate-keys)).
-- In dance, Player 1's Left, Down, Up and Right are also on `D`, `F`, `J` and `K`
-  by default, besides the arrow keys.  Like the `+` key they go in the second
+- In 3.9a, in dance, Player 1's Left, Down, Up and Right are also on `D`, `F`,
+  `J` and `K` by default, besides the arrow keys.  Like the `+` key they go in the second
   slot of Config Key/Joy, and only if that slot and the key are free.
 - Event Mode is on by default, so you can keep playing songs instead of being
   sent back to the title screen after the last stage.  Turn it off in the coin
@@ -181,13 +181,16 @@ The same source builds two games:
 
 - **3.9a**, the default: everything in this README, with Wife scoring on from
   the start.
-- **3.9**, with `-Dextras=false`: plain StepMania 3.9 with the fixes, the
-  rate keys, Remember Options and Discord, and none of the rest built in: no
-  Wife scoring, MSD, local leaderboards and replays, online scores, chat or
-  rooms, and no libcurl.  Discord shows what you play, without the online
-  buttons.  The Wife options aren't in Gameplay Options, and the themes'
-  Wife lines on the music select and results screens stay empty.  It comes
-  with 3.9's own themes only, `default` and `techno`: Nocturnal Dream is
+- **3.9**, with `-Dextras=false`: plain StepMania 3.9 with the fixes and
+  Discord, and none of the rest built in: no Wife scoring, MSD, local
+  leaderboards and replays, online scores, chat or rooms, and no libcurl.
+  Discord shows what you play, without the online buttons.  The Wife options
+  aren't in Gameplay Options, and the themes' Wife lines on the music select
+  and results screens stay empty.  It keeps 3.9's keys and behavior: the
+  Rate Up and Rate Down buttons are there for the key config but have no keys
+  until you map them, `D`, `F`, `J` and `K` aren't dance keys, and Remember
+  Options starts off.  It comes with 3.9's own themes only, `default` and
+  `techno`, and no songs: Nocturnal Dream and the Default song pack are
   3.9a's.
 
 Both read the same songs, themes and settings files, and both can be
@@ -645,8 +648,10 @@ server's `docs/API.md`.
 On the music select screen the buttons "Rate Down" and "Rate Up" lower and raise
 the music rate by 0.1x, from 0.5x to 2.0x in steps of 0.1; at either end the
 button stops there.  A small box at the top of the screen says "Rate 1.20x" for a
-moment.  By default Rate Down is `-` and Rate Up is `=` and `+`, so there is a
-key for it on layouts where `=` needs Shift (Spanish and Latin American, say).
+moment.  In 3.9a, Rate Down is `-` and Rate Up is `=` and `+` by default, so
+there is a key for it on layouts where `=` needs Shift (Spanish and Latin
+American, say).  In the 3.9 build they have no keys until you map them in
+Config Key/Joy.
 3.9 has no use for these keys on that screen, and this works with Wife on or off
 and with any theme.
 
@@ -697,7 +702,7 @@ BPM, tilt, no holds/mines/jumps/hands/quads and the noteskin), a player without 
 profile keeps nothing, and the song options screen is forgotten every time.  With
 **Remember Options** the options you last played with come back at the start of
 the next game, on the music select screen and in the options screens.  It is on
-by default; "Remember Options: OFF" in Gameplay Options (`RememberOptions=0` in
+by default in 3.9a and off in 3.9; "Remember Options: OFF" in Gameplay Options (`RememberOptions=0` in
 `Data/StepMania.ini`) gives you 3.9's behavior exactly.  Only the default and
 Nocturnal Dream themes have the line in their menu; for another theme add `conf,RememberOptions` to its
 `ScreenGameplayOptions` metrics, or use the ini file.

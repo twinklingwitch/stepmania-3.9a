@@ -36,9 +36,11 @@ void InputMapper::ClearAllMappings()
 				m_GItoDI[i][j][k].MakeInvalid();
 }
 
+#if !defined(WITHOUT_EXTRAS)
 /* Rate Up is on = and on + (the + key is the unshifted one on Spanish and Latin
  * American layouts, where there is no = key).  In dance, player 1's arrows are
- * also on D F J K, the usual keyboard layout.  A NULL game is every game. */
+ * also on D F J K, the usual keyboard layout.  A NULL game is every game.  The
+ * plain 3.9 build keeps 3.9's keys. */
 static const struct { const char *szGame; const char *szButton; int iKey; } g_SecondDefaultKeys[] =
 {
 	{ NULL, "Rate Up", KEY_PLUS },
@@ -47,6 +49,7 @@ static const struct { const char *szGame; const char *szButton; int iKey; } g_Se
 	{ "dance", "Up", KEY_Cj },
 	{ "dance", "Right", KEY_Ck },
 };
+#endif
 
 void InputMapper::AddDefaultMappingsForCurrentGameIfUnmapped()
 {
@@ -70,6 +73,7 @@ void InputMapper::AddDefaultMappingsForCurrentGameIfUnmapped()
 		}
 	}
 
+#if !defined(WITHOUT_EXTRAS)
 	// Some buttons have a second default key, which goes in the second slot if
 	// that's free.  Unlike the others it is saved to Keymaps.ini like a mapping
 	// made on the config screen, as there is only the one default slot.
@@ -85,6 +89,7 @@ void InputMapper::AddDefaultMappingsForCurrentGameIfUnmapped()
 		if( !m_GItoDI[GameI.controller][GameI.button][1].IsValid() && !IsMapped(DeviceI) )
 			SetInputMap( DeviceI, GameI, 1 );
 	}
+#endif
 }
 
 struct AutoJoyMapping

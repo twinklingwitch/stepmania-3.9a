@@ -307,9 +307,12 @@ endif
 subdir('src')
 
 foreach dir : ['Announcers', 'BGAnimations', 'CDTitles', 'Characters', 'Courses',
-               'Data', 'NoteSkins', 'RandomMovies', 'Songs', 'Visualizations']
+               'Data', 'NoteSkins', 'RandomMovies', 'Visualizations']
   install_subdir(dir, install_dir: pkgdatadir)
 endforeach
+# 3.9 came without songs; the Default pack comes with the 3.9a build only.
+install_subdir('Songs', install_dir: pkgdatadir,
+  exclude_directories: extras ? [] : ['Default'])
 # Nocturnal Dream shows the extras off, so it comes with the 3.9a build only.
 install_subdir('Themes', install_dir: pkgdatadir,
   exclude_directories: extras ? [] : ['Nocturnal Dream'])

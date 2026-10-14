@@ -76,8 +76,9 @@ for d in Announcers BGAnimations CDTitles Characters Courses Data NoteSkins \
 	Packages RandomMovies Songs Themes Visualizations; do
 	cp -R "$top/$d" "$contents/Resources/"
 done
-# Nocturnal Dream comes with the extras only (see meson.build).
-[ "$extras" = true ] || rm -rf "$contents/Resources/Themes/Nocturnal Dream"
+# Nocturnal Dream and the Default song pack come with the extras only (see
+# meson.build).
+[ "$extras" = true ] || rm -rf "$contents/Resources/Themes/Nocturnal Dream" "$contents/Resources/Songs/Default"
 mkdir -p "$contents/Resources/Docs"
 cp -R "$top/Docs/." "$contents/Resources/Docs/"
 cp "$top/NEWS" "$top/README-FIRST.html" "$top/FAQ.html" "$top/README.md" "$contents/Resources/Docs/"

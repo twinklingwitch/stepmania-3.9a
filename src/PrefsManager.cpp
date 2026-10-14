@@ -193,7 +193,11 @@ void PrefsManager::Init()
 	m_bShowWifeInGameplay = true;
 #endif
 	m_bConstantCSpeed = true;
+#if defined(WITHOUT_EXTRAS)
+	m_bRememberOptions = false;	// plain 3.9 keeps 3.9's behavior unless asked
+#else
 	m_bRememberOptions = true;
+#endif
 	m_bDiscordRichPresence = true;
 	m_sDiscordAppId = DISCORD_DEFAULT_APP_ID;
 #if !defined(WITHOUT_EXTRAS)
