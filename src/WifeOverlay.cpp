@@ -854,6 +854,27 @@ void WifeOverlay::DrawPrimitives()
 	DrawPopup();
 }
 
+char TypedChar( const DeviceInput &DeviceI )
+{
+	char c = DeviceI.ToChar();
+	if( c < 32 || c > 126 )
+		return '\0';
+	const bool bShift =
+		INPUTFILTER->IsBeingPressed( DeviceInput(DEVICE_KEYBOARD, KEY_LSHIFT) ) ||
+		INPUTFILTER->IsBeingPressed( DeviceInput(DEVICE_KEYBOARD, KEY_RSHIFT) );
+	if( bShift )
+	{
+		static const char szFrom[] = "`1234567890-=[]\\;',./";
+		static const char szTo[]   = "~!@#$%^&*()_+{}|:\"<>?";
+		const char *p = strchr( szFrom, c );
+		if( p != NULL )
+			c = szTo[p - szFrom];
+		else
+			c = (char) toupper( c );
+	}
+	return c;
+}
+
 /* The login form takes the keyboard while it's open: printable characters
  * (with a US layout, as ScreenTextEntry does), Backspace, Tab, Enter, Esc.
  * Everything else is swallowed so it doesn't reach the screen below. */
@@ -894,23 +915,8 @@ bool WifeOverlay::FormInput( const DeviceInput &DeviceI, InputEventType type )
 		return true;
 	}
 
-	char c = DeviceI.ToChar();
-	if( c < 32 || c > 126 )
-		return true;
-	const bool bShift =
-		INPUTFILTER->IsBeingPressed( DeviceInput(DEVICE_KEYBOARD, KEY_LSHIFT) ) ||
-		INPUTFILTER->IsBeingPressed( DeviceInput(DEVICE_KEYBOARD, KEY_RSHIFT) );
-	if( bShift )
-	{
-		static const char szFrom[] = "`1234567890-=[]\\;',./";
-		static const char szTo[]   = "~!@#$%^&*()_+{}|:\"<>?";
-		const char *p = strchr( szFrom, c );
-		if( p != NULL )
-			c = szTo[p - szFrom];
-		else
-			c = (char) toupper( c );
-	}
-	if( sField.size() < 128 )
+	const char c = TypedChar( DeviceI );
+	if( c != '\0' && sField.size() < 128 )
 		sField += c;
 	return true;
 }

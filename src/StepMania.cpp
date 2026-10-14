@@ -1032,6 +1032,10 @@ bool HandleGlobalInputs( DeviceInput DeviceI, InputEventType type, GameInput Gam
 		return true;
 	}
 
+	/* The online chat, which takes the keyboard while it's open. */
+	if( SCREENMAN->ChatInput( DeviceI, type ) )
+		return true;
+
 	/* The keys of the Wife overlay and the online panel, if they are on. */
 	if( (PREFSMAN->m_bWife || ONLINE->IsEnabled())  &&  SCREENMAN->WifeInput( DeviceI, type ) )
 		return true;

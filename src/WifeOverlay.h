@@ -58,6 +58,10 @@ private:
 	bool m_bHasSub;
 };
 
+/* The character a key types, with a US layout as ScreenTextEntry has it,
+ * or '\0' for a key that types nothing. */
+char TypedChar( const DeviceInput &DeviceI );
+
 class WifeOverlay : public ActorFrame
 {
 public:

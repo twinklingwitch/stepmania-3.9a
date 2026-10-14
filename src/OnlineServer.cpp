@@ -1,6 +1,7 @@
 /* The parts of OnlineManager that talk to the server: the server's info,
- * accounts and their tokens, play tickets, the score queue and leaderboards.
- * Every request is asynchronous (OnlineHttp); Update polls for the answers. */
+ * accounts and their tokens, play tickets, the score queue, leaderboards and
+ * the chat.  Every request is asynchronous (OnlineHttp); Update polls for the
+ * answers. */
 #include "global.h"
 #include "OnlineManager.h"
 #include "OnlineHttp.h"
@@ -848,5 +849,146 @@ void OnlineManager::UpdateQueue()
 			SetResult( q.pn, q.sScoreKey, OnlineStageResult::REJECTED, sMessage );
 			RemoveQueued( i-- );
 		}
+	}
+}
+
+/*
+ * The chat
+ */
+
+/* Seconds between polls, and how many lines are kept. */
+static const float CHAT_POLL_OPEN = 2;
+static const float CHAT_POLL_CLOSED = 10;
+static const unsigned CHAT_KEEP = 100;
+
+bool OnlineManager::CanChat()
+{
+	FOREACH_PlayerNumber( pn )
+	{
+		const OnlineAccount &a = GetAccount( pn );
+		if( a.bLoggedIn && !a.bBusy )
+			return true;
+	}
+	return false;
+}
+
+void OnlineManager::SetChatOpen( bool bOpen )
+{
+	if( bOpen && !m_bChatOpen )
+		m_fChatNextPoll = 0;	// catch up at once
+	m_bChatOpen = bOpen;
+}
+
+bool OnlineManager::ChatSay( const CString &sText )
+{
+	if( m_ChatPlayer == PLAYER_INVALID || m_iChatSayRequest )
+		return false;
+	JsonValue v = JsonValue::Object();
+	v.Set( "text", JsonValue::String(sText) );
+	if( m_iChatLastID >= 0 )
+		v.Set( "after", JsonValue::Int(m_iChatLastID) );
+	m_iChatSayRequest = Request( m_sServer, "POST", "/chat", v.Write(), m_sChatToken, 10 );
+	return true;
+}
+
+void OnlineManager::ReadChat( const OnlineHttpResponse &r, PlayerNumber pn )
+{
+	JsonValue v;
+	CString sCode;
+	if( (r.iStatus == 200 || r.iStatus == 201) && ParseBody(r, v) )
+	{
+		const JsonValue &msgs = v["messages"];
+		for( unsigned i = 0; i < msgs.size(); ++i )
+		{
+			const JsonValue &m = msgs[i];
+			OnlineChatLine line;
+			line.iID = m["id"].GetInt();
+			if( line.iID <= m_iChatLastID )
+				continue;	// a poll and a post crossed
+			const CString sKind = m["kind"].GetString();
+			line.kind = sKind == "action"? OnlineChatLine::ACTION:
+				sKind == "join"? OnlineChatLine::JOIN:
+				sKind == "part"? OnlineChatLine::PART: OnlineChatLine::MESSAGE;
+			line.sUser = m["user"]["username"].GetString();
+			line.sText = m["text"].GetString();
+			line.tAt = ParseRFC3339( m["at"].GetString() );
+			m_ChatLines.push_back( line );
+			m_iChatLastID = line.iID;
+		}
+		if( m_ChatLines.size() > CHAT_KEEP )
+			m_ChatLines.erase( m_ChatLines.begin(), m_ChatLines.end() - CHAT_KEEP );
+		/* With nothing new, it's whatever the server has. */
+		m_iChatLastID = max( m_iChatLastID, v["last_id"].GetInt(m_iChatLastID) );
+
+		m_ChatOnline.clear();
+		const JsonValue &online = v["online"];
+		for( unsigned i = 0; i < online.size(); ++i )
+			m_ChatOnline.push_back( online[i]["username"].GetString() );
+		m_sChatStatus = "";
+	}
+	else if( r.iStatus == 401 )
+		ForgetToken( pn, "Your login has expired.  Log in again." );
+	else
+	{
+		m_sChatStatus = ErrorMessage( r, &sCode );
+		if( r.iRetryAfter > 0 )
+			m_fChatNextPoll = Now() + min( r.iRetryAfter, 300 );
+	}
+	++m_iChatSerial;
+}
+
+void OnlineManager::UpdateChat()
+{
+	/* The first player who is logged in chats; if that changes, start over. */
+	PlayerNumber chatter = PLAYER_INVALID;
+	FOREACH_PlayerNumber( pn )
+	{
+		const OnlineAccount &a = GetAccount( pn );
+		if( a.bLoggedIn && !a.bBusy )
+		{
+			chatter = pn;
+			break;
+		}
+	}
+	const CString sToken = chatter == PLAYER_INVALID? CString(): m_Account[chatter].sToken;
+	if( sToken != m_sChatToken )
+	{
+		if( m_iChatPollRequest )
+			OnlineHttp::Forget( m_iChatPollRequest );
+		if( m_iChatSayRequest )
+			OnlineHttp::Forget( m_iChatSayRequest );
+		m_iChatPollRequest = m_iChatSayRequest = 0;
+		m_ChatPlayer = chatter;
+		m_sChatToken = sToken;
+		m_sChatUser = chatter == PLAYER_INVALID? CString(): m_Account[chatter].info.sUsername;
+		m_ChatLines.clear();
+		m_ChatOnline.clear();
+		m_sChatStatus = "";
+		m_iChatLastID = -1;
+		m_fChatNextPoll = 0;
+		++m_iChatSerial;
+	}
+	if( m_ChatPlayer == PLAYER_INVALID )
+		return;
+
+	OnlineHttpResponse r;
+	if( m_iChatPollRequest && OnlineHttp::Poll(m_iChatPollRequest, r) )
+	{
+		m_iChatPollRequest = 0;
+		ReadChat( r, m_ChatPlayer );
+	}
+	if( m_iChatSayRequest && OnlineHttp::Poll(m_iChatSayRequest, r) )
+	{
+		m_iChatSayRequest = 0;
+		ReadChat( r, m_ChatPlayer );
+	}
+
+	if( m_iChatPollRequest == 0 && m_sChatToken == m_Account[m_ChatPlayer].sToken && Now() >= m_fChatNextPoll )
+	{
+		CString sPath = "/chat";
+		if( m_iChatLastID >= 0 )
+			sPath += ssprintf( "?after=%i", m_iChatLastID );
+		m_iChatPollRequest = Request( m_sServer, "GET", sPath, "", m_sChatToken, 10 );
+		m_fChatNextPoll = Now() + (m_bChatOpen? CHAT_POLL_OPEN: CHAT_POLL_CLOSED);
 	}
 }

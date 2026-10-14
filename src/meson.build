@@ -78,6 +78,7 @@ data_structures = files(
   'CatalogXml.cpp',
   'CalcRows.cpp',
   'ChartExport.cpp',
+  'ChatOverlay.cpp',
   'ChartInfo.cpp',
   'ChartKey.cpp',
   'ChartMSD.cpp',

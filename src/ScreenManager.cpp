@@ -41,6 +41,7 @@
 #include "CodeDetector.h"
 #include "StepMania.h"
 #include "WifeOverlay.h"
+#include "ChatOverlay.h"
 #include "OnlineManager.h"
 
 ScreenManager*	SCREENMAN = NULL;	// global and accessable from anywhere in our program
@@ -74,6 +75,8 @@ class ScreenSystemLayer: public Screen
 
 	/* Only touched when the Wife preference is on or an online server is set. */
 	WifeOverlay m_WifeOverlay;
+	/* Only opens with an online server set. */
+	ChatOverlay m_ChatOverlay;
 
 	RageTimer SkipTimer;
 	void AddTimestampLine( const CString &txt, RageColor color );
@@ -89,6 +92,7 @@ public:
 	void DrawPrimitives();
 	bool WifeInput( const DeviceInput& DeviceI, const InputEventType type ) { return m_WifeOverlay.Input( DeviceI, type ); }
 	void ShowRate( float fRate, int iLimit ) { m_WifeOverlay.ShowRate( fRate, iLimit ); }
+	bool ChatInput( const DeviceInput& DeviceI, const InputEventType type ) { return m_ChatOverlay.Input( DeviceI, type ); }
 };
 
 ScreenSystemLayer::ScreenSystemLayer() : Screen("ScreenSystemLayer")
@@ -363,6 +367,8 @@ void ScreenSystemLayer::Update( float fDeltaTime )
 	if( PREFSMAN  &&  (PREFSMAN->m_bWife || (ONLINE && ONLINE->IsEnabled())) )
 		m_WifeOverlay.Update( fDeltaTime );
 	m_WifeOverlay.UpdatePopup( fDeltaTime );
+	if( ONLINE )
+		m_ChatOverlay.Update( fDeltaTime );
 }
 
 void ScreenSystemLayer::DrawPrimitives()
@@ -373,6 +379,12 @@ void ScreenSystemLayer::DrawPrimitives()
 		m_WifeOverlay.Draw();
 	else
 		m_WifeOverlay.DrawPopup();	/* the rate popup doesn't depend on Wife */
+	m_ChatOverlay.Draw();
+}
+
+bool ScreenManager::ChatInput( const DeviceInput& DeviceI, const InputEventType type )
+{
+	return m_SystemLayer->ChatInput( DeviceI, type );
 }
 
 bool ScreenManager::WifeInput( const DeviceInput& DeviceI, const InputEventType type )

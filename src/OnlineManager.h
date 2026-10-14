@@ -19,8 +19,10 @@
 
 #include <map>
 #include <set>
+#include <time.h>
 
 class JsonValue;
+struct OnlineHttpResponse;
 class NoteDataWithScoring;
 class Song;
 class Steps;
@@ -86,6 +88,16 @@ struct OnlineLeaderboard
 	OnlineLeaderboard(): bLoading(false), iTotal(0), bHasMe(false) { }
 };
 
+/* A line of the global chat. */
+struct OnlineChatLine
+{
+	int iID;
+	enum Kind { MESSAGE, ACTION, JOIN, PART } kind;	// ACTION is "/me ..."
+	CString sUser;
+	CString sText;
+	time_t tAt;		// local clock
+};
+
 class OnlineManager
 {
 public:
@@ -139,6 +151,20 @@ public:
 	const OnlineStageResult &GetStageResult( PlayerNumber pn ) const { return m_Result[pn]; }
 	/* Send a play that wasn't sent because OnlineAutoSubmit is off. */
 	void SubmitStage( PlayerNumber pn );
+
+	/* The global chat (F8), as the first logged-in player.  It's polled
+	 * slowly while it's closed, which is also what shows the player as
+	 * online, and quickly while it's open.  GetChatSerial changes whenever
+	 * the lines, the online list or the status do. */
+	bool CanChat();
+	CString GetChatUser() const { return m_sChatUser; }
+	const vector<OnlineChatLine> &GetChatLines() const { return m_ChatLines; }
+	const vector<CString> &GetChatOnline() const { return m_ChatOnline; }
+	CString GetChatStatus() const { return m_sChatStatus; }
+	int GetChatSerial() const { return m_iChatSerial; }
+	void SetChatOpen( bool bOpen );
+	/* False if the last line is still on its way: try again in a moment. */
+	bool ChatSay( const CString &sText );
 
 	/* The validity rules (section 10.1) that can be checked before the song
 	 * starts.  Returns why the play can't be ranked, or "" if it can. */
@@ -239,6 +265,21 @@ private:
 	void SetResult( PlayerNumber pn, const CString &sScoreKey, OnlineStageResult::State state, const CString &sReason );
 	void FetchRank( PlayerNumber pn );
 	int m_iRankRequest[NUM_PLAYERS];
+
+	/* The chat, for the account of m_ChatPlayer. */
+	PlayerNumber m_ChatPlayer;
+	CString m_sChatToken;		// when it changes, the chat starts over
+	CString m_sChatUser;
+	vector<OnlineChatLine> m_ChatLines;
+	vector<CString> m_ChatOnline;
+	CString m_sChatStatus;
+	int m_iChatSerial;
+	int m_iChatLastID;			// -1 before the first answer
+	int m_iChatPollRequest, m_iChatSayRequest;
+	float m_fChatNextPoll;		// game time
+	bool m_bChatOpen;
+	void UpdateChat();
+	void ReadChat( const OnlineHttpResponse &r, PlayerNumber pn );
 
 	bool m_bMusicPlaying;
 	float m_fClockSince;

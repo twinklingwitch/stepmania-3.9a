@@ -55,6 +55,12 @@ OnlineManager::OnlineManager()
 	m_bQueueLoaded = false;
 	FOREACH_PlayerNumber( pn )
 		m_iRankRequest[pn] = 0;
+	m_ChatPlayer = PLAYER_INVALID;
+	m_iChatSerial = 0;
+	m_iChatLastID = -1;
+	m_iChatPollRequest = m_iChatSayRequest = 0;
+	m_fChatNextPoll = 0;
+	m_bChatOpen = false;
 	m_bMusicPlaying = false;
 	m_fClockSince = 0;
 }
@@ -256,6 +262,7 @@ void OnlineManager::Update( float fDeltaTime )
 		UpdateTickets();
 		UpdateBoards();
 		UpdateQueue();
+		UpdateChat();
 	}
 
 	/* Things that can be switched on in the middle of a song. */

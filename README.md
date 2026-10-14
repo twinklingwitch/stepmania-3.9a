@@ -24,6 +24,7 @@
 >   skillset, and global and per-country rankings, Etterna Online style, on
 >   more than 1,700 packs and 100,000 ranked charts.  Registration needs an invite
 >   code, which you can get on the [Discord](https://discord.gg/CCygPSpenu).
+>   **F8** anywhere opens a chat with everyone else who is online.
 >
 > With Wife off (the default), none of that exists: no counter, no panels, no
 > network traffic.  Just 3.9.
@@ -397,6 +398,7 @@ Anything else must be `https://`, and the server's certificate is always checked
 | Music select | F6 | With the online panel up: log out. |
 | Results | F5 | The play's SSRs and what happened to it online: sending, accepted (with your rank on the chart and your new rating), pending review, rejected (with the server's reason), unranked (with the reason), or queued to try again. |
 | Results | F7 | Send the play, with `OnlineAutoSubmit=0`. |
+| Anywhere but the editor | F8 | The chat: one room for everyone logged in to the server, IRC style, with who's online on the right.  Type and press Enter to send; `/me waves` is an action.  Esc or F8 closes it.  While it's open it takes the keyboard (keys you release still reach the game).  It chats as the first player who is logged in. |
 
 **Accounts.**  Make an account on the server's web site; the online panel shows
 the address (`<server>/register`).  If you aren't logged in, F7 opens a login
