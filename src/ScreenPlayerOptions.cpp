@@ -7,6 +7,7 @@
 #include "AnnouncerManager.h"
 #include "GameSoundManager.h"
 #include "ScreenSongOptions.h"
+#include "CommonMetrics.h"
 #include "PrefsManager.h"
 #include "CodeDetector.h"
 
@@ -115,8 +116,9 @@ void ScreenPlayerOptions::Input( const DeviceInput& DeviceI, const InputEventTyp
 	{
 		SOUND->PlayOnce( THEME->GetPathToS("ScreenPlayerOptions cancel all") );
 		
-		// apply the game default mods, but not the Profile saved mods
+		// apply the theme and game default mods, but not the Profile saved mods
 		GAMESTATE->m_PlayerOptions[pn].Init();
+		GAMESTATE->m_PlayerOptions[pn].FromString( DEFAULT_MODIFIERS );
 		GAMESTATE->m_PlayerOptions[pn].FromString( PREFSMAN->m_sDefaultModifiers );
 		
 		UtilCommand( m_sprCancelAll[pn], m_sName, "Show" );

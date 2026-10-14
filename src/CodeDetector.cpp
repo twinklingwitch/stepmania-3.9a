@@ -9,6 +9,7 @@
 #include "Game.h"
 #include "Style.h"
 #include "RageUtil.h"
+#include "CommonMetrics.h"
 #include "PrefsManager.h"
 
 const CString g_sCodeNames[CodeDetector::NUM_CODES] = {
@@ -253,6 +254,7 @@ bool CodeDetector::DetectAndAdjustMusicOptions( GameController controller )
 			case CODE_MINES:			TOGGLE( GAMESTATE->m_PlayerOptions[pn].m_bTransforms[PlayerOptions::TRANSFORM_NOMINES], true, false );					break;
 			case CODE_DARK:				FLOAT_TOGGLE( GAMESTATE->m_PlayerOptions[pn].m_fDark );							break;
 			case CODE_CANCEL_ALL:		GAMESTATE->m_PlayerOptions[pn].Init();
+										GAMESTATE->m_PlayerOptions[pn].FromString( DEFAULT_MODIFIERS );
 										GAMESTATE->m_PlayerOptions[pn].FromString( PREFSMAN->m_sDefaultModifiers );		break;
 			case CODE_HIDDEN:			TOGGLE_HIDDEN; break;
 			case CODE_RANDOMVANISH:		TOGGLE_RANDOMVANISH; break;
