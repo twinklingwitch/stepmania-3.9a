@@ -334,6 +334,11 @@ namespace
 
 		int iActiveUnit;
 		int iTexture2D[MAX_TEXTURE_UNITS];
+		/* Whether GL_TEXTURE_2D should be on for each unit.  It only matters when
+		 * drawing, so it's only set then; most draws turn texturing off and back
+		 * on (ClearAllTextures, then SetTexture), and the driver would revalidate
+		 * texture state each time. */
+		int iTexture2DWanted[MAX_TEXTURE_UNITS];
 		int64_t iBoundTexture[MAX_TEXTURE_UNITS];
 		int iTexEnv[MAX_TEXTURE_UNITS];
 
@@ -356,6 +361,7 @@ namespace
 			{
 				bTextureMatrixValid[i] = false;
 				iTexture2D[i] = -1;
+				iTexture2DWanted[i] = -1;
 				iBoundTexture[i] = -1;
 				iTexEnv[i] = -1;
 			}
@@ -393,6 +399,8 @@ namespace
 
 	GLStateCache g_State;
 }
+
+static void FlushTextureEnables();
 
 static void SetClientState( int iArray, GLenum array, bool bOn )
 {
@@ -1218,6 +1226,7 @@ void RageDisplay_OGL::DeleteCompiledGeometry( RageCompiledGeometry* p )
 void RageDisplay_OGL::DrawQuadsInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	TurnOffHardwareVBO();
+	FlushTextureEnables();
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
@@ -1227,6 +1236,7 @@ void RageDisplay_OGL::DrawQuadsInternal( const RageSpriteVertex v[], int iNumVer
 void RageDisplay_OGL::DrawQuadStripInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	TurnOffHardwareVBO();
+	FlushTextureEnables();
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
@@ -1236,6 +1246,7 @@ void RageDisplay_OGL::DrawQuadStripInternal( const RageSpriteVertex v[], int iNu
 void RageDisplay_OGL::DrawFanInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	TurnOffHardwareVBO();
+	FlushTextureEnables();
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
@@ -1245,6 +1256,7 @@ void RageDisplay_OGL::DrawFanInternal( const RageSpriteVertex v[], int iNumVerts
 void RageDisplay_OGL::DrawStripInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	TurnOffHardwareVBO();
+	FlushTextureEnables();
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
@@ -1254,6 +1266,7 @@ void RageDisplay_OGL::DrawStripInternal( const RageSpriteVertex v[], int iNumVer
 void RageDisplay_OGL::DrawTrianglesInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	TurnOffHardwareVBO();
+	FlushTextureEnables();
 	SendCurrentMatrices();
 
 	SetupVertices( v, iNumVerts );
@@ -1263,6 +1276,7 @@ void RageDisplay_OGL::DrawTrianglesInternal( const RageSpriteVertex v[], int iNu
 void RageDisplay_OGL::DrawCompiledGeometryInternal( const RageCompiledGeometry *p, int iMeshIndex )
 {
 	TurnOffHardwareVBO();
+	FlushTextureEnables();
 	SendCurrentMatrices();
 
 	p->Draw( iMeshIndex );
@@ -1279,6 +1293,7 @@ void RageDisplay_OGL::DrawLineStripInternal( const RageSpriteVertex v[], int iNu
 		return;
 	}
 
+	FlushTextureEnables();
 	SendCurrentMatrices();
 
 	/* Draw a nice AA'd line loop.  One problem with this is that point and line
@@ -1371,10 +1386,11 @@ static bool SetTexEnvState( int iMode )
 
 void RageDisplay_OGL::ClearAllTextures()
 {
-	/* Units that are already off don't need to be made active to turn them off. */
+	/* This only changes what FlushTextureEnables will set, so no unit needs to
+	 * be made active. */
 	for( int i=0; i<MAX_TEXTURE_UNITS; i++ )
-		if( g_State.iTexture2D[i] != 0 )
-			SetTexture( i, NULL );
+		if( i == 0 || GLExt.glActiveTextureARB )
+			g_State.iTexture2DWanted[i] = 0;
 
 	// HACK:  Reset the active texture to 0.
 	// TODO:  Change all texture functions to take a stage number.
@@ -1403,18 +1419,35 @@ void RageDisplay_OGL::SetTexture( int iTextureUnitIndex, RageTexture* pTexture )
 		}
 	}
 
-	const int bOn = pTexture != NULL;
-	if( g_State.iTexture2D[iTextureUnitIndex] != bOn )
+	g_State.iTexture2DWanted[iTextureUnitIndex] = pTexture != NULL;
+
+	if( pTexture )
+		BindTexture( pTexture->GetTexHandle() );
+}
+
+/* Turn GL_TEXTURE_2D on or off for each unit as SetTexture and ClearAllTextures
+ * last asked, before drawing. */
+static void FlushTextureEnables()
+{
+	const int iUnits = GLExt.glActiveTextureARB? MAX_TEXTURE_UNITS: 1;
+	const int iActiveUnit = g_State.iActiveUnit;
+	for( int i = 0; i < iUnits; ++i )
 	{
+		const int bOn = g_State.iTexture2DWanted[i];
+		if( bOn == -1 || bOn == g_State.iTexture2D[i] )
+			continue;
+
+		if( GLExt.glActiveTextureARB )
+			SetActiveTextureUnit( i );
 		if( bOn )
 			glEnable( GL_TEXTURE_2D );
 		else
 			glDisable( GL_TEXTURE_2D );
-		g_State.iTexture2D[iTextureUnitIndex] = bOn;
+		g_State.iTexture2D[i] = bOn;
 	}
 
-	if( pTexture )
-		BindTexture( pTexture->GetTexHandle() );
+	if( GLExt.glActiveTextureARB && iActiveUnit != -1 )
+		SetActiveTextureUnit( iActiveUnit );
 }
 void RageDisplay_OGL::SetTextureModeModulate()
 {
