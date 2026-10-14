@@ -39,7 +39,20 @@ struct AVPixelFormat_t
 		true,
 		false
 	},
-	{ 
+	{
+		/* Drivers don't keep textures in 24 bits, so RGB24 has to be converted
+		 * on every upload; this one usually goes straight in.  The alpha is
+		 * always opaque, and the texture is made without it (see CreateTexture). */
+		32,
+		{ int(0xFF000000),
+		  0x00FF0000,
+		  0x0000FF00,
+		  0x000000FF },
+		AV_PIX_FMT_RGBA,
+		true,
+		true
+	},
+	{
 		24,
 		{ 0xFF0000,
 		  0x00FF00,
@@ -596,6 +609,12 @@ void MovieTexture_FFMpeg::CreateTexture()
 
 	if( m_AVTexfmt == -1 )
 		m_AVTexfmt = FindCompatibleAVFormat( pixfmt, !PreferHighColor );
+
+	/* Keep the texture itself RGB, like with RGB24, so the padding past the
+	 * image stays opaque black when it's filtered into the edges. */
+	if( m_AVTexfmt != -1 && AVPixelFormats[m_AVTexfmt].pf == AV_PIX_FMT_RGBA &&
+		pixfmt == RageDisplay::FMT_RGBA8 && DISPLAY->SupportsTextureFormat(RageDisplay::FMT_RGB8) )
+		pixfmt = RageDisplay::FMT_RGB8;
 
 	if( m_AVTexfmt == -1 )
 	{
