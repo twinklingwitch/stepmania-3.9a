@@ -857,9 +857,20 @@ static void LoadMatrix( GLenum mode, const RageMatrix &m, bool &bValid, RageMatr
 void RageDisplay_OGL::SendCurrentMatrices()
 {
 	LoadMatrix( GL_PROJECTION, *GetProjectionTop(), g_State.bProjectionValid, g_State.Projection );
+	/* The centering and view matrices rarely change; keep their product. */
+	static bool bCenteringViewValid = false;
+	static RageMatrix Centering, View, CenteringView;
+	if( !bCenteringViewValid || memcmp(&Centering, GetCentering(), sizeof(RageMatrix)) ||
+		memcmp(&View, GetViewTop(), sizeof(RageMatrix)) )
+	{
+		Centering = *GetCentering();
+		View = *GetViewTop();
+		RageMatrixMultiply( &CenteringView, &Centering, &View );
+		bCenteringViewValid = true;
+	}
+
 	RageMatrix modelView;
-	RageMatrixMultiply( &modelView, GetCentering(), GetViewTop() );
-	RageMatrixMultiply( &modelView, &modelView, GetWorldTop() );
+	RageMatrixMultiply( &modelView, &CenteringView, GetWorldTop() );
 	LoadMatrix( GL_MODELVIEW, modelView, g_State.bModelViewValid, g_State.ModelView );
 
 	/* The texture matrix belongs to the active texture unit. */
