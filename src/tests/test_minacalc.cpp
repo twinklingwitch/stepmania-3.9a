@@ -9,7 +9,8 @@
  * Other CPUs get a wider one.  The calc's fastsqrt() is SSE's approximate
  * reciprocal square root, which sse2neon turns into ARM's (as in Etterna's own
  * ARM builds), and that is a different approximation: emulating it moves the
- * MSDs and SSRs below by up to 0.23. */
+ * MSDs and SSRs below by up to 0.23.  AMD's RSQRTSS isn't Intel's either, and
+ * moves them as much, so x86 CPUs that aren't Intel's get the wide one too. */
 #include "global.h"
 #include "RageLog.h"
 #include "RageUtil.h"
@@ -23,11 +24,16 @@
 
 static int g_iFailures = 0;
 
+static float CalcTolerance()
+{
 #if defined(__x86_64__) || defined(__i386__)
-static const float CALC_TOLERANCE = 0.01f;
-#else
-static const float CALC_TOLERANCE = 0.3f;
+	__builtin_cpu_init();
+	if( __builtin_cpu_is("intel") )
+		return 0.01f;
 #endif
+	return 0.3f;
+}
+static const float CALC_TOLERANCE = CalcTolerance();
 
 static void Check( const char *szWhat, float fGot, float fExpected, float fTolerance )
 {
