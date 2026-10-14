@@ -24,7 +24,7 @@ ScreenStyleSplash::ScreenStyleSplash( CString sName ) : ScreenWithMenuElements( 
 	CString sGameName = GAMESTATE->GetCurrentGame()->m_szName;	
 	CString sStyleName = GAMESTATE->GetCurrentStyle()->m_szName;
 
-	LOG->Trace( ssprintf("ScreenStyleSplash: Displaying Splash for style: %s", sStyleName.c_str()));
+	LOG->Trace( "ScreenStyleSplash: Displaying Splash for style: %s", sStyleName.c_str() );
 
 	int iDifficulty = GAMESTATE->m_PreferredDifficulty[0];
 	if( GAMESTATE->m_bSideIsJoined[PLAYER_1] )

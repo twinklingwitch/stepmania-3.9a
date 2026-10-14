@@ -311,7 +311,7 @@ static void child_process()
 
     fprintf(CrashDump, "Checkpoints:\n");
     for (unsigned i=0; i<Checkpoints.size(); ++i)
-        fprintf(CrashDump, Checkpoints[i]);
+        fprintf(CrashDump, "%s", Checkpoints[i].c_str());
     fprintf(CrashDump, "\n");
 
     for( int i = 0; i < CrashData::MAX_BACKTRACE_THREADS; ++i )
@@ -343,13 +343,13 @@ static void child_process()
             "\n"
             PRODUCT_NAME " has crashed.  Debug information has been output to\n"
             "\n"
-            "    " + sCrashInfoPath + "\n"
+            "    %s\n"
             "\n"
             "Please report a bug at:\n"
             "\n"
             "    http://sourceforge.net/tracker/?func=add&group_id=37892&atid=421366\n"
-            "\n"
-            );
+            "\n",
+            sCrashInfoPath.c_str() );
 }
 
 

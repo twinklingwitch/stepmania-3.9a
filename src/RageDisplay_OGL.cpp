@@ -1865,7 +1865,7 @@ unsigned RageDisplay_OGL::CreateTexture(
 				 ", format " << GLToString(glImageFormat) <<
 				 ", type " << GLToString(glImageType) <<
 				 "): " << gluErrorString(error);
-			LOG->Trace( s.str().c_str() );
+			LOG->Trace( "%s", s.str().c_str() );
 
 			ASSERT(0);
 		}
@@ -1885,7 +1885,7 @@ unsigned RageDisplay_OGL::CreateTexture(
 					", type " << GLToString(glImageType) <<
 					", pixfmt " << pixfmt <<
 					", imgpixfmt " << imgpixfmt;
-			LOG->Trace( s.str().c_str() );
+			LOG->Trace( "%s", s.str().c_str() );
 		}
 		GLenum error = glGetError();
 		if( error != GL_NO_ERROR )
@@ -1898,7 +1898,7 @@ unsigned RageDisplay_OGL::CreateTexture(
 				 ", pixfmt " << pixfmt <<
 				 ", imgpixfmt " << imgpixfmt <<
 				 "): " << GLToString(error);
-			LOG->Trace( s.str().c_str() );
+			LOG->Trace( "%s", s.str().c_str() );
 
 			ASSERT(0);
 		}

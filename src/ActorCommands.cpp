@@ -8,7 +8,7 @@ void IncorrectActorParametersWarning( const ParsedCommand &command, int iMaxInde
 {
 	const CString sError = ssprintf( "Actor::HandleCommand: Wrong number of parameters in command '%s'.  Expected %d but there are %u.",
 		command.GetOriginalCommandString().c_str(), iMaxIndexAccessed+1, unsigned(command.vTokens.size()) );
-	LOG->Warn( sError );
+	LOG->Warn( "%s", sError.c_str() );
 	Dialog::OK( sError );
 }
 

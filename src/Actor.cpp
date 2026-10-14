@@ -771,7 +771,7 @@ void Actor::HandleCommand( const ParsedCommand &command )
 	else
 	{
 		CString sError = ssprintf( "Actor::HandleCommand: Unrecognized command name '%s'.", sName.c_str() );
-		LOG->Warn( sError );
+		LOG->Warn( "%s", sError.c_str() );
 		Dialog::OK( sError );
 	}
 

@@ -467,7 +467,7 @@ void GetNewStorageDevices( vector<UsbStorageDevice>& vDevicesOut )
 			
 			CString sOutput;
 			CString sCommand = "/usr/bin/sg_scan";
-			LOG->Trace( sCommand );
+			LOG->Trace( "%s", sCommand.c_str() );
 			RunProgram( sCommand, NULL, sOutput );
 			
 			CStringArray vsLines;

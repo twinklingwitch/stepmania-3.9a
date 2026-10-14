@@ -105,7 +105,7 @@ bool Sprite::Load( RageTextureID ID )
 // BaseZoomZ=1
 bool Sprite::LoadFromSpriteFile( RageTextureID ID )
 {
-	LOG->Trace( ssprintf("Sprite::LoadFromSpriteFile(%s)", ID.filename.c_str()) );
+	LOG->Trace( "Sprite::LoadFromSpriteFile(%s)", ID.filename.c_str() );
 
 retry:
 
