@@ -997,6 +997,8 @@ void ScreenSelectMusic::Input( const DeviceInput& DeviceI, InputEventType type, 
 		default:
 			break;
 		}
+
+		TakeSongChangeNow();
 	}
 
 
@@ -1087,6 +1089,24 @@ void ScreenSelectMusic::Input( const DeviceInput& DeviceI, InputEventType type, 
 	default:
 		break;
 	}
+}
+
+/* The wheel posts SM_SongChanged when the selection moves.  Input comes after
+ * this frame's update, so the message would wait for the next one, and the
+ * banner and the rest would change a frame after the wheel.  Take it now. */
+void ScreenSelectMusic::TakeSongChangeNow()
+{
+	bool bChanged = false;
+	for( int i = m_QueuedMessages.size()-1; i >= 0; --i )
+	{
+		if( m_QueuedMessages[i].SM != SM_SongChanged || m_QueuedMessages[i].fDelayRemaining > 0 )
+			continue;
+		m_QueuedMessages.erase( m_QueuedMessages.begin()+i );
+		bChanged = true;
+	}
+
+	if( bChanged )
+		HandleScreenMessage( SM_SongChanged );
 }
 
 void ScreenSelectMusic::ChangeDifficulty( PlayerNumber pn, int dir )

@@ -59,6 +59,7 @@ protected:
 	void AfterTrailChange( PlayerNumber pn );
 	void SwitchToPreferredDifficulty();
 	void AfterMusicChange();
+	void TakeSongChangeNow();
 	void ChangeMusicRate( int iDir );
 	void SortOrderChanged();
 
