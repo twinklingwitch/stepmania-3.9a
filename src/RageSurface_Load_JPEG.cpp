@@ -140,7 +140,7 @@ static RageSurface *RageSurface_Load_JPEG( RageFile *f, const char *fn, char err
 
 	case JCS_YCCK:
 	case JCS_CMYK:
-		sprintf( errorbuf, "Color format \"%s\" not supported", cinfo.jpeg_color_space == JCS_YCCK? "YCCK":"CMYK" );
+		snprintf( errorbuf, JMSG_LENGTH_MAX, "Color format \"%s\" not supported", cinfo.jpeg_color_space == JCS_YCCK? "YCCK":"CMYK" );
 		jpeg_destroy_decompress( &cinfo );
 		return NULL;
 

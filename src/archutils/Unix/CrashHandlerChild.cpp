@@ -154,7 +154,7 @@ const char *SignalCodeName( int signo, int code )
 	}
 
 	static char buf[128];
-	sprintf( buf, "Unknown code %i", code );
+	snprintf( buf, sizeof(buf), "Unknown code %i", code );
 	return buf;
 }
 

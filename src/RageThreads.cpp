@@ -181,7 +181,7 @@ static void InitThreads()
 	int slot = FindEmptyThreadSlot();
 	strcpy( g_ThreadSlots[slot].name, "Unknown thread" );
 	g_ThreadSlots[slot].id = GetInvalidThreadId();
-	sprintf( g_ThreadSlots[slot].ThreadFormattedOutput, "Unknown thread" );
+	snprintf( g_ThreadSlots[slot].ThreadFormattedOutput, sizeof(g_ThreadSlots[slot].ThreadFormattedOutput), "Unknown thread" );
 	g_pUnknownThreadSlot = &g_ThreadSlots[slot];
 
 	g_ThreadSlotsLock.Unlock();
@@ -257,7 +257,7 @@ void RageThread::Create( int (*fn)(void *), void *data )
 
 	if( LOG )
 		LOG->Trace( "Starting thread: %s", name.c_str() );
-	sprintf( m_pSlot->ThreadFormattedOutput, "Thread: %s", name.c_str() );
+	snprintf( m_pSlot->ThreadFormattedOutput, sizeof(m_pSlot->ThreadFormattedOutput), "Thread: %s", name.c_str() );
 
 	/* Start a thread using our own startup function.  We pass the id to fill in,
 	 * to make sure it's set before the thread actually starts.  (Otherwise, early
@@ -275,7 +275,7 @@ static struct SetupMainThread
 		int slot = FindEmptyThreadSlot();
 		const char *szName = "Main thread";
 		strcpy( g_ThreadSlots[slot].name, szName );
-		sprintf( g_ThreadSlots[slot].ThreadFormattedOutput, "Thread: %s", szName );
+		snprintf( g_ThreadSlots[slot].ThreadFormattedOutput, sizeof(g_ThreadSlots[slot].ThreadFormattedOutput), "Thread: %s", szName );
 		g_ThreadSlots[slot].pImpl = MakeThisThread();
 		g_ThreadSlots[slot].id = RageThread::GetCurrentThreadID();
 	}

@@ -79,7 +79,7 @@ static RageSurface *RageSurface_Load_PNG( RageFile *f, const char *fn, char erro
 	png_struct *png = png_create_read_struct( PNG_LIBPNG_VER_STRING, &error, PNG_Error, PNG_Warning );
 	if( png == NULL )
 	{
-		sprintf( errorbuf, "creating png_create_read_struct failed");
+		snprintf( errorbuf, 1024, "creating png_create_read_struct failed" );
 		return NULL;
 	}
 
@@ -87,7 +87,7 @@ static RageSurface *RageSurface_Load_PNG( RageFile *f, const char *fn, char erro
 	if( info_ptr == NULL )
 	{
 		png_destroy_read_struct( &png, NULL, NULL );
-		sprintf( errorbuf, "creating png_create_info_struct failed");
+		snprintf( errorbuf, 1024, "creating png_create_info_struct failed" );
 		return NULL;
 	}
 

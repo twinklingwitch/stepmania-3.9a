@@ -71,7 +71,7 @@ static void TestWife3()
 	for( unsigned i=0; i<ARRAYSIZE(t); i++ )
 	{
 		char sz[64];
-		sprintf( sz, "Wife3(%.1fms, %.2f)", t[i].ms, t[i].ts );
+		snprintf( sz, sizeof(sz), "Wife3(%.1fms, %.2f)", t[i].ms, t[i].ts );
 		/* Early and late score the same. */
 		Check( sz, Wife3( t[i].ms/1000, t[i].ts ), t[i].expected, 0.0005f );
 		Check( sz, Wife3( -t[i].ms/1000, t[i].ts ), t[i].expected, 0.0005f );
