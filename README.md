@@ -86,7 +86,7 @@ The few intentional differences:
 - In 3.9a, in dance, Player 1's Left, Down, Up and Right are also on `D`, `F`,
   `J` and `K` by default, besides the arrow keys.  Like the `+` key they go in the second
   slot of Config Key/Joy, and only if that slot and the key are free.
-- In 3.9a, Sound Volume starts at 70% instead of 3.9's 100%.  Songs are mastered
+- In 3.9a, Sound Volume starts at 50% instead of 3.9's 100%.  Songs are mastered
   much louder than what most other programs play, so at 100% the game is
   noticeably louder than everything else.
 - In 3.9a, Event Mode is on by default, so you can keep playing songs instead of being

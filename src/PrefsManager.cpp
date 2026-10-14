@@ -24,7 +24,7 @@ PrefsManager*	PREFSMAN = NULL;	// global and accessable from anywhere in our pro
 #if defined(WITHOUT_EXTRAS)
 const float DEFAULT_SOUND_VOLUME = 1.00f;
 #else
-const float DEFAULT_SOUND_VOLUME = 0.70f;
+const float DEFAULT_SOUND_VOLUME = 0.50f;
 #endif
 const CString DEFAULT_LIGHTS_DRIVER = "Null";
 
