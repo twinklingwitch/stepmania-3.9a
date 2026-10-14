@@ -105,7 +105,7 @@ Ready-made builds are on the
 [Releases](https://github.com/twinklingwitch/stepmania-3.9a/releases) page.
 There are two flavors, the [two builds](#two-builds):
 
-- **vanilla**, `StepMania-3.9-<version>-<system>.zip`: basically 3.9, with the
+- **vanilla**, `StepMania-3.9-vanilla-<version>-<system>.zip`: basically 3.9, with the
   fixes (`-Dextras=false`): no Wife scoring, MSD, leaderboards, online scores,
   chat or rooms, 3.9's own themes and no songs.
 - **aura**, `StepMania-3.9-aura-<version>-<system>.zip`: 3.9a, with all the new

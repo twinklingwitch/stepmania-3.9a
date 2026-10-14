@@ -1,7 +1,7 @@
 # Build the game for Windows, Linux and macOS, in two flavors, and put the zips
 # on a GitHub release:
 #
-#   vanilla  StepMania-3.9-*.zip, plain StepMania 3.9 with the fixes
+#   vanilla  StepMania-3.9-vanilla-*.zip, plain StepMania 3.9 with the fixes
 #            (-Dextras=false)
 #   aura     StepMania-3.9-aura-*.zip (StepMania-aura.app on macOS), with the
 #            extras: Wife scoring, online scores, chat and rooms
@@ -53,7 +53,7 @@ jobs:
         include:
           - flavor: vanilla
             version: '3.9'
-            zipname: StepMania-3.9
+            zipname: StepMania-3.9-vanilla
             options: -Dextras=false
           - flavor: aura
             version: '3.9a'
@@ -157,7 +157,7 @@ jobs:
         include:
           - flavor: vanilla
             version: '3.9'
-            zipname: StepMania-3.9
+            zipname: StepMania-3.9-vanilla
             options: -Dextras=false
           - flavor: aura
             version: '3.9a'
@@ -269,7 +269,7 @@ jobs:
         include:
           - flavor: vanilla
             version: '3.9'
-            zipname: StepMania-3.9
+            zipname: StepMania-3.9-vanilla
             options: -Dextras=false
             app: StepMania
           - flavor: aura
@@ -386,7 +386,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes='**StepMania-3.9** (vanilla) is plain StepMania 3.9 with the fixes.  **StepMania-3.9-aura** adds Wife scoring, online scores, chat and multiplayer rooms; on macOS it is StepMania-aura.app.  Each comes for Windows (x64), Linux (x64) and macOS (Apple Silicon); the README says what each needs.'
+          notes='**StepMania-3.9-vanilla** is plain StepMania 3.9 with the fixes.  **StepMania-3.9-aura** adds Wife scoring, online scores, chat and multiplayer rooms; on macOS it is StepMania-aura.app.  Each comes for Windows (x64), Linux (x64) and macOS (Apple Silicon); the README says what each needs.'
           # A tag with a hyphen (v1.0.0-rc.1, v1.0.0-beta.2) is a pre-release.
           pre=
           case "$GITHUB_REF_NAME" in *-*) pre=--prerelease ;; esac
