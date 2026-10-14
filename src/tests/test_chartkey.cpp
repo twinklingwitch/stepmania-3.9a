@@ -190,7 +190,7 @@ static void TestKeys( const CString &sDir )
 		}
 
 		CString sNotes;
-		int iTracks;
+		int iTracks = 0;
 		vector<ChartKeyBPM> vBPMs;
 		if( !GetChart(sFile, g_Expected[i].iChart, sNotes, iTracks, vBPMs) )
 		{
@@ -213,7 +213,7 @@ static void TestKeys( const CString &sDir )
 static void TestTiny( const CString &sDir )
 {
 	CString sFile, sNotes;
-	int iTracks;
+	int iTracks = 0;
 	vector<ChartKeyBPM> vBPMs;
 	if( !ReadWholeFile(sDir + "/tiny.sm", sFile) || !GetChart(sFile, 0, sNotes, iTracks, vBPMs) )
 	{

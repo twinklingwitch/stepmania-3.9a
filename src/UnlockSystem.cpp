@@ -191,6 +191,11 @@ static float GetSongPoints( const Profile *pProfile )
 
 void UnlockSystem::GetPoints( const Profile *pProfile, float fScores[NUM_UNLOCK_TYPES] ) const
 {
+	/* Nothing counts the extra stage and toasty types, so they never unlock
+	 * anything; don't leave them as whatever was on the stack. */
+	for( int i = 0; i < NUM_UNLOCK_TYPES; ++i )
+		fScores[i] = 0;
+
 	fScores[UNLOCK_ARCADE_POINTS] = GetArcadePoints( pProfile );
 	fScores[UNLOCK_SONG_POINTS] = GetSongPoints( pProfile );
 	fScores[UNLOCK_DANCE_POINTS] = (float) pProfile->m_iTotalDancePoints;
