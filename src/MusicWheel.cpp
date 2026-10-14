@@ -1490,7 +1490,7 @@ void MusicWheel::Move(int n)
 		SCREENMAN->PostMessageToTopScreen( SM_SongChanged, 0 );
 	}
 
-	m_TimeBeforeMovingBegins = 1/4.0f;
+	m_TimeBeforeMovingBegins = 0.15f;	// how long a direction is held before the wheel spins
 	m_SpinSpeed = float(PREFSMAN->m_iMusicWheelSwitchSpeed);
 	m_Moving = n;
 	
