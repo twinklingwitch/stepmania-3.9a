@@ -1,5 +1,16 @@
 # StepMania 3.9 AURA
 
+**Two downloads** (on the [Releases](https://github.com/twinklingwitch/stepmania-3.9a/releases)
+page, see [Downloads](#downloads)):
+
+- **StepMania 3.9** (vanilla) is basically 3.9: the 2004 game as it was, with
+  its keys, defaults, themes and screens, just rebuilt to run well on today's
+  computers.  Nothing new to learn, nothing extra going on.
+- **StepMania 3.9a** (aura) is the same game with all the new goodies below:
+  Etterna-style Wife scoring, per-skillset difficulty, local and online
+  leaderboards and ratings, chat, multiplayer rooms, the Nocturnal Dream theme
+  and a few starter songs.
+
 > **This is just StepMania 3.9.**  The 2004 release, nothing new: the same
 > features, the same gameplay, the same look.  Your 3.9 songs, themes,
 > noteskins, announcers, courses, settings and profiles work as they are, with
@@ -91,16 +102,16 @@ Ready-made builds are on the
 [Releases](https://github.com/twinklingwitch/stepmania-3.9a/releases) page.
 There are two flavors, the [two builds](#two-builds):
 
-- **vanilla**, `StepMania-3.9-<version>-<system>.zip`: plain StepMania 3.9 with
-  the fixes (`-Dextras=false`): no Wife scoring, MSD, leaderboards, online
-  scores, chat or rooms.
-- **aura**, `StepMania-3.9a-<version>-<system>.zip`: 3.9a, everything in this
-  README.
+- **vanilla**, `StepMania-3.9-<version>-<system>.zip`: basically 3.9, with the
+  fixes (`-Dextras=false`): no Wife scoring, MSD, leaderboards, online scores,
+  chat or rooms, 3.9's own themes and no songs.
+- **aura**, `StepMania-3.9a-<version>-<system>.zip`: 3.9a, with all the new
+  goodies in this README.
 
 Each comes for `windows-x64`, `linux-x64` and `macos-arm64`.  The zip holds a
 game folder (on macOS an app) that runs as it is: the game, the libraries it
-needs, and the themes, noteskins, announcers, courses and the three songs that
-come with the game.  Put your own songs in its `Songs` folder (see [Where
+needs, and the themes, noteskins, announcers and courses that come with it, plus
+three songs in aura.  Put your own songs in its `Songs` folder (see [Where
 user files go](#where-user-files-go) for where they go if the folder isn't
 writable).  The two flavors can be installed side by side, and keep their
 settings apart.
