@@ -341,6 +341,10 @@ protected:
 	const RageMatrix* GetViewTop();
 	const RageMatrix* GetWorldTop();
 	const RageMatrix* GetTextureTop();
+
+	/* Changes whenever the centering, projection, view or texture matrix may
+	 * have changed (but not the world matrix). */
+	unsigned GetCameraMatrixGeneration() const;
 };
 
 

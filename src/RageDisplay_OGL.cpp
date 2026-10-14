@@ -328,6 +328,9 @@ namespace
 		bool bMatricesSent;	// SendCurrentMatrices has run in this context (kept by Invalidate)
 		bool bProjectionValid, bModelViewValid, bTextureMatrixValid[MAX_TEXTURE_UNITS];
 		RageMatrix Projection, ModelView, TextureMatrix[MAX_TEXTURE_UNITS];
+		/* GetCameraMatrixGeneration() when Projection and TextureMatrix were last
+		 * known to match the current matrices. */
+		unsigned iProjectionGen, iTextureMatrixGen[MAX_TEXTURE_UNITS];
 
 		int iActiveUnit;
 		int iTexture2D[MAX_TEXTURE_UNITS];
@@ -856,16 +859,24 @@ static void LoadMatrix( GLenum mode, const RageMatrix &m, bool &bValid, RageMatr
 
 void RageDisplay_OGL::SendCurrentMatrices()
 {
-	LoadMatrix( GL_PROJECTION, *GetProjectionTop(), g_State.bProjectionValid, g_State.Projection );
-	/* The centering and view matrices rarely change; keep their product. */
-	static bool bCenteringViewValid = false;
-	static RageMatrix Centering, View, CenteringView;
-	if( !bCenteringViewValid || memcmp(&Centering, GetCentering(), sizeof(RageMatrix)) ||
-		memcmp(&View, GetViewTop(), sizeof(RageMatrix)) )
+	/* Usually only the world matrix changes from one draw to the next.  The
+	 * others are only compared with what we sent if they may have changed. */
+	const unsigned iGen = GetCameraMatrixGeneration();
+
+	if( !g_State.bProjectionValid || g_State.iProjectionGen != iGen )
 	{
-		Centering = *GetCentering();
-		View = *GetViewTop();
-		RageMatrixMultiply( &CenteringView, &Centering, &View );
+		LoadMatrix( GL_PROJECTION, *GetProjectionTop(), g_State.bProjectionValid, g_State.Projection );
+		g_State.iProjectionGen = iGen;
+	}
+
+	/* Keep the product of the centering and view matrices. */
+	static bool bCenteringViewValid = false;
+	static unsigned iCenteringViewGen;
+	static RageMatrix CenteringView;
+	if( !bCenteringViewValid || iCenteringViewGen != iGen )
+	{
+		RageMatrixMultiply( &CenteringView, GetCentering(), GetViewTop() );
+		iCenteringViewGen = iGen;
 		bCenteringViewValid = true;
 	}
 
@@ -880,8 +891,11 @@ void RageDisplay_OGL::SendCurrentMatrices()
 		SetMatrixMode( GL_TEXTURE );
 		glLoadMatrixf( (const float*)GetTextureTop() );
 	}
-	else
+	else if( !g_State.bTextureMatrixValid[iUnit] || g_State.iTextureMatrixGen[iUnit] != iGen )
+	{
 		LoadMatrix( GL_TEXTURE, *GetTextureTop(), g_State.bTextureMatrixValid[iUnit], g_State.TextureMatrix[iUnit] );
+		g_State.iTextureMatrixGen[iUnit] = iGen;
+	}
 	g_State.bMatricesSent = true;
 }
 

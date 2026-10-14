@@ -310,9 +310,12 @@ class MatrixStack
 {
 	vector<RageMatrix> stack;
 public:
+	/* Incremented whenever the top of the stack changes. */
+	unsigned m_iGeneration;
 
 	MatrixStack()
 	{
+		m_iGeneration = 0;
 		stack.push_back( RageMatrixIdentity() );
 	}
 
@@ -321,6 +324,7 @@ public:
 	{
 		stack.pop_back();
 		ASSERT( stack.size() > 0 );	// underflow
+		++m_iGeneration;
 	}
 
     // Pushes the stack by one, duplicating the current matrix.
@@ -334,12 +338,14 @@ public:
     void LoadIdentity()
 	{
 		RageMatrixIdentity( &stack.back() );
+		++m_iGeneration;
 	}
 
     // Loads the given matrix into the current matrix
     void LoadMatrix( const RageMatrix& m )
 	{
 		stack.back() = m;
+		++m_iGeneration;
 	}
 
     // Right-Multiplies the given matrix to the current matrix.
@@ -347,6 +353,7 @@ public:
     void MultMatrix( const RageMatrix& m )
 	{
 		RageMatrixMultiply( &stack.back(), &m, &stack.back() );
+		++m_iGeneration;
 	}
 
     // Left-Multiplies the given matrix to the current matrix
@@ -354,6 +361,7 @@ public:
     void MultMatrixLocal( const RageMatrix& m )
 	{
 		RageMatrixMultiply( &stack.back(), &stack.back(), &m );
+		++m_iGeneration;
 	}
 
     // Right multiply the current matrix with the computed rotation
@@ -422,6 +430,7 @@ public:
 			m.m[1][i] *= y;
 			m.m[2][i] *= z;
 		}
+		++m_iGeneration;
 	}
 
     // Right multiply the current matrix with the computed translation
@@ -442,6 +451,7 @@ public:
 		RageMatrix &m = stack.back();
 		for( int i=0; i<4; i++ )
 			m.m[3][i] = x*m.m[0][i] + y*m.m[1][i] + z*m.m[2][i] + m.m[3][i];
+		++m_iGeneration;
 	}
 
     // Obtain the current matrix at the top of the stack
@@ -472,6 +482,15 @@ const RageMatrix* RageDisplay::GetWorldTop()
 const RageMatrix* RageDisplay::GetTextureTop()
 {
 	return g_TextureStack.GetTop();
+}
+
+static unsigned g_iCenteringGeneration = 0;
+
+unsigned RageDisplay::GetCameraMatrixGeneration() const
+{
+	/* Each of these only goes up, so the sum only stays the same if none changed. */
+	return g_iCenteringGeneration + g_ProjectionStack.m_iGeneration +
+		g_ViewStack.m_iGeneration + g_TextureStack.m_iGeneration;
 }
 
 void RageDisplay::PushMatrix() 
@@ -671,6 +690,7 @@ void RageDisplay::ChangeCentering( int trans_x, int trans_y, float scale_x, floa
 	RageMatrixTranslation( &m1, float(trans_x), float(trans_y), 0 );
 	RageMatrixScaling( &m2, scale_x, scale_y, 1 );
 	RageMatrixMultiply( &m_Centering, &m1, &m2 );
+	++g_iCenteringGeneration;
 }
 
 bool RageDisplay::SaveScreenshot( CString sPath, GraphicsFileFormat format )
