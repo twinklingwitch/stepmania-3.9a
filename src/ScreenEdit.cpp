@@ -1856,9 +1856,9 @@ void ScreenEdit::HandleAreaMenuChoice( AreaMenuChoice c, int* iAnswers )
 				const NoteData OldClipboard( m_Clipboard );
 				HandleAreaMenuChoice( cut, NULL );
 				
-				AlterType at = (AlterType)iAnswers[c];
+				TempoType tt = (TempoType)iAnswers[c];
 				float fScale = -1;
-				switch( at )
+				switch( tt )
 				{
 				case compress_2x:	fScale = 0.5f;		break;
 				case compress_3_2:	fScale = 2.0f/3;	break;
@@ -1871,7 +1871,7 @@ void ScreenEdit::HandleAreaMenuChoice( AreaMenuChoice c, int* iAnswers )
 
 				m_Clipboard.ConvertHoldNotesTo2sAnd3s();
 
-				switch( at )
+				switch( tt )
 				{
 				case compress_2x:	NoteDataUtil::Scale( m_Clipboard, fScale );	break;
 				case compress_3_2:	NoteDataUtil::Scale( m_Clipboard, fScale );	break;
