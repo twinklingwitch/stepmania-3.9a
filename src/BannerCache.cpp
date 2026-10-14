@@ -107,10 +107,11 @@ BannerCache::BannerCache()
 	m_bIndexDirty = false;
 }
 
+/* This only happens when quitting.  The banners in memory are left to the OS:
+ * with a big library, freeing them one by one held up quitting. */
 BannerCache::~BannerCache()
 {
 	WriteIndex();
-	UnloadAllBanners();
 }
 
 void BannerCache::WriteIndex()

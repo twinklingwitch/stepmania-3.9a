@@ -789,7 +789,8 @@ int main(int argc, char* argv[])
 	SAFE_DELETE( UNLOCKMAN );
 	SAFE_DELETE( CRYPTMAN );
 	SAFE_DELETE( MEMCARDMAN );
-	SAFE_DELETE( SONGMAN );
+	/* SONGMAN isn't deleted: the song library is only memory, and freeing it one
+	 * song at a time held up quitting with a big library.  The OS takes it back. */
 	SAFE_DELETE( BANNERCACHE );
 	SAFE_DELETE( SONGINDEX );
 	SAFE_DELETE( SOUND ); /* uses GAMESTATE, PREFSMAN */
