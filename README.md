@@ -86,6 +86,9 @@ The few intentional differences:
 - In 3.9a, in dance, Player 1's Left, Down, Up and Right are also on `D`, `F`,
   `J` and `K` by default, besides the arrow keys.  Like the `+` key they go in the second
   slot of Config Key/Joy, and only if that slot and the key are free.
+- In 3.9a, Sound Volume starts at 70% instead of 3.9's 100%.  Songs are mastered
+  much louder than what most other programs play, so at 100% the game is
+  noticeably louder than everything else.
 - In 3.9a, Event Mode is on by default, so you can keep playing songs instead of being
   sent back to the title screen after the last stage.  Turn it off in the coin
   options for the arcade-style stage limit.
@@ -202,8 +205,8 @@ The same source builds two games:
   and results screens stay empty.  It keeps 3.9's keys and behavior: the
   Rate Up and Rate Down buttons are there for the key config but have no keys
   until you map them, `D`, `F`, `J` and `K` aren't dance keys, Remember
-  Options starts off, and Wait For Vsync, the menu timer and Event Mode start
-  as in 3.9 (on, on and off).  It comes with 3.9's own themes only, `default` and
+  Options starts off, and Wait For Vsync, the menu timer, Event Mode and Sound
+  Volume start as in 3.9 (on, on, off and 100%).  It comes with 3.9's own themes only, `default` and
   `techno`, and no songs: Nocturnal Dream and the Default song pack are
   3.9a's.
 

@@ -19,7 +19,13 @@
 
 PrefsManager*	PREFSMAN = NULL;	// global and accessable from anywhere in our program
 
+/* 3.9 plays at full scale, as the plain build still does.  Songs are mastered
+ * much louder than what other programs play, so 3.9a starts lower. */
+#if defined(WITHOUT_EXTRAS)
 const float DEFAULT_SOUND_VOLUME = 1.00f;
+#else
+const float DEFAULT_SOUND_VOLUME = 0.70f;
+#endif
 const CString DEFAULT_LIGHTS_DRIVER = "Null";
 
 
