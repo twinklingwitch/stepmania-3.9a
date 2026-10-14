@@ -50,6 +50,8 @@ public:
 	virtual void Post() = 0;
 	virtual bool Wait() = 0;
 	virtual bool TryWait() = 0;
+	/* Wait at most iMilliseconds; return false if that ran out first. */
+	virtual bool TimedWait( int iMilliseconds ) = 0;
 };
 
 /* These functions must be implemented by the thread implementation. */

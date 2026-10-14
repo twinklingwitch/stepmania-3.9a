@@ -114,6 +114,8 @@ public:
 	void Post();
 	void Wait( bool bFailOnTimeout=true );
 	bool TryWait();
+	/* Wait at most iMilliseconds; return false if that ran out first. */
+	bool TimedWait( int iMilliseconds );
 
 private:
 	SemaImpl *m_pSema;

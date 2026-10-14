@@ -52,6 +52,7 @@ public:
 	void Post();
 	bool Wait();
 	bool TryWait();
+	bool TimedWait( int iMilliseconds );
 
 private:
 	pthread_cond_t m_Cond;

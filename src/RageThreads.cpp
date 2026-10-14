@@ -584,6 +584,11 @@ bool RageSemaphore::TryWait()
 	return m_pSema->TryWait();
 }
 
+bool RageSemaphore::TimedWait( int iMilliseconds )
+{
+	return m_pSema->TimedWait( iMilliseconds );
+}
+
 
 /*
  * Copyright (c) 2001-2004 Glenn Maynard

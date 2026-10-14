@@ -62,10 +62,12 @@ struct DiscordShared
 	ChartMSDTable table;
 	float fAtRate[MINACALC_NUM_SKILLSETS];
 
-	bool bExited;
+	/* Posted to wake the thread when the game quits, and by the thread when it's done. */
+	RageSemaphore wake;
+	RageSemaphore exited;
 
 	DiscordShared(): mutex( "Discord" ), bQuit( false ), bEnabled( false ), iJob( 0 ), iKeyCount( 4 ), fRate( 0 ),
-		iJobDone( 0 ), bJobOK( false ), bExited( false ) { }
+		iJobDone( 0 ), bJobOK( false ), wake( "DiscordWake" ), exited( "DiscordExited" ) { }
 };
 
 /*
@@ -310,7 +312,7 @@ void Worker::Run()
 		}
 		if( !bEnabled )
 		{
-			usleep( 100000 );
+			m_Shared.wake.TimedWait( 100 );
 			continue;
 		}
 
@@ -318,7 +320,7 @@ void Worker::Run()
 		{
 			if( iNow < m_iNextTry )
 			{
-				usleep( 100000 );
+				m_Shared.wake.TimedWait( 100 );
 				continue;
 			}
 			Connect( sAppId, iNow );
@@ -326,11 +328,14 @@ void Worker::Run()
 				continue;
 		}
 
-		ReadFrames( 100, iNow );
+		ReadFrames( 0, iNow );
 
 		if( m_State == READY && (!m_bSentAny || sActivity != m_sSent) && iNow - m_iLastSend >= MIN_UPDATE_MS )
 			if( !SendActivity(sActivity) )
 				Disconnect( "connection closed", true );
+
+		/* Nap here rather than in the socket, so quitting can wake us. */
+		m_Shared.wake.TimedWait( 100 );
 	}
 
 	/* Quitting: clear the activity and give Discord a moment to take it. */
@@ -358,8 +363,7 @@ static int WorkerMain( void *p )
 		Worker w( *pShared );
 		w.Run();
 	}
-	LockMut( pShared->mutex );
-	pShared->bExited = true;
+	pShared->exited.Post();
 	return 0;
 }
 
@@ -396,25 +400,11 @@ DiscordPresence::~DiscordPresence()
 		LockMut( m_pShared->mutex );
 		m_pShared->bQuit = true;
 	}
+	m_pShared->wake.Post();
 
 	/* The thread never waits long on anything, but don't hang the exit on
 	 * Discord: if it doesn't finish in time, leave it be. */
-	for( int i = 0; i < 150; ++i )
-	{
-		{
-			LockMut( m_pShared->mutex );
-			if( m_pShared->bExited )
-				break;
-		}
-		usleep( 10000 );
-	}
-
-	bool bExited;
-	{
-		LockMut( m_pShared->mutex );
-		bExited = m_pShared->bExited;
-	}
-	if( !bExited )
+	if( !m_pShared->exited.TimedWait(1500) )
 		return;	// m_pShared and m_pThread are left to the thread
 	m_pThread->Wait();
 	delete m_pThread;

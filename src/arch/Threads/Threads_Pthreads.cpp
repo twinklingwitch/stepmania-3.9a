@@ -328,6 +328,35 @@ bool SemaImpl_Pthreads::TryWait()
 	return true;
 }
 
+bool SemaImpl_Pthreads::TimedWait( int iMilliseconds )
+{
+	timeval tv;
+	gettimeofday( &tv, NULL );
+
+	timespec ts;
+	ts.tv_sec = tv.tv_sec + iMilliseconds / 1000;
+	ts.tv_nsec = tv.tv_usec * 1000 + (iMilliseconds % 1000) * 1000000;
+	if( ts.tv_nsec >= 1000000000 )
+	{
+		++ts.tv_sec;
+		ts.tv_nsec -= 1000000000;
+	}
+
+	pthread_mutex_lock( &m_Mutex );
+	while( !m_iValue )
+	{
+		if( pthread_cond_timedwait( &m_Cond, &m_Mutex, &ts ) == ETIMEDOUT )
+			break;
+	}
+
+	const bool bGot = m_iValue > 0;
+	if( bGot )
+		--m_iValue;
+	pthread_mutex_unlock( &m_Mutex );
+
+	return bGot;
+}
+
 SemaImpl *MakeSemaphore( int iInitialValue )
 {
 	return new SemaImpl_Pthreads( iInitialValue );
