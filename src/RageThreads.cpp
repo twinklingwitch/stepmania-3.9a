@@ -80,9 +80,35 @@ void ThreadSlot::ThreadCheckpoint::Set(const char *File_, int Line_, const char 
 	File=File_;
 	Line=Line_;
 	Message=Message_;
-	/* File is NULL until the checkpoint is first set. */
-	sprintf( FormattedBuf, "        %s:%i %s",
-		File? File:"(null)", Line, Message? Message:"" );
+
+	/* This is the same as sprintf "        %s:%i %s", but checkpoints are set
+	 * several times a frame, and sprintf is slow at it. */
+	char *p = FormattedBuf;
+	char * const pEnd = FormattedBuf + sizeof(FormattedBuf) - 1;
+	for( int i = 0; i < 8; ++i )
+		*p++ = ' ';
+	for( const char *s = File? File:"(null)"; *s && p < pEnd; )
+		*p++ = *s++;
+	if( p < pEnd )
+		*p++ = ':';
+
+	char digits[16];
+	int iDigits = 0;
+	unsigned uLine = Line < 0? 0u-unsigned(Line): unsigned(Line);
+	do {
+		digits[iDigits++] = char( '0' + uLine % 10 );
+		uLine /= 10;
+	} while( uLine );
+	if( Line < 0 )
+		digits[iDigits++] = '-';
+	while( iDigits && p < pEnd )
+		*p++ = digits[--iDigits];
+
+	if( p < pEnd )
+		*p++ = ' ';
+	for( const char *s = Message? Message:""; *s && p < pEnd; )
+		*p++ = *s++;
+	*p = 0;
 }
 
 const char *ThreadSlot::ThreadCheckpoint::GetFormattedCheckpoint()
