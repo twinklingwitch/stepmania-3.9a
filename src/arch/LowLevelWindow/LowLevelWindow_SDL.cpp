@@ -5,7 +5,6 @@
 #include "RageDisplay.h" // for REFRESH_DEFAULT
 #include "PrefsManager.h"
 #include "StepMania.h"
-#include "RageTimer.h"
 
 #if defined(DARWIN)
 #include <OpenGL/gl.h>
@@ -295,8 +294,7 @@ void LowLevelWindow_SDL::SwapBuffers()
 	 * latency is just the GPU's.  Finishing each frame here would keep the GPU
 	 * idle while we update and draw the next one, so let it draw this frame
 	 * meanwhile, but don't get more than that one frame ahead. */
-	static bool bOff = getenv("SM_FENCE_OFF") != NULL;	/* TEMP */
-	if( !CurrentParams.vsync && g_FenceSync && !bOff )
+	if( !CurrentParams.vsync && g_FenceSync )
 	{
 		Fence ThisFrame = g_FenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
 		if( g_LastFrame )
@@ -310,13 +308,7 @@ void LowLevelWindow_SDL::SwapBuffers()
 	}
 #endif
 
-	{ /* TEMP timing */
-	static double fTot = 0; static int n = 0;
-	const RageTimer t;
 	glFinish();
-	fTot += t.Ago();
-	if( ++n == 500 ) { LOG->Info( "FINISHTIME avg %.3f ms", fTot/n*1000 ); fTot = 0; n = 0; }
-	}
 }
 
 float LowLevelWindow_SDL::GetRefreshRate() const
