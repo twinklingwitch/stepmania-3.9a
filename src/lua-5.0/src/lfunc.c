@@ -18,14 +18,6 @@
 #include "lstate.h"
 
 
-#define sizeCclosure(n)	(cast(int, sizeof(CClosure)) + \
-                         cast(int, sizeof(TObject)*((n)-1)))
-
-#define sizeLclosure(n)	(cast(int, sizeof(LClosure)) + \
-                         cast(int, sizeof(TObject *)*((n)-1)))
-
-
-
 Closure *luaF_newCclosure (lua_State *L, int nelems) {
   Closure *c = cast(Closure *, luaM_malloc(L, sizeCclosure(nelems)));
   luaC_link(L, valtogco(c), LUA_TFUNCTION);

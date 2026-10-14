@@ -116,7 +116,7 @@ installed side by side: where a name of the 3.9a build would clash with plain
 go](#where-user-files-go)).  In a game folder of its own the executable is just
 `stepmania`.
 
-Lua 5.0 is bundled and built with the game.  Everything else comes from the
+Lua 5.0.3 is bundled and built with the game.  Everything else comes from the
 system and is found with pkg-config where possible.
 
 ## Installing
