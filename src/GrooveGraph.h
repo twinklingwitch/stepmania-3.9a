@@ -29,7 +29,7 @@ protected:
 		virtual void Update( float fDeltaTime );
 		virtual void DrawPrimitives();
 
-		void SetValues( float fNewValues[] );
+		void SetValues( float fNewValues[NUM_DIFFICULTIES] );
 
 		float m_fPercentTowardNew;
 		float m_fValuesNew[NUM_DIFFICULTIES];

@@ -40,7 +40,7 @@ static const CString EMPTY_STRING;
 #define XToString(X)	\
 	const CString& X##ToString( X x ) \
 	{	\
-		if( x == ARRAYSIZE(X##Names)+1 ) 	\
+		if( unsigned(x) == ARRAYSIZE(X##Names)+1 ) 	\
 			return EMPTY_STRING;	\
 		ASSERT(unsigned(x) < ARRAYSIZE(X##Names));	\
 		return X##Names[x];	\

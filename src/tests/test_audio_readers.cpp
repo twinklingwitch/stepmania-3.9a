@@ -138,7 +138,8 @@ bool compare_buffers( const int16_t *expect, const int16_t *got, int frames, int
 bool test_read( SoundReader *snd, const char *expected_data, int bytes )
 {
 	bytes = (bytes/4) * 4;
-	char buf[bytes];
+	vector<char> vBuf( bytes );
+	char *buf = &vBuf[0];
 	int got = snd->Read( buf, bytes );
 	ASSERT( got == bytes );
 
@@ -197,7 +198,8 @@ SoundReader *ApplyFilters( SoundReader *s, int filters )
 bool CheckSetPositionAccurate( SoundReader *snd )
 {
 	const int one_second=snd->GetSampleRate()*2*2;
-	char data[one_second];
+	vector<char> vData( one_second );
+	char *data = &vData[0];
 
 	snd->SetPosition_Accurate( 100 );
 	ReadData( snd, 100, data, one_second/10 );
@@ -302,7 +304,8 @@ bool RunTests( SoundReader *snd, const TestFile &tf )
 	 * seek functions. */
 	const int one_second_frames = snd->GetSampleRate();
 	const int one_second=one_second_frames*sizeof(int16_t)*2;
-	int16_t sdata[one_second_frames*2];
+	vector<int16_t> vSamples( one_second_frames*2 );
+	int16_t *sdata = &vSamples[0];
 	char *data = (char *) sdata;
 	memset( data, 0x42, one_second );
 	ReadData( snd, -1, data, one_second );

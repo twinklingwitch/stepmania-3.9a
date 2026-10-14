@@ -1050,7 +1050,7 @@ void Song::AddAutoGenNotes()
 		int iNumTracksOfMissing = GAMEMAN->StepsTypeToNumTracks(stMissing);
 
 		// look for closest match
-		StepsType	stBestMatch = (StepsType)-1;
+		StepsType	stBestMatch = STEPS_TYPE_INVALID;
 		int			iBestTrackDifference = 10000;	// inf
 
 		FOREACH_StepsType( st )
@@ -1068,7 +1068,7 @@ void Song::AddAutoGenNotes()
 			}
 		}
 
-		if( stBestMatch != -1 )
+		if( stBestMatch != STEPS_TYPE_INVALID )
 			AutoGen( stMissing, stBestMatch );
 	}
 }

@@ -30,7 +30,7 @@ float RandomFloat( int &seed )
 	if( seed < 0 )
 			seed += IM;
 
-	const float AM = .999999f / IM;
+	const float AM = .999999f / float(IM);
 	float ans = AM * seed;
 
 	seed ^= MASK;
