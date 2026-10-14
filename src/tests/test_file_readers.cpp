@@ -5,6 +5,8 @@
 #include "RageUtil_FileDB.h"
 #include "test_misc.h"
 
+#include <unistd.h>
+
 bool CreateTestFiles = false;
 
 void CreateBinaryTestFile( RageFile &f, int size )
@@ -322,7 +324,14 @@ int main( int argc, char *argv[] )
 {
 	test_handle_args( argc, argv );
 
-	optind = 0; // force getopt to reset
+	/* Start getopt over.  glibc (and mingw) do that for optind = 0; the BSDs and
+	 * macOS want optreset. */
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+	optreset = 1;
+	optind = 1;
+#else
+	optind = 0;
+#endif
 	while( 1 )
 	{
 		opterr = 0;

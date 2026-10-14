@@ -37,7 +37,7 @@ void find( const char *haystack, int hs, const char *needle, int ns )
 
 void dump_bin( const char *fn, const char *buf, int size )
 {
-	int fd = open( fn, O_WRONLY|O_CREAT|O_TRUNC );
+	int fd = open( fn, O_WRONLY|O_CREAT|O_TRUNC, 0644 );
 	ASSERT( fd != -1 );
 	write( fd, buf, size );
 	close( fd );
