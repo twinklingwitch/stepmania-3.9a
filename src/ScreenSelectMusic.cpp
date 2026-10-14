@@ -706,9 +706,28 @@ void ScreenSelectMusic::CheckBackgroundRequests()
 			return;
 	}
 
-	/* Loading the rest can cause small skips, so don't do it until the wheel settles. 
-	 * Do load if we're transitioning out, though, so we don't miss starting the music
-	 * for the options screen if a song is selected quickly. */
+	/* The music is opened and seeked in the music thread, so starting it can't make
+	 * the wheel skip; it doesn't have to wait for the wheel to stop gliding or for
+	 * the banner.  Do start it if we're transitioning out, so we don't miss starting
+	 * the music for the options screen if a song is selected quickly. */
+	if( g_bSampleMusicWaiting  &&  (m_MusicWheel.IsSelectionFinal() || m_Out.IsTransitioning()) )
+	{
+		/* Don't start the music sample when moving fast. */
+		if( g_StartedLoadingAt.Ago() >= SAMPLE_MUSIC_DELAY )
+		{
+			g_bSampleMusicWaiting = false;
+
+			SOUND->PlayMusic(
+				m_sSampleMusicToPlay, m_pSampleMusicTimingData,
+				true, m_fSampleStartSeconds, m_fSampleLengthSeconds,
+				1.5f, /* fade out for 1.5 seconds */
+				ALIGN_MUSIC_BEATS,
+				m_fSampleRate );
+		}
+	}
+
+	/* Loading the banner can cause a small skip, so don't do it until the wheel settles.
+	 * Do load if we're transitioning out, though. */
 	if( !m_MusicWheel.IsSettled() && !m_Out.IsTransitioning() )
 		return;
 
@@ -725,27 +744,6 @@ void ScreenSelectMusic::CheckBackgroundRequests()
 
 			m_BackgroundLoader.FinishedWithCachedFile( g_sBannerPath );
 		}
-		else
-			return;
-	}
-
-	/* Nothing else is going.  Start the music, if we havn't yet. */
-	if( g_bSampleMusicWaiting )
-	{
-		/* Don't start the music sample when moving fast. */
-		if( g_StartedLoadingAt.Ago() >= SAMPLE_MUSIC_DELAY )
-		{
-			g_bSampleMusicWaiting = false;
-
-			SOUND->PlayMusic(
-				m_sSampleMusicToPlay, m_pSampleMusicTimingData,
-				true, m_fSampleStartSeconds, m_fSampleLengthSeconds,
-				1.5f, /* fade out for 1.5 seconds */
-				ALIGN_MUSIC_BEATS,
-				m_fSampleRate );
-		}
-		else
-			return;
 	}
 }
 

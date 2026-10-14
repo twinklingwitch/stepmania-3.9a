@@ -54,6 +54,7 @@ public:
 	/* Return true if we're moving fast automatically. */
 	int IsMoving() const;
 	bool IsSettled() const;
+	bool IsSelectionFinal() const;
 
 	void NotesOrTrailChanged( PlayerNumber pn );	// update grade graphics and top score
 

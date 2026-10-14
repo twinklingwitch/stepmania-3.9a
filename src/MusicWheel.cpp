@@ -884,16 +884,21 @@ void MusicWheel::UpdateScrollbar()
 	}
 }
 
-bool MusicWheel::IsSettled() const
+/* The selection won't change by itself any more: nothing is held and we're not
+ * changing sorts.  The wheel may still be gliding into place. */
+bool MusicWheel::IsSelectionFinal() const
 {
 	if( m_Moving )
 		return false;
 	if( m_WheelState != STATE_SELECTING_MUSIC && m_WheelState != STATE_LOCKED )
 		return false;
-	if( m_fPositionOffsetFromSelection != 0 )
-		return false;
 
 	return true;
+}
+
+bool MusicWheel::IsSettled() const
+{
+	return IsSelectionFinal() && m_fPositionOffsetFromSelection == 0;
 }
 
 
