@@ -381,5 +381,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           notes='**StepMania-3.9** (vanilla) is plain StepMania 3.9 with the fixes.  **StepMania-3.9a** (aura) adds Wife scoring, online scores, chat and multiplayer rooms; on macOS it is StepMania-aura.app.  Each comes for Windows (x64), Linux (x64) and macOS (Apple Silicon); the README says what each needs.'
+          # A tag with a hyphen (v1.0.0-rc.1, v1.0.0-beta.2) is a pre-release.
+          pre=
+          case "$GITHUB_REF_NAME" in *-*) pre=--prerelease ;; esac
           gh release create "$GITHUB_REF_NAME" dist/*.zip --repo "$GITHUB_REPOSITORY" \
-            --verify-tag --title "$GITHUB_REF_NAME" --notes "$notes" --generate-notes
+            --verify-tag --title "$GITHUB_REF_NAME" --notes "$notes" --generate-notes $pre

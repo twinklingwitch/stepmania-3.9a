@@ -130,7 +130,9 @@ Push a tag that starts with `v`:
 systems, runs the tests, and makes a GitHub release for the tag with the six
 zips, named as above with the tag as the version, and notes generated from the
 pull requests and commits since the previous release.  It takes 10 to 15
-minutes.  If a build fails there is no release; fix it, then delete the tag
+minutes.  A tag with a hyphen after the version, like `v1.0.0-rc.1` or
+`v1.0.0-beta.2`, makes a pre-release, which GitHub labels as such and doesn't
+show as the latest release.  If a build fails there is no release; fix it, then delete the tag
 (`git push origin :v0.3.0`, `git tag -d v0.3.0`) and tag again.
 
 The same workflow can be started by hand to try the builds without making a
