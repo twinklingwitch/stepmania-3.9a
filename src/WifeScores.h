@@ -42,6 +42,10 @@ namespace WifeScores
 	/* Appends what the profile has to out. */
 	void Load( const CString &sProfileDir, vector<WifeScoreEntry> &out );
 	bool Add( const CString &sProfileDir, const WifeScoreEntry &e );
+	/* The score as Load will read it back from the file, which is not always
+	 * exactly what was added (numbers are written with six decimals).  False
+	 * if Load would skip it. */
+	bool AsLoaded( const WifeScoreEntry &e, const CString &sProfileDir, WifeScoreEntry &out );
 
 	/* The scores of one chart at one rate (at every rate if fRate is negative),
 	 * best first, with a score that is in more than one profile only once. */

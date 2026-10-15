@@ -18,6 +18,7 @@
 #include <set>
 
 class NoteData;
+class RageThread;
 class Song;
 class Steps;
 struct HighScore;
@@ -40,6 +41,13 @@ class WifeManager
 {
 public:
 	WifeManager();
+	~WifeManager();
+
+	/* Starts reading the score files of the players' profiles on a thread, so
+	 * the first leaderboard doesn't wait for a file of thousands of scores to
+	 * be read.  Whatever needs the scores waits for the thread if it isn't
+	 * done. */
+	void Preload();
 
 	/* The part Player uses while a song is played. */
 	void BeginSong( PlayerNumber pn, const NoteData &nd, const Song *pSong, const Steps *pSteps );
@@ -100,9 +108,17 @@ private:
 	PlayerData m_Player[NUM_PLAYERS];
 	WifeStageResult m_Result[NUM_PLAYERS];
 
-	/* What each profile directory's score file held when we last looked. */
+	/* What each profile directory's score file holds, kept up to date as scores
+	 * are added. */
 	std::map< CString, vector<WifeScoreEntry> > m_Cache;
 	const vector<WifeScoreEntry> &GetScores( const CString &sProfileDir );
+	void AddToCache( const CString &sProfileDir, const WifeScoreEntry &e, bool bAdded );
+
+	RageThread *m_pPreload;
+	vector<CString> m_PreloadDirs;
+	vector< vector<WifeScoreEntry> > m_PreloadScores;
+	static int PreloadMain( void *p );
+	void FinishPreload();
 	CString GetProfileDir( PlayerNumber pn ) const;
 	void GetAllProfileDirs( vector<CString> &out ) const;
 };

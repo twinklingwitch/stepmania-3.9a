@@ -10,6 +10,7 @@
 #include "ProfileManager.h"
 #include "RageFileManager.h"
 #include "RageLog.h"
+#include "RageThreads.h"
 #include "RageUtil.h"
 #include "Steps.h"
 #include "song.h"
@@ -21,6 +22,12 @@ WifeManager *WIFE = NULL;	// global and accessable from anywhere in our program
 
 WifeManager::WifeManager()
 {
+	m_pPreload = NULL;
+}
+
+WifeManager::~WifeManager()
+{
+	FinishPreload();
 }
 
 /* The song's BPM changes in the form chart keys want them. */
@@ -212,8 +219,55 @@ void WifeManager::GetAllProfileDirs( vector<CString> &out ) const
 		}
 }
 
+int WifeManager::PreloadMain( void *p )
+{
+	WifeManager *pThis = (WifeManager *) p;
+	for( unsigned i=0; i<pThis->m_PreloadDirs.size(); i++ )
+		WifeScores::Load( pThis->m_PreloadDirs[i], pThis->m_PreloadScores[i] );
+	return 0;
+}
+
+void WifeManager::Preload()
+{
+	FinishPreload();
+
+	vector<CString> vDirs;
+	FOREACH_PlayerNumber( pn )
+	{
+		if( !GAMESTATE->IsHumanPlayer(pn) )
+			continue;
+		const CString sDir = GetProfileDir( pn );
+		if( m_Cache.find(sDir) == m_Cache.end()  &&  std::find(vDirs.begin(), vDirs.end(), sDir) == vDirs.end() )
+			vDirs.push_back( sDir );
+	}
+	if( vDirs.empty() )
+		return;
+
+	m_PreloadDirs = vDirs;
+	m_PreloadScores.clear();
+	m_PreloadScores.resize( vDirs.size() );
+	m_pPreload = new RageThread;
+	m_pPreload->SetName( "Wife scores" );
+	m_pPreload->Create( PreloadMain, this );
+}
+
+/* Wait for the thread, and keep what it read.  Anything that adds a score has
+ * to do this first: what the thread read may or may not have that score. */
+void WifeManager::FinishPreload()
+{
+	if( m_pPreload == NULL )
+		return;
+	m_pPreload->Wait();
+	SAFE_DELETE( m_pPreload );
+	for( unsigned i=0; i<m_PreloadDirs.size(); i++ )
+		m_Cache.insert( std::make_pair(m_PreloadDirs[i], m_PreloadScores[i]) );
+	m_PreloadDirs.clear();
+	m_PreloadScores.clear();
+}
+
 const vector<WifeScoreEntry> &WifeManager::GetScores( const CString &sProfileDir )
 {
+	FinishPreload();
 	std::map< CString, vector<WifeScoreEntry> >::iterator it = m_Cache.find( sProfileDir );
 	if( it == m_Cache.end() )
 	{
@@ -245,8 +299,26 @@ void WifeManager::GetLeaderboard( PlayerNumber pn, const CString &sChartKey, flo
 	WifeScores::ForChart( all, sChartKey, fRate, out );
 }
 
+/* bAdded is whether the score made it to the file.  If not, the file is what
+ * counts, as it would be if it were read again. */
+void WifeManager::AddToCache( const CString &sProfileDir, const WifeScoreEntry &e, bool bAdded )
+{
+	std::map< CString, vector<WifeScoreEntry> >::iterator it = m_Cache.find( sProfileDir );
+	if( it == m_Cache.end() )
+		return;
+	WifeScoreEntry loaded;
+	if( bAdded )
+	{
+		if( WifeScores::AsLoaded(e, sProfileDir, loaded) )
+			it->second.push_back( loaded );
+	}
+	else
+		m_Cache.erase( it );
+}
+
 void WifeManager::RecordStage( PlayerNumber pn, const Song *pSong, const Steps *pSteps, HighScore &hs )
 {
+	FinishPreload();
 	PlayerData &p = m_Player[pn];
 	m_Result[pn] = WifeStageResult();
 	if( !p.bScored )
@@ -281,17 +353,16 @@ void WifeManager::RecordStage( PlayerNumber pn, const Song *pSong, const Steps *
 	p.replay.Write( WifeScores::GetReplayDir(sOwnerDir) + sScoreKey );
 	FlushDirCache();
 
+	/* The scores read already get the new one, as they would read it from the file. */
 	if( PROFILEMAN->IsUsingProfile(pn) )
 	{
-		WifeScores::Add( sOwnerDir, e );
-		m_Cache.erase( sOwnerDir );
+		AddToCache( sOwnerDir, e, WifeScores::Add(sOwnerDir, e) );
 	}
 	/* The machine keeps scores for everything but edits, like 3.9's machine high scores. */
 	if( pSteps->GetDifficulty() != DIFFICULTY_EDIT )
 	{
 		const CString sMachineDir = PROFILEMAN->GetProfileDir( PROFILE_SLOT_MACHINE );
-		WifeScores::Add( sMachineDir, e );
-		m_Cache.erase( sMachineDir );
+		AddToCache( sMachineDir, e, WifeScores::Add(sMachineDir, e) );
 	}
 
 	WifeStageResult &r = m_Result[pn];

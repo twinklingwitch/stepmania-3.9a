@@ -3,6 +3,7 @@
 #include "XmlFile.h"
 #include "RageUtil.h"
 #include "RageLog.h"
+#include "RageFile.h"
 
 #include <algorithm>
 #include <math.h>
@@ -81,9 +82,65 @@ void WifeScores::Load( const CString &sProfileDir, vector<WifeScoreEntry> &out )
 	}
 }
 
+/* Put a score in front of the closing tag of a file the way Add writes it,
+ * without reading it as XML: with thousands of scores that is most of what
+ * adding one costs.  The whole file is written out again, to a temporary file
+ * that replaces it when it's done (as RageFile does), so it can't be left
+ * half written.  False if the file isn't what Add writes, in which case it
+ * has not been touched. */
+static bool AppendScore( const CString &sFile, const WifeScoreEntry &e )
+{
+	CString sOld;
+	{
+		RageFile f;
+		if( !f.Open(sFile) )
+			return false;
+		if( f.Read(sOld) == -1 )
+			return false;
+	}
+
+	static const char szClose[] = "</WifeScores>";
+	const size_t iCloseLen = sizeof(szClose) - 1;
+	const size_t iLast = sOld.find_last_not_of( " \t\r\n" );
+	if( iLast == CString::npos  ||  iLast + 1 < iCloseLen )
+		return false;
+	size_t iAt = iLast + 1 - iCloseLen;
+	if( sOld.compare(iAt, iCloseLen, szClose) != 0 )
+		return false;
+	const size_t iRoot = sOld.find( "<WifeScores>" );
+	if( iRoot == CString::npos  ||  iRoot >= iAt )
+		return false;
+
+	/* The writer puts every tag on a line of its own, and the closing tag
+	 * after the last score. */
+	while( iAt > iRoot  &&  strchr(" \t\r\n", sOld[iAt-1]) )
+		--iAt;
+
+	DISP_OPT opts;
+	opts.stylesheet = "";
+	opts.write_tabs = false;
+	CString sNode;
+	XNode *pNode = e.CreateNode();
+	pNode->GetXML( sNode, &opts );
+	delete pNode;
+
+	RageFile f;
+	if( !f.Open(sFile, RageFile::WRITE) )
+		return false;
+	if( f.Write(sOld.data(), iAt) == -1  ||  f.Write(sNode) == -1  ||  f.Write("\r\n</WifeScores>") == -1 )
+		return false;
+	return f.Flush() != -1;
+}
+
 bool WifeScores::Add( const CString &sProfileDir, const WifeScoreEntry &e )
 {
 	const CString sFile = GetScoresFile( sProfileDir );
+
+	if( IsAFile(sFile)  &&  AppendScore(sFile, e) )
+	{
+		FlushDirCache();
+		return true;
+	}
 
 	XNode xml;
 	if( IsAFile(sFile) )
@@ -110,6 +167,26 @@ bool WifeScores::Add( const CString &sProfileDir, const WifeScoreEntry &e )
 	}
 	FlushDirCache();
 	return true;
+}
+
+/* What Load makes of a score once it has been through the file. */
+bool WifeScores::AsLoaded( const WifeScoreEntry &e, const CString &sProfileDir, WifeScoreEntry &out )
+{
+	DISP_OPT opts;
+	opts.stylesheet = "";
+	opts.write_tabs = false;
+	CString sXml;
+	XNode *pNode = e.CreateNode();
+	pNode->GetXML( sXml, &opts );
+	delete pNode;
+
+	XNode xml;
+	if( xml.Load(sXml) == NULL )
+		return false;
+	out = WifeScoreEntry();
+	out.LoadFromNode( &xml );
+	out.sFromDir = sProfileDir;
+	return !out.sScoreKey.empty() && !out.sChartKey.empty();
 }
 
 /* Best first; on a tie the older score is ahead, and then by key so the order

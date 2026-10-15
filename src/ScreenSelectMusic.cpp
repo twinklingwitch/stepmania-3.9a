@@ -29,6 +29,7 @@
 #include "ChartInfo.h"
 #if !defined(WITHOUT_EXTRAS)
 #include "ChartMSD.h"
+#include "WifeManager.h"
 #endif
 
 
@@ -236,6 +237,12 @@ ScreenSelectMusic::ScreenSelectMusic( CString sClassName ) : ScreenWithMenuEleme
 		SET_XY( m_textInfo[i] );
 		this->AddChild( &m_textInfo[i] );
 	}
+#if !defined(WITHOUT_EXTRAS)
+	/* The best Wife score is looked up once the selection settles, and the
+	 * file it comes from can be big: have it read while the screen is made. */
+	if( PREFSMAN->m_bWife  &&  m_bShowInfo[INFO_BEST] )
+		WIFE->Preload();
+#endif
 	m_pInfoSteps = NULL;
 	m_fInfoRate = -1;
 	m_fInfoSettled = 0;
