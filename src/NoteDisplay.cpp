@@ -1012,9 +1012,9 @@ void NoteDisplay::DrawMineUnderlay( int iCol, float fBeat, float fPercentFadeToF
 	if( fFade <= 0 )
 		return;
 
-	/* Half the width of the stock mine's ~50px ring, so it stays hidden
-	 * under smaller custom mines too. */
-	const float fOuter = 12.5f, fMiddle = 10.5f, fInner = 8.5f;
+	/* About two thirds the width of the stock mine's ~50px ring, so it stays
+	 * hidden under smaller custom mines too. */
+	const float fOuter = 16, fMiddle = 13.5f, fInner = 11;
 
 	DISPLAY->PushMatrix();
 	DISPLAY->Translate( fXPos, fYPos, fZPos );
