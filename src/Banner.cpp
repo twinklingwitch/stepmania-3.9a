@@ -31,12 +31,17 @@ Banner::Banner()
 	}
 }
 
-bool Banner::Load( RageTextureID ID )
+RageTextureID Banner::LoadID( RageTextureID ID )
 {
 	if( ID.filename == "" )
 		ID = THEME->GetPathToG("Common fallback banner");
 
-	ID = SongBannerTexture(ID);
+	return SongBannerTexture(ID);
+}
+
+bool Banner::Load( RageTextureID ID )
+{
+	ID = LoadID( ID );
 
 	m_fPercentScrolling = 0;
 	m_bScrolling = false;

@@ -6,6 +6,7 @@
 #define RAGE_TEXTURE_MANAGER_H
 
 #include "RageTexture.h"
+#include "RageThreads.h"
 
 #include <map>
 
@@ -59,6 +60,25 @@ public:
 
 	RageTexture* LoadTexture( RageTextureID ID );
 	bool IsTextureRegistered( RageTextureID ID ) const;
+
+	/* Decode a texture on a background thread, so that the main thread only
+	 * has to upload it.  Once it's done, the texture is registered with no
+	 * references, as VolatileTexture would leave it, and LoadTexture is quick.
+	 * This is for banners, and not for movies.
+	 *
+	 * Returns a ticket for IsLoadingAsync and CancelLoadAsync, or 0 if the
+	 * texture can't be loaded this way, in which case it has to be loaded the
+	 * usual way.  Every non-zero ticket must be handed back to CancelLoadAsync,
+	 * unless IsLoadingAsync has returned false for it. */
+	int LoadTextureAsync( RageTextureID ID );
+
+	/* True until the texture is registered, or the load is dropped (because the
+	 * display or the texture preferences changed meanwhile; the caller should
+	 * load it the usual way instead). */
+	bool IsLoadingAsync( int iTicket ) const;
+
+	/* Not interested in the texture any more: don't register it. */
+	void CancelLoadAsync( int iTicket );
 	void RegisterTexture( RageTextureID ID, RageTexture *p );
 	void CacheTexture( RageTextureID ID );
 	void VolatileTexture( RageTextureID ID );
@@ -95,6 +115,23 @@ protected:
 	RageTextureManagerPrefs m_Prefs;
 
 	RageTexture* LoadTextureInternal( RageTextureID ID );
+
+	/* The loader thread: it takes jobs off m_AsyncJobs and decodes them.  The
+	 * main thread picks up the finished ones in Update.  m_AsyncMutex guards
+	 * everything in this block. */
+	struct AsyncJob;
+	vector<AsyncJob*> m_AsyncJobs;
+	mutable RageMutex m_AsyncMutex;
+	RageSemaphore m_AsyncSem;
+	RageThread m_AsyncThread;
+	volatile bool m_bAsyncQuit;
+	int m_iAsyncNextTicket;
+	int m_iAsyncGeneration;		// jobs made before the display changed are stale
+
+	void StartAsyncThread();
+	void AsyncThread();
+	static int AsyncThread_Start( void *p ) { ((RageTextureManager *) p)->AsyncThread(); return 0; }
+	void FinishAsyncJobs();
 
 	std::map<RageTextureID, RageTexture*> m_mapPathToTexture;
 

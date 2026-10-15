@@ -6,12 +6,45 @@
 #define RAGEBITMAPTEXTURE_H
 
 #include "RageTexture.h"
+#include "RageDisplay.h"
 struct SDL_Surface;
+struct RageSurface;
 
 class RageBitmapTexture : public RageTexture
 {
 public:
+	/* Loading an image takes two steps: Decode reads and converts the file, and
+	 * the constructor uploads the result.  Only the upload needs the display, so
+	 * Decode can run on another thread, if it's handed what it needs to know
+	 * about the display (made on the main thread) rather than asking DISPLAY. */
+	struct DisplayInfo
+	{
+		int iMaxTextureSize;
+		bool bSupports[RageDisplay::NUM_PIX_FORMATS];
+		RageDisplay::PixelFormatDesc desc[RageDisplay::NUM_PIX_FORMATS];
+
+		void Fetch();	// from DISPLAY
+	};
+
+	/* An image that's been decoded and is ready to upload. */
+	struct Decoded
+	{
+		RageSurface *img;
+		RageTextureID ID;	// as adjusted by the hints
+		RageDisplay::PixelFormat pixfmt;
+		int iSourceWidth, iSourceHeight;
+		int iImageWidth, iImageHeight;
+		int iTextureWidth, iTextureHeight;
+		bool bOpaque;
+
+		Decoded(): img(NULL) { }
+		~Decoded();
+	};
+	static Decoded *Decode( const RageTextureID &ID, const DisplayInfo &info );
+
 	RageBitmapTexture( RageTextureID name );
+	/* Upload an image that was decoded earlier.  Takes ownership of pDecoded. */
+	RageBitmapTexture( RageTextureID name, Decoded *pDecoded );
 	virtual ~RageBitmapTexture();
 	/* only called by RageTextureManager::InvalidateTextures */
 	virtual void Invalidate() { m_uTexHandle = 0; /* don't Destroy() */}
@@ -20,6 +53,7 @@ public:
 
 private:
 	void Create();	// called by constructor and Reload
+	void Upload( Decoded *pDecoded );
 	void Destroy();
 	unsigned m_uTexHandle;	// treat as unsigned in OpenGL, ID3D8Texture* for D3D
 

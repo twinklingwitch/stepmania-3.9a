@@ -17,6 +17,9 @@ public:
 
 	virtual bool Load( RageTextureID ID );
 
+	/* The ID that Load uses for ID. */
+	static RageTextureID LoadID( RageTextureID ID );
+
 	virtual void Update( float fDeltaTime );
 
 	void LoadFromSong( Song* pSong );		// NULL means no song

@@ -19,8 +19,14 @@ FadingBanner::FadingBanner()
 	m_bMovingFast = false;
 	m_bSkipNextBannerUpdate = false;
 	m_iIndexFront = 0;
+	m_iAsyncTicket = 0;
 	for( int i=0; i<2; i++ )
 		this->AddChild( &m_Banner[i] );
+}
+
+FadingBanner::~FadingBanner()
+{
+	CancelAsync();
 }
 
 void FadingBanner::ScaleToClipped( float fWidth, float fHeight )
@@ -34,6 +40,9 @@ void FadingBanner::Update( float fDeltaTime )
 	// update children manually
 	// ActorFrame::Update( fDeltaTime );
 	Actor::Update( fDeltaTime );
+
+	if( m_iAsyncTicket )
+		CheckAsync();
 
 	if( !m_bSkipNextBannerUpdate )
 	{
@@ -59,8 +68,47 @@ bool FadingBanner::Load( RageTextureID ID )
 	return bRet;
 }
 
+void FadingBanner::LoadAsync( RageTextureID ID )
+{
+	CancelAsync();
+
+	ID = Banner::LoadID( ID );
+
+	/* Sprites that make their own textures can't be read ahead. */
+	if( ID.filename.Right(7) != ".sprite" )
+		m_iAsyncTicket = TEXTUREMAN->LoadTextureAsync( ID );
+
+	/* If the banner is already loaded, or can't be loaded in the background,
+	 * there's nothing to wait for. */
+	if( m_iAsyncTicket )
+		m_AsyncID = ID;
+	else
+		Load( ID );
+}
+
+void FadingBanner::CancelAsync()
+{
+	if( m_iAsyncTicket )
+		TEXTUREMAN->CancelLoadAsync( m_iAsyncTicket );
+	m_iAsyncTicket = 0;
+}
+
+void FadingBanner::CheckAsync()
+{
+	/* It's ready once it's registered.  It's also over if the load was dropped,
+	 * because the display changed meanwhile; then load it here. */
+	if( TEXTUREMAN->IsLoadingAsync(m_iAsyncTicket) && !TEXTUREMAN->IsTextureRegistered(m_AsyncID) )
+		return;
+
+	CancelAsync();
+	Load( m_AsyncID );
+}
+
 void FadingBanner::BeforeChange()
 {
+	/* Whatever's loading is out of date. */
+	CancelAsync();
+
 	m_Banner[m_iIndexFront].SetDiffuse( RageColor(1,1,1,1) );
 
 	m_iIndexFront = GetBackIndex();
@@ -82,6 +130,9 @@ bool FadingBanner::LoadFromCachedBanner( const CString &path )
 	/* If we're already on the given banner, don't fade again. */
 	if( path != "" && m_Banner[GetBackIndex()].GetTexturePath() == path )
 		return false;
+
+	/* We're moving off whatever was loading, even if we don't change the banner. */
+	CancelAsync();
 
 	if( path == "" )
 	{

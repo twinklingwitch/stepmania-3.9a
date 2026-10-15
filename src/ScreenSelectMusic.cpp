@@ -751,7 +751,7 @@ void ScreenSelectMusic::CheckBackgroundRequests()
 		{
 			g_bBannerWaiting = false;
 			RageTimer foo;
-			m_Banner.Load( sPath );
+			m_Banner.LoadAsync( sPath );
 
 			m_BackgroundLoader.FinishedWithCachedFile( g_sBannerPath );
 		}

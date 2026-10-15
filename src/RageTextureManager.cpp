@@ -42,8 +42,31 @@
 
 RageTextureManager*		TEXTUREMAN		= NULL;
 
-RageTextureManager::RageTextureManager()
+/* One request for LoadTextureAsync.  Everything here is guarded by m_AsyncMutex,
+ * except that ID and info never change once the job is made, so the loader
+ * thread can read them while it decodes. */
+struct RageTextureManager::AsyncJob
 {
+	int iTicket;
+	RageTextureID ID;
+	RageBitmapTexture::DisplayInfo info;
+	int iGeneration;
+	int iWanted;		// how many callers still want the result
+	bool bStarted;		// the loader thread has it
+	bool bDone;
+	RageBitmapTexture::Decoded *pDecoded;	// NULL if it wasn't decoded
+
+	AsyncJob(): iTicket(0), iGeneration(0), iWanted(0), bStarted(false), bDone(false), pDecoded(NULL) { }
+	~AsyncJob() { delete pDecoded; }
+};
+
+RageTextureManager::RageTextureManager():
+	m_AsyncMutex( "TextureLoaderMutex" ),
+	m_AsyncSem( "TextureLoaderSem" )
+{
+	m_bAsyncQuit = false;
+	m_iAsyncNextTicket = 1;
+	m_iAsyncGeneration = 0;
 	m_iNoWarnAboutOddDimensions = 0;
 	m_TexturePolicy = RageTextureID::TEX_DEFAULT;
 	m_bTexturesChanged = true;
@@ -51,6 +74,17 @@ RageTextureManager::RageTextureManager()
 
 RageTextureManager::~RageTextureManager()
 {
+	/* Wait for the loader thread, which may be in the middle of a decode, before
+	 * anything it could be using goes away. */
+	if( m_AsyncThread.IsCreated() )
+	{
+		m_bAsyncQuit = true;
+		m_AsyncSem.Post();
+		m_AsyncThread.Wait();
+	}
+	for( unsigned i = 0; i < m_AsyncJobs.size(); ++i )
+		delete m_AsyncJobs[i];
+
 	for( std::map<RageTextureID, RageTexture*>::iterator i = m_mapPathToTexture.begin();
 		i != m_mapPathToTexture.end(); ++i)
 	{
@@ -63,6 +97,8 @@ RageTextureManager::~RageTextureManager()
 
 void RageTextureManager::Update( float fDeltaTime )
 {
+	FinishAsyncJobs();
+
 	if( m_bTexturesChanged )
 	{
 		m_vTextures.clear();
@@ -141,6 +177,173 @@ RageTexture* RageTextureManager::LoadTextureInternal( RageTextureID ID )
 	m_bTexturesChanged = true;
 
 	return pTexture;
+}
+
+int RageTextureManager::LoadTextureAsync( RageTextureID ID )
+{
+	AdjustTextureID(ID);
+
+	/* Already loaded, so there's nothing to wait for. */
+	if( m_mapPathToTexture.find(ID) != m_mapPathToTexture.end() )
+		return 0;
+
+	CString sExt = GetExtension(ID.filename);
+	sExt.MakeLower();
+	if( sExt == "avi" || sExt == "mpg" || sExt == "mpeg" )
+		return 0;
+
+	StartAsyncThread();
+
+	LockMut( m_AsyncMutex );
+
+	/* If the same texture is already on its way, share it. */
+	for( unsigned i = 0; i < m_AsyncJobs.size(); ++i )
+	{
+		AsyncJob *pJob = m_AsyncJobs[i];
+		if( pJob->ID == ID && pJob->iGeneration == m_iAsyncGeneration )
+		{
+			++pJob->iWanted;
+			return pJob->iTicket;
+		}
+	}
+
+	AsyncJob *pJob = new AsyncJob;
+	pJob->iTicket = m_iAsyncNextTicket++;
+	pJob->ID = ID;
+	pJob->info.Fetch();	// the loader thread must not ask DISPLAY
+	pJob->iGeneration = m_iAsyncGeneration;
+	pJob->iWanted = 1;
+	m_AsyncJobs.push_back( pJob );
+	m_AsyncSem.Post();
+	return pJob->iTicket;
+}
+
+bool RageTextureManager::IsLoadingAsync( int iTicket ) const
+{
+	LockMut( m_AsyncMutex );
+	for( unsigned i = 0; i < m_AsyncJobs.size(); ++i )
+		if( m_AsyncJobs[i]->iTicket == iTicket )
+			return true;
+	return false;
+}
+
+void RageTextureManager::CancelLoadAsync( int iTicket )
+{
+	LockMut( m_AsyncMutex );
+	for( unsigned i = 0; i < m_AsyncJobs.size(); ++i )
+	{
+		AsyncJob *pJob = m_AsyncJobs[i];
+		if( pJob->iTicket != iTicket )
+			continue;
+
+		--pJob->iWanted;
+
+		/* If the thread hasn't started on it, it never will.  Otherwise, it has
+		 * the job; FinishAsyncJobs throws the result away when it's done. */
+		if( pJob->iWanted == 0 && !pJob->bStarted )
+		{
+			delete pJob;
+			m_AsyncJobs.erase( m_AsyncJobs.begin()+i );
+		}
+		return;
+	}
+}
+
+void RageTextureManager::StartAsyncThread()
+{
+	if( m_AsyncThread.IsCreated() )
+		return;
+	m_AsyncThread.SetName( "TextureLoader" );
+	m_AsyncThread.Create( AsyncThread_Start, this );
+}
+
+void RageTextureManager::AsyncThread()
+{
+	for(;;)
+	{
+		/* It's normal for this to wait for a long time; don't fail on timeout. */
+		m_AsyncSem.Wait( false );
+		if( m_bAsyncQuit )
+			break;
+
+		AsyncJob *pJob = NULL;
+		{
+			LockMut( m_AsyncMutex );
+			for( unsigned i = 0; i < m_AsyncJobs.size() && !pJob; ++i )
+			{
+				AsyncJob *pCheck = m_AsyncJobs[i];
+				if( pCheck->bStarted )
+					continue;
+				pCheck->bStarted = true;
+
+				/* Nobody wants it, or it's out of date; don't bother. */
+				if( pCheck->iWanted == 0 || pCheck->iGeneration != m_iAsyncGeneration )
+					pCheck->bDone = true;
+				else
+					pJob = pCheck;
+			}
+		}
+		if( pJob == NULL )
+			continue;
+
+		RageBitmapTexture::Decoded *pDecoded = RageBitmapTexture::Decode( pJob->ID, pJob->info );
+
+		LockMut( m_AsyncMutex );
+		pJob->pDecoded = pDecoded;
+		pJob->bDone = true;
+	}
+}
+
+/* Register the textures the loader thread has finished.  Uploading is what's
+ * left, and it's the slow part of that, so only do one a frame. */
+void RageTextureManager::FinishAsyncJobs()
+{
+	for(;;)
+	{
+		AsyncJob *pJob = NULL;
+		{
+			LockMut( m_AsyncMutex );
+			for( unsigned i = 0; i < m_AsyncJobs.size(); ++i )
+			{
+				if( !m_AsyncJobs[i]->bDone )
+					continue;
+				pJob = m_AsyncJobs[i];
+				m_AsyncJobs.erase( m_AsyncJobs.begin()+i );
+				break;
+			}
+		}
+		if( pJob == NULL )
+			return;
+
+		/* Use it only if it's still wanted, and what we'd load now is what it
+		 * was decoded for (the preferences may have changed).  A texture that
+		 * was loaded the usual way meanwhile wins. */
+		RageTextureID ID = pJob->ID;
+		RageTextureID Adjusted = ID;
+		AdjustTextureID( Adjusted );
+		bool bUse = pJob->pDecoded != NULL && pJob->iWanted > 0 && pJob->iGeneration == m_iAsyncGeneration &&
+			Adjusted == ID && m_mapPathToTexture.find(ID) == m_mapPathToTexture.end();
+
+		if( bUse )
+		{
+			RageBitmapTexture::Decoded *pDecoded = pJob->pDecoded;
+			pJob->pDecoded = NULL;	// the texture owns it now
+
+			DisableOddDimensionWarning();	// it's a banner
+			RageTexture *pTexture = new RageBitmapTexture( ID, pDecoded );
+			EnableOddDimensionWarning();
+
+			/* As VolatileTexture leaves it: loaded, but with no references. */
+			pTexture->m_iRefCount = 0;
+			pTexture->GetPolicy() = min( pTexture->GetPolicy(), RageTextureID::TEX_VOLATILE );
+			m_mapPathToTexture[ID] = pTexture;
+			m_bTexturesChanged = true;
+		}
+		delete pJob;
+
+		if( bUse )
+			return;
+	}
 }
 
 /* Load a normal texture.  Use this call to actually use a texture. */
@@ -283,6 +486,11 @@ void RageTextureManager::GarbageCollect( GCType type )
 
 void RageTextureManager::ReloadAll()
 {
+	{
+		LockMut( m_AsyncMutex );
+		++m_iAsyncGeneration;
+	}
+
 	TEXTUREMAN->DisableOddDimensionWarning();
 
 	/* Let's get rid of all unreferenced textures, so we don't reload a
@@ -306,6 +514,11 @@ void RageTextureManager::ReloadAll()
  * associated with a different texture).  Ack. */
 void RageTextureManager::InvalidateTextures()
 {
+	{
+		LockMut( m_AsyncMutex );
+		++m_iAsyncGeneration;
+	}
+
 	std::map<RageTextureID, RageTexture*>::iterator i;
 	for( i = m_mapPathToTexture.begin(); i != m_mapPathToTexture.end(); ++i)
 	{

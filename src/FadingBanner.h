@@ -11,10 +11,16 @@ class FadingBanner : public ActorFrame
 {
 public:
 	FadingBanner();
+	~FadingBanner();
 
 	void ScaleToClipped( float fWidth, float fHeight );
 
 	bool Load( RageTextureID ID );
+
+	/* Like Load, but for a banner that has to be read from disk: it's decoded in
+	 * the background, and what's showing now stays until it's ready.  Anything
+	 * else loaded in the meantime cancels it. */
+	void LoadAsync( RageTextureID ID );
 	void LoadFromSong( const Song* pSong );		// NULL means no song
 	void LoadAllMusic();
 	void LoadSort();
@@ -33,6 +39,8 @@ public:
 
 protected:
 	void BeforeChange();
+	void CancelAsync();
+	void CheckAsync();
 
 
 	Banner		m_Banner[2];
@@ -41,6 +49,9 @@ protected:
 
 	bool		m_bMovingFast;
 	bool		m_bSkipNextBannerUpdate;
+
+	int			m_iAsyncTicket;		// 0 if nothing is loading
+	RageTextureID	m_AsyncID;
 };
 
 #endif

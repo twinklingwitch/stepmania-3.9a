@@ -39,6 +39,28 @@ RageBitmapTexture::RageBitmapTexture( RageTextureID name ) :
 	Create();
 }
 
+RageBitmapTexture::RageBitmapTexture( RageTextureID name, Decoded *pDecoded ) :
+	RageTexture( name )
+{
+	Upload( pDecoded );
+}
+
+void RageBitmapTexture::DisplayInfo::Fetch()
+{
+	iMaxTextureSize = DISPLAY->GetMaxTextureSize();
+	for( int i = 0; i < RageDisplay::NUM_PIX_FORMATS; ++i )
+	{
+		const RageDisplay::PixelFormat fmt = (RageDisplay::PixelFormat) i;
+		bSupports[i] = DISPLAY->SupportsTextureFormat( fmt );
+		desc[i] = *DISPLAY->GetPixelFormatDesc( fmt );
+	}
+}
+
+RageBitmapTexture::Decoded::~Decoded()
+{
+	delete img;
+}
+
 RageBitmapTexture::~RageBitmapTexture()
 {
 	Destroy();
@@ -60,9 +82,9 @@ void RageBitmapTexture::Reload()
  * Dither forces dithering when loading 16-bit textures.
  * Stretch forces the loaded image to fill the texture completely.
  */
-void RageBitmapTexture::Create()
+RageBitmapTexture::Decoded *RageBitmapTexture::Decode( const RageTextureID &ID, const DisplayInfo &info )
 {
-	RageTextureID actualID = GetID();
+	RageTextureID actualID = ID;
 
 	/* Create (and return) a surface ready to be loaded to OpenGL */
 	/* Load the image into a RageSurface. */
@@ -93,7 +115,7 @@ void RageBitmapTexture::Create()
 	}
 
 	// look in the file name for a format hints
-	CString HintString = GetID().filename + actualID.AdditionalTextureHints;
+	CString HintString = ID.filename + actualID.AdditionalTextureHints;
 	HintString.MakeLower();
 
 	if( HintString.Find("32bpp") != -1 )			actualID.iColorDepth = 32;
@@ -119,51 +141,51 @@ void RageBitmapTexture::Create()
 		actualID.iGrayscaleBits = -1;
 
 	/* Cap the max texture size to the hardware max. */
-	actualID.iMaxSize = min( actualID.iMaxSize, DISPLAY->GetMaxTextureSize() );
+	actualID.iMaxSize = min( actualID.iMaxSize, info.iMaxTextureSize );
 
 	/* Save information about the source. */
-	m_iSourceWidth = img->w;
-	m_iSourceHeight = img->h;
+	const int iSourceWidth = img->w;
+	const int iSourceHeight = img->h;
 
 	/* image size cannot exceed max size */
-	m_iImageWidth = min( m_iSourceWidth, actualID.iMaxSize );
-	m_iImageHeight = min( m_iSourceHeight, actualID.iMaxSize );
+	int iImageWidth = min( iSourceWidth, actualID.iMaxSize );
+	int iImageHeight = min( iSourceHeight, actualID.iMaxSize );
 
 	/* Texture dimensions need to be a power of two; jump to the next. */
-	m_iTextureWidth = power_of_two(m_iImageWidth);
-	m_iTextureHeight = power_of_two(m_iImageHeight);
+	int iTextureWidth = power_of_two(iImageWidth);
+	int iTextureHeight = power_of_two(iImageHeight);
 
 	/* If we're under 8x8, increase it, to avoid filtering problems on odd hardware. */
-	if(m_iTextureWidth < 8 || m_iTextureHeight < 8)
+	if(iTextureWidth < 8 || iTextureHeight < 8)
 	{
 		actualID.bStretch = true;
-		m_iTextureWidth = max(8, m_iTextureWidth);
-		m_iTextureHeight = max(8, m_iTextureHeight);
+		iTextureWidth = max(8, iTextureWidth);
+		iTextureHeight = max(8, iTextureHeight);
 	}
 
-	ASSERT( m_iTextureWidth <= actualID.iMaxSize );
-	ASSERT( m_iTextureHeight <= actualID.iMaxSize );
+	ASSERT( iTextureWidth <= actualID.iMaxSize );
+	ASSERT( iTextureHeight <= actualID.iMaxSize );
 
 	if(actualID.bStretch)
 	{
 		/* The hints asked for the image to be stretched to the texture size,
 		 * probably for tiling. */
-		m_iImageWidth = m_iTextureWidth;
-		m_iImageHeight = m_iTextureHeight;
+		iImageWidth = iTextureWidth;
+		iImageHeight = iTextureHeight;
 	}
 
-	if( img->w != m_iImageWidth || img->h != m_iImageHeight ) 
-		RageSurfaceUtils::Zoom( img, m_iImageWidth, m_iImageHeight );
+	if( img->w != iImageWidth || img->h != iImageHeight ) 
+		RageSurfaceUtils::Zoom( img, iImageWidth, iImageHeight );
 
 	/* Mipmaps blend the transparent padding past the image into the image's
 	 * edges, and an alpha map is nothing but alpha. */
-	const bool bPadded = m_iImageWidth != m_iTextureWidth || m_iImageHeight != m_iTextureHeight;
-	m_bOpaque = bNoTransparency && actualID.iGrayscaleBits != 0 && !(actualID.bMipMaps && bPadded);
+	const bool bPadded = iImageWidth != iTextureWidth || iImageHeight != iTextureHeight;
+	const bool bOpaque = bNoTransparency && actualID.iGrayscaleBits != 0 && !(actualID.bMipMaps && bPadded);
 
 	// Format of the image that we will pass to OpenGL and that we want OpenGL to use
 	RageDisplay::PixelFormat pixfmt;
 
-	if( actualID.iGrayscaleBits != -1 && DISPLAY->SupportsTextureFormat(RageDisplay::FMT_PAL) )
+	if( actualID.iGrayscaleBits != -1 && info.bSupports[RageDisplay::FMT_PAL] )
 	{
 		RageSurface *dst = RageSurfaceUtils::PalettizeToGrayscale( img, actualID.iGrayscaleBits, actualID.iAlphaBits );
 
@@ -173,7 +195,7 @@ void RageBitmapTexture::Create()
 
 	/* Figure out which texture format to use. */
 	// if the source is palleted, load palleted no matter what the prefs
-	if(img->format->BitsPerPixel == 8 && DISPLAY->SupportsTextureFormat(RageDisplay::FMT_PAL))
+	if(img->format->BitsPerPixel == 8 && info.bSupports[RageDisplay::FMT_PAL])
 	{
 		pixfmt = RageDisplay::FMT_PAL;
 	}
@@ -210,10 +232,10 @@ void RageBitmapTexture::Create()
 	}
 
 	/* Make we're using a supported format. Every card supports either RGBA8 or RGBA4. */
-	if( !DISPLAY->SupportsTextureFormat(pixfmt) )
+	if( !info.bSupports[pixfmt] )
 	{
 		pixfmt = RageDisplay::FMT_RGBA8;
-		if( !DISPLAY->SupportsTextureFormat(pixfmt) )
+		if( !info.bSupports[pixfmt] )
 			pixfmt = RageDisplay::FMT_RGBA4;
 	}
 
@@ -225,7 +247,7 @@ void RageBitmapTexture::Create()
 		(pixfmt==RageDisplay::FMT_RGBA4 || pixfmt==RageDisplay::FMT_RGB5A1) )
 	{
 		/* Dither down to the destination format. */
-		const RageDisplay::PixelFormatDesc *pfd = DISPLAY->GetPixelFormatDesc(pixfmt);
+		const RageDisplay::PixelFormatDesc *pfd = &info.desc[pixfmt];
 		RageSurface *dst = CreateSurface( img->w, img->h, pfd->bpp,
 			pfd->masks[0], pfd->masks[1], pfd->masks[2], pfd->masks[3] );
 
@@ -241,10 +263,45 @@ void RageBitmapTexture::Create()
 
 	/* Convert the data to the destination format and dimensions 
 	 * required by OpenGL if it's not in it already.  */
-	const RageDisplay::PixelFormatDesc *pfd = DISPLAY->GetPixelFormatDesc(pixfmt);
-	RageSurfaceUtils::ConvertSurface( img, m_iTextureWidth, m_iTextureHeight,
+	const RageDisplay::PixelFormatDesc *pfd = &info.desc[pixfmt];
+	RageSurfaceUtils::ConvertSurface( img, iTextureWidth, iTextureHeight,
 		pfd->bpp, pfd->masks[0], pfd->masks[1], pfd->masks[2], pfd->masks[3] );
 	
+	Decoded *pRet = new Decoded;
+	pRet->img = img;
+	pRet->ID = actualID;
+	pRet->pixfmt = pixfmt;
+	pRet->iSourceWidth = iSourceWidth;
+	pRet->iSourceHeight = iSourceHeight;
+	pRet->iImageWidth = iImageWidth;
+	pRet->iImageHeight = iImageHeight;
+	pRet->iTextureWidth = iTextureWidth;
+	pRet->iTextureHeight = iTextureHeight;
+	pRet->bOpaque = bOpaque;
+	return pRet;
+}
+
+void RageBitmapTexture::Create()
+{
+	DisplayInfo info;
+	info.Fetch();
+	Upload( Decode( GetID(), info ) );
+}
+
+void RageBitmapTexture::Upload( Decoded *pDecoded )
+{
+	RageSurface *img = pDecoded->img;
+	const RageTextureID &actualID = pDecoded->ID;
+	const RageDisplay::PixelFormat pixfmt = pDecoded->pixfmt;
+
+	m_iSourceWidth = pDecoded->iSourceWidth;
+	m_iSourceHeight = pDecoded->iSourceHeight;
+	m_iImageWidth = pDecoded->iImageWidth;
+	m_iImageHeight = pDecoded->iImageHeight;
+	m_iTextureWidth = pDecoded->iTextureWidth;
+	m_iTextureHeight = pDecoded->iTextureHeight;
+	m_bOpaque = pDecoded->bOpaque;
+
 	m_uTexHandle = DISPLAY->CreateTexture( pixfmt, img, actualID.bMipMaps );
 
 	CreateFrameRects();
@@ -290,7 +347,8 @@ void RageBitmapTexture::Create()
 
 
 
-	delete img;
+	delete pDecoded->img;
+	pDecoded->img = NULL;
 
 	/* See if the apparent "size" is being overridden. */
 	GetResolutionFromFileName(actualID.filename, m_iSourceWidth, m_iSourceHeight);
@@ -307,6 +365,8 @@ void RageBitmapTexture::Create()
 		actualID.filename.c_str(), GetTextureWidth(), GetTextureHeight(),
 		props.c_str(), m_iSourceWidth, m_iSourceHeight,
 		m_iImageWidth,	m_iImageHeight);
+
+	delete pDecoded;
 }
 
 void RageBitmapTexture::Destroy()
