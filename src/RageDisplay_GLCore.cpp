@@ -792,43 +792,71 @@ static inline Vertex *QueueSpace( bool bQuads, int iCount )
 	return v;
 }
 
-static inline void FillVertex( Vertex &out, const RageSpriteVertex &in )
+/* What fills the vertices of a draw: its matrices and modes, copied out of
+ * g_Draw so they stay in registers instead of being read back after every
+ * vertex that's written. */
+struct VertexFiller
 {
-	const float x = in.p.x, y = in.p.y, z = in.p.z;
-	const float s = in.t.x, t = in.t.y;
-	if( g_Draw.bOnCPU )
+	VertexFiller()
 	{
-		const RageMatrix &w = *g_Draw.pWorld;
-		out.p[0] = x*w.m[0][0] + y*w.m[1][0] + z*w.m[2][0] + w.m[3][0];
-		out.p[1] = x*w.m[0][1] + y*w.m[1][1] + z*w.m[2][1] + w.m[3][1];
-		out.p[2] = x*w.m[0][2] + y*w.m[1][2] + z*w.m[2][2] + w.m[3][2];
-		out.p[3] = x*w.m[0][3] + y*w.m[1][3] + z*w.m[2][3] + w.m[3][3];
-
-		const RageMatrix &tm = *g_Draw.pTexMatrix0;
-		out.t[0] = s*tm.m[0][0] + t*tm.m[1][0] + tm.m[3][0];
-		out.t[1] = s*tm.m[0][1] + t*tm.m[1][1] + tm.m[3][1];
-		out.t[2] = s*tm.m[0][2] + t*tm.m[1][2] + tm.m[3][2];
-		out.t[3] = s*tm.m[0][3] + t*tm.m[1][3] + tm.m[3][3];
-	}
-	else
-	{
-		out.p[0] = x; out.p[1] = y; out.p[2] = z; out.p[3] = 1;
-		out.t[0] = s; out.t[1] = t; out.t[2] = 0; out.t[3] = 1;
+		bOnCPU = g_Draw.bOnCPU;
+		bTexMatrix = false;
+		if( bOnCPU )
+		{
+			world = *g_Draw.pWorld;
+			tex = *g_Draw.pTexMatrix0;
+			bTexMatrix = memcmp( &tex, g_fIdentity, sizeof(tex) ) != 0;
+		}
+		mode = g_Draw.iMode0;
 	}
 
-	out.n[0] = in.n.x;
-	out.n[1] = in.n.y;
-	out.n[2] = in.n.z;
+	void Fill( Vertex &out, const RageSpriteVertex &in ) const
+	{
+		const float x = in.p.x, y = in.p.y, z = in.p.z;
+		const float s = in.t.x, t = in.t.y;
+		if( bOnCPU )
+		{
+			out.p[0] = x*world.m[0][0] + y*world.m[1][0] + z*world.m[2][0] + world.m[3][0];
+			out.p[1] = x*world.m[0][1] + y*world.m[1][1] + z*world.m[2][1] + world.m[3][1];
+			out.p[2] = x*world.m[0][2] + y*world.m[1][2] + z*world.m[2][2] + world.m[3][2];
+			out.p[3] = x*world.m[0][3] + y*world.m[1][3] + z*world.m[2][3] + world.m[3][3];
+		}
+		else
+		{
+			out.p[0] = x; out.p[1] = y; out.p[2] = z; out.p[3] = 1;
+		}
 
-	/* RageVColor is BGRA. */
-	out.c[0] = in.c.r;
-	out.c[1] = in.c.g;
-	out.c[2] = in.c.b;
-	out.c[3] = in.c.a;
+		/* Most texture matrices don't do anything. */
+		if( bOnCPU && bTexMatrix )
+		{
+			out.t[0] = s*tex.m[0][0] + t*tex.m[1][0] + tex.m[3][0];
+			out.t[1] = s*tex.m[0][1] + t*tex.m[1][1] + tex.m[3][1];
+			out.t[2] = s*tex.m[0][2] + t*tex.m[1][2] + tex.m[3][2];
+			out.t[3] = s*tex.m[0][3] + t*tex.m[1][3] + tex.m[3][3];
+		}
+		else
+		{
+			out.t[0] = s; out.t[1] = t; out.t[2] = 0; out.t[3] = 1;
+		}
 
-	out.mode[0] = g_Draw.iMode0;
-	out.mode[1] = out.mode[2] = out.mode[3] = 0;
-}
+		out.n[0] = in.n.x;
+		out.n[1] = in.n.y;
+		out.n[2] = in.n.z;
+
+		/* RageVColor is BGRA. */
+		out.c[0] = in.c.r;
+		out.c[1] = in.c.g;
+		out.c[2] = in.c.b;
+		out.c[3] = in.c.a;
+
+		out.mode[0] = mode;
+		out.mode[1] = out.mode[2] = out.mode[3] = 0;
+	}
+
+	bool bOnCPU, bTexMatrix;
+	RageMatrix world, tex;
+	GLubyte mode;
+};
 
 /*
  * Compiled geometry (models).  The data is kept here too, so it can be sent
@@ -1641,39 +1669,61 @@ bool RageDisplay_GLCore::PrepareDraw( bool bForceGPU )
 void RageDisplay_GLCore::DrawQuadsInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	PrepareDraw();
+	const VertexFiller fill;
 	for( int i = 0; i+3 < iNumVerts; i += 4 )
 	{
 		Vertex *out = QueueSpace( true, 4 );
-		FillVertex( out[0], v[i+0] );
-		FillVertex( out[1], v[i+1] );
-		FillVertex( out[2], v[i+2] );
-		FillVertex( out[3], v[i+3] );
+		fill.Fill( out[0], v[i+0] );
+		fill.Fill( out[1], v[i+1] );
+		fill.Fill( out[2], v[i+2] );
+		fill.Fill( out[3], v[i+3] );
 	}
 }
 
 void RageDisplay_GLCore::DrawQuadStripInternal( const RageSpriteVertex v[], int iNumVerts )
 {
-	/* Quad i of a strip is vertices 2i, 2i+1, 2i+3, 2i+2. */
+	/* Quad k of a strip is vertices 2k, 2k+1, 2k+3, 2k+2.  Every pair is in
+	 * two quads, so it's only moved once. */
 	PrepareDraw();
-	for( int i = 0; i+3 < iNumVerts; i += 2 )
+	if( iNumVerts < 4 )
+		return;
+	const VertexFiller fill;
+	Vertex a, b;
+	fill.Fill( a, v[0] );
+	fill.Fill( b, v[1] );
+	for( int i = 2; i+1 < iNumVerts; i += 2 )
 	{
+		Vertex c, d;
+		fill.Fill( c, v[i] );
+		fill.Fill( d, v[i+1] );
 		Vertex *out = QueueSpace( true, 4 );
-		FillVertex( out[0], v[i+0] );
-		FillVertex( out[1], v[i+1] );
-		FillVertex( out[2], v[i+3] );
-		FillVertex( out[3], v[i+2] );
+		out[0] = a;
+		out[1] = b;
+		out[2] = d;
+		out[3] = c;
+		a = c;
+		b = d;
 	}
 }
 
 void RageDisplay_GLCore::DrawFanInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	PrepareDraw();
-	for( int i = 1; i+1 < iNumVerts; ++i )
+	if( iNumVerts < 3 )
+		return;
+	const VertexFiller fill;
+	Vertex first, prev;
+	fill.Fill( first, v[0] );
+	fill.Fill( prev, v[1] );
+	for( int i = 2; i < iNumVerts; ++i )
 	{
+		Vertex cur;
+		fill.Fill( cur, v[i] );
 		Vertex *out = QueueSpace( false, 3 );
-		FillVertex( out[0], v[0] );
-		FillVertex( out[1], v[i] );
-		FillVertex( out[2], v[i+1] );
+		out[0] = first;
+		out[1] = prev;
+		out[2] = cur;
+		prev = cur;
 	}
 }
 
@@ -1682,25 +1732,36 @@ void RageDisplay_GLCore::DrawStripInternal( const RageSpriteVertex v[], int iNum
 	/* Triangle i of a strip is vertices i, i+1, i+2, with every other one
 	 * flipped to keep the winding. */
 	PrepareDraw();
+	if( iNumVerts < 3 )
+		return;
+	const VertexFiller fill;
+	Vertex a, b;
+	fill.Fill( a, v[0] );
+	fill.Fill( b, v[1] );
 	for( int i = 0; i+2 < iNumVerts; ++i )
 	{
-		const bool bOdd = (i & 1) != 0;
+		Vertex c;
+		fill.Fill( c, v[i+2] );
 		Vertex *out = QueueSpace( false, 3 );
-		FillVertex( out[0], v[bOdd? i+1:i] );
-		FillVertex( out[1], v[bOdd? i:i+1] );
-		FillVertex( out[2], v[i+2] );
+		const bool bOdd = (i & 1) != 0;
+		out[0] = bOdd? b: a;
+		out[1] = bOdd? a: b;
+		out[2] = c;
+		a = b;
+		b = c;
 	}
 }
 
 void RageDisplay_GLCore::DrawTrianglesInternal( const RageSpriteVertex v[], int iNumVerts )
 {
 	PrepareDraw();
+	const VertexFiller fill;
 	for( int i = 0; i+2 < iNumVerts; i += 3 )
 	{
 		Vertex *out = QueueSpace( false, 3 );
-		FillVertex( out[0], v[i+0] );
-		FillVertex( out[1], v[i+1] );
-		FillVertex( out[2], v[i+2] );
+		fill.Fill( out[0], v[i+0] );
+		fill.Fill( out[1], v[i+1] );
+		fill.Fill( out[2], v[i+2] );
 	}
 }
 
