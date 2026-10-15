@@ -108,15 +108,24 @@ private:
 	PlayerData m_Player[NUM_PLAYERS];
 	WifeStageResult m_Result[NUM_PLAYERS];
 
+	/* The scores of one profile directory, and where the ones of each chart are
+	 * in them (a chart's leaderboard is looked up at every stop of the wheel). */
+	struct ScoreSet
+	{
+		vector<WifeScoreEntry> v;
+		std::map< CString, vector<unsigned> > byChart;
+		void Add( const WifeScoreEntry &e );
+	};
+
 	/* What each profile directory's score file holds, kept up to date as scores
 	 * are added. */
-	std::map< CString, vector<WifeScoreEntry> > m_Cache;
-	const vector<WifeScoreEntry> &GetScores( const CString &sProfileDir );
+	std::map< CString, ScoreSet > m_Cache;
+	const ScoreSet &GetScores( const CString &sProfileDir );
 	void AddToCache( const CString &sProfileDir, const WifeScoreEntry &e, bool bAdded );
 
 	RageThread *m_pPreload;
 	vector<CString> m_PreloadDirs;
-	vector< vector<WifeScoreEntry> > m_PreloadScores;
+	vector<ScoreSet> m_PreloadScores;
 	static int PreloadMain( void *p );
 	void FinishPreload();
 	CString GetProfileDir( PlayerNumber pn ) const;

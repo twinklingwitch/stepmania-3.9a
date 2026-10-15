@@ -219,11 +219,22 @@ void WifeManager::GetAllProfileDirs( vector<CString> &out ) const
 		}
 }
 
+void WifeManager::ScoreSet::Add( const WifeScoreEntry &e )
+{
+	byChart[e.sChartKey].push_back( v.size() );
+	v.push_back( e );
+}
+
 int WifeManager::PreloadMain( void *p )
 {
 	WifeManager *pThis = (WifeManager *) p;
 	for( unsigned i=0; i<pThis->m_PreloadDirs.size(); i++ )
-		WifeScores::Load( pThis->m_PreloadDirs[i], pThis->m_PreloadScores[i] );
+	{
+		vector<WifeScoreEntry> v;
+		WifeScores::Load( pThis->m_PreloadDirs[i], v );
+		for( unsigned j=0; j<v.size(); j++ )
+			pThis->m_PreloadScores[i].Add( v[j] );
+	}
 	return 0;
 }
 
@@ -265,52 +276,57 @@ void WifeManager::FinishPreload()
 	m_PreloadScores.clear();
 }
 
-const vector<WifeScoreEntry> &WifeManager::GetScores( const CString &sProfileDir )
+const WifeManager::ScoreSet &WifeManager::GetScores( const CString &sProfileDir )
 {
 	FinishPreload();
-	std::map< CString, vector<WifeScoreEntry> >::iterator it = m_Cache.find( sProfileDir );
+	std::map< CString, ScoreSet >::iterator it = m_Cache.find( sProfileDir );
 	if( it == m_Cache.end() )
 	{
 		vector<WifeScoreEntry> v;
 		WifeScores::Load( sProfileDir, v );
-		it = m_Cache.insert( std::make_pair(sProfileDir, v) ).first;
+		ScoreSet set;
+		for( unsigned i=0; i<v.size(); i++ )
+			set.Add( v[i] );
+		it = m_Cache.insert( std::make_pair(sProfileDir, set) ).first;
 	}
 	return it->second;
 }
 
 void WifeManager::GetLeaderboard( PlayerNumber pn, const CString &sChartKey, float fRate, bool bAllProfiles, vector<WifeScoreEntry> &out )
 {
-	vector<WifeScoreEntry> all;
+	vector<CString> vDirs;
 	if( bAllProfiles )
-	{
-		vector<CString> vDirs;
 		GetAllProfileDirs( vDirs );
-		for( unsigned i=0; i<vDirs.size(); i++ )
-		{
-			const vector<WifeScoreEntry> &v = GetScores( vDirs[i] );
-			all.insert( all.end(), v.begin(), v.end() );
-		}
-	}
 	else
+		vDirs.push_back( GetProfileDir(pn) );
+
+	/* Only the chart's own scores, in the order the profiles' files hold them,
+	 * go on to be picked from and sorted. */
+	vector<WifeScoreEntry> chart;
+	for( unsigned i=0; i<vDirs.size(); i++ )
 	{
-		const vector<WifeScoreEntry> &v = GetScores( GetProfileDir(pn) );
-		all.insert( all.end(), v.begin(), v.end() );
+		const ScoreSet &set = GetScores( vDirs[i] );
+		std::map< CString, vector<unsigned> >::const_iterator it = set.byChart.find( sChartKey );
+		if( it == set.byChart.end() )
+			continue;
+		for( unsigned j=0; j<it->second.size(); j++ )
+			chart.push_back( set.v[it->second[j]] );
 	}
-	WifeScores::ForChart( all, sChartKey, fRate, out );
+	WifeScores::ForChart( chart, sChartKey, fRate, out );
 }
 
 /* bAdded is whether the score made it to the file.  If not, the file is what
  * counts, as it would be if it were read again. */
 void WifeManager::AddToCache( const CString &sProfileDir, const WifeScoreEntry &e, bool bAdded )
 {
-	std::map< CString, vector<WifeScoreEntry> >::iterator it = m_Cache.find( sProfileDir );
+	std::map< CString, ScoreSet >::iterator it = m_Cache.find( sProfileDir );
 	if( it == m_Cache.end() )
 		return;
 	WifeScoreEntry loaded;
 	if( bAdded )
 	{
 		if( WifeScores::AsLoaded(e, sProfileDir, loaded) )
-			it->second.push_back( loaded );
+			it->second.Add( loaded );
 	}
 	else
 		m_Cache.erase( it );
