@@ -21,6 +21,7 @@ public:
 	float GetRefreshRate() const;
 	void SetBlendMode( BlendMode mode );
 	void SetBlending( bool b );
+	bool SetColorScale( float r, float g, float b );
 	bool SupportsTextureFormat( PixelFormat pixfmt, bool realtime=false );
 	unsigned CreateTexture(
 		PixelFormat pixfmt,

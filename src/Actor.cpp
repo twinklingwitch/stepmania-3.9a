@@ -230,6 +230,19 @@ void Actor::SetRenderStates()
 	DISPLAY->SetCullMode( m_CullMode );
 }
 
+/* True if drawing this just covers its shape with its diffuse colors, once, with
+ * normal blending. */
+bool Actor::DrawsPlainFill() const
+{
+	if( m_bHidden || m_fHibernateSecondsLeft > 0 || m_Effect != no_effect || m_fShadowLength != 0 )
+		return false;
+	if( m_BlendMode != BLEND_NORMAL || m_current.glow.a != 0 )
+		return false;
+	const RectF &crop = m_current.crop, &fade = m_current.fade;
+	return crop.left == 0 && crop.top == 0 && crop.right == 0 && crop.bottom == 0 &&
+		fade.left == 0 && fade.top == 0 && fade.right == 0 && fade.bottom == 0;
+}
+
 void Actor::EndDraw()
 {
 	DISPLAY->PopMatrix();

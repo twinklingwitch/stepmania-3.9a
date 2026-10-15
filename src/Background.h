@@ -21,9 +21,30 @@ public:
 	void SetActualBrightness();
 	void Set( float fBrightness );
 
+	/* If the quads, as they are drawn now, just darken everything evenly, return
+	 * true and how much (0 to 1) of what's behind them they let through. */
+	bool GetUniformBrightness( float &fBrightnessOut );
+
+	/* Don't draw, because the caller has already darkened what we'd cover. */
+	void SetSkipDraw( bool b ) { m_bSkipDraw = b; }
+	virtual bool EarlyAbortDraw() { return m_bSkipDraw; }
+
 private:
 	Quad m_quadBGBrightness[NUM_PLAYERS];
 	Quad m_quadBGBrightnessFade;
+	bool m_bSkipDraw;
+
+	/* Where things were when they were set up; the caller's commands may have
+	 * moved them. */
+	struct Placement
+	{
+		RageVector3 pos, rotation, scale;
+		RageVector4 quat;
+		float fWidth, fHeight;
+		bool Matches( Actor &a ) const;
+		void Set( Actor &a );
+	} m_Placement[4];
+	Actor *GetPlacementActor( int i );
 };
 
 class Background : public ActorFrame
@@ -37,6 +58,7 @@ public:
 
 	virtual void Update( float fDeltaTime );
 	virtual void DrawPrimitives();
+	void DrawLayers();
 
 	void FadeToActualBrightness() { m_Brightness.FadeToActualBrightness(); }
 	void SetBrightness( float fBrightness ) { m_Brightness.Set(fBrightness); } /* overrides pref and Cover */
@@ -74,6 +96,7 @@ protected:
 	Quad m_quadBorder[4];	// l, t, r, b - cover up the edge of animations that might hang outside of the background rectangle
 
 	BrightnessOverlay m_Brightness;
+	float m_fNoDimUntil;	// the layers can't be dimmed in the renderer; see DrawPrimitives
 };
 
 

@@ -171,6 +171,8 @@ public:
 	void SetDiffuseBottomEdge( RageColor c )	{ DestTweenState().diffuse[2] = DestTweenState().diffuse[3] = c; };
 	void SetDiffuseLeftEdge( RageColor c )		{ DestTweenState().diffuse[0] = DestTweenState().diffuse[2] = c; };
 	RageColor GetDiffuse()						{ return DestTweenState().diffuse[0]; };
+	const TweenState &GetCurrentTweenState() const	{ return m_current; }	// what's drawn now, not where the tween ends
+	bool DrawsPlainFill() const;
 	RageColor GetDiffuses( int i )				{ return DestTweenState().diffuse[i]; };
 	void SetGlow( RageColor c )					{ DestTweenState().glow = c; };
 	RageColor GetGlow()							{ return DestTweenState().glow; };

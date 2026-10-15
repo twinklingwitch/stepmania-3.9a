@@ -333,6 +333,7 @@ static const char *g_szFragmentShader =
 "uniform sampler2D uTexture1;\n"
 "uniform int uTex1Mode;\n"
 "uniform int uAlphaTest;\n"
+"uniform vec3 uColorScale;\n"
 "in vec4 vColor;\n"
 "in vec4 vTexCoord0;\n"
 "in vec4 vTexCoord1;\n"
@@ -351,7 +352,7 @@ static const char *g_szFragmentShader =
 "	if( vMode0 != 0 ) c = Combine( vMode0, c, textureProj(uTexture0, vTexCoord0) );\n"
 "	if( uTex1Mode != 0 ) c = Combine( uTex1Mode, c, textureProj(uTexture1, vTexCoord1) );\n"
 "	if( uAlphaTest != 0 && c.a <= 0.01 ) discard;\n"
-"	FragColor = c;\n"
+"	FragColor = vec4( c.rgb * uColorScale, c.a );\n"
 "}\n";
 
 namespace
@@ -365,6 +366,7 @@ namespace
 		U_SPHERE0, U_SPHERE1, U_LIGHTING, U_LIGHT0,
 		U_MATEMISSIVE, U_MATAMBIENT, U_MATDIFFUSE, U_MATSPECULAR, U_MATSHININESS,
 		U_LIGHTAMBIENT, U_LIGHTDIFFUSE, U_LIGHTSPECULAR, U_LIGHTDIR,
+		U_COLORSCALE,
 		U_TEX1MODE, U_ALPHATEST, U_TEXTURE0, U_TEXTURE1,
 		NUM_UNIFORMS
 	};
@@ -374,6 +376,7 @@ namespace
 		"uSphere0", "uSphere1", "uLighting", "uLight0",
 		"uMatEmissive", "uMatAmbient", "uMatDiffuse", "uMatSpecular", "uMatShininess",
 		"uLightAmbient", "uLightDiffuse", "uLightSpecular", "uLightDir",
+		"uColorScale",
 		"uTex1Mode", "uAlphaTest", "uTexture0", "uTexture1",
 	};
 
@@ -493,6 +496,11 @@ namespace
 	/* The modelview matrix of the last draw; see SetLightDirectional. */
 	RageMatrix g_LastWorld, g_LastCenteringView;
 }
+
+/* See SetColorScale. */
+static float g_fColorScale[3] = { 1, 1, 1 };
+static bool g_bDrawnThisFrame = false;	// what's drawn can't be scaled after the fact
+static bool g_bColorScaleInexact = false;	// drew something that doesn't scale linearly
 
 static void FlushQueue();
 
@@ -1205,6 +1213,9 @@ bool RageDisplay_GLCore::BeginFrame()
 	glClearColor( 0,0,0,1 );
 	SetZWrite( true );
 	glClear( GL_COLOR_BUFFER_BIT );
+	g_fColorScale[0] = g_fColorScale[1] = g_fColorScale[2] = 1;
+	g_bDrawnThisFrame = false;
+	g_bColorScaleInexact = false;
 	g_Wanted.bClearDepthPending = true;
 	return true;
 }
@@ -1212,6 +1223,7 @@ bool RageDisplay_GLCore::BeginFrame()
 void RageDisplay_GLCore::EndFrame()
 {
 	FlushQueue();
+	g_fColorScale[0] = g_fColorScale[1] = g_fColorScale[2] = 1;
 
 	/* The frame isn't done until the GPU is, and we need to know how long that
 	 * takes to pace frames.  There's nothing else for the CPU to do meanwhile. */
@@ -1287,6 +1299,31 @@ void RageDisplay_GLCore::SetBlendMode( BlendMode mode )
 void RageDisplay_GLCore::SetBlending( bool b )
 {
 	g_Wanted.bBlend = b;
+}
+
+bool RageDisplay_GLCore::SetColorScale( float r, float g, float b )
+{
+	const bool bScaled = g_fColorScale[0] != 1 || g_fColorScale[1] != 1 || g_fColorScale[2] != 1;
+	const bool bScale = r != 1 || g != 1 || b != 1;
+	if( bScale && g_bDrawnThisFrame )
+		return false;
+
+	bool bRet = true;
+	if( bScaled && !bScale && g_bColorScaleInexact )
+	{
+		/* The frame was empty when the scale was set, so everything in it was
+		 * drawn with the scale: wipe it, and the caller draws it again. */
+		FlushQueue();
+		glClear( GL_COLOR_BUFFER_BIT );
+		g_Wanted.bClearDepthPending = true;
+		g_bDrawnThisFrame = false;
+		bRet = false;
+	}
+	g_fColorScale[0] = r;
+	g_fColorScale[1] = g;
+	g_fColorScale[2] = b;
+	g_bColorScaleInexact = false;
+	return bRet;
 }
 
 bool RageDisplay_GLCore::IsZWriteEnabled() const
@@ -1565,6 +1602,16 @@ bool RageDisplay_GLCore::PrepareDraw( bool bForceGPU )
 	SetUniformInt( U_SPHERE0, bSphere0 );
 	SetUniformInt( U_SPHERE1, bSphere1 );
 	SetUniformInt( U_ALPHATEST, w.bAlphaTest );
+	SetUniformFloats( U_COLORSCALE, g_fColorScale, 3 );
+	g_bDrawnThisFrame = true;
+
+	/* Scaling before the framebuffer adds or inverts isn't the same as after:
+	 * it clamps at 1 instead of at the scale. */
+	if( g_fColorScale[0] != 1 || g_fColorScale[1] != 1 || g_fColorScale[2] != 1 )
+	{
+		if( w.bBlend && ((w.BlendDst == GL_ONE && w.BlendSrc != GL_ZERO) || w.BlendSrc == GL_ONE_MINUS_DST_COLOR) )
+			g_bColorScaleInexact = true;
+	}
 
 	SetUniformInt( U_LIGHTING, w.bLighting );
 	if( w.bLighting )

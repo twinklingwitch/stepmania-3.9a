@@ -4,6 +4,7 @@
 #include "GameConstantsAndTypes.h"
 #include "RageException.h"
 #include "RageTimer.h"
+#include "RageDisplay.h"
 #include "RageLog.h"
 #include "RageTextureManager.h"
 #include "GameState.h"
@@ -42,6 +43,7 @@ Background::Background()
 	m_pCurrentBGA = NULL;
 	m_pFadingBGA = NULL;
 	m_fSecsLeftInFade = 0;
+	m_fNoDimUntil = 0;
 
 	m_DangerAll.LoadFromAniDir( THEME->GetPathToB("ScreenGameplay danger all") );
 	FOREACH_PlayerNumber( p )
@@ -544,6 +546,35 @@ void Background::DrawPrimitives()
 	if( PREFSMAN->m_fBGBrightness == 0 )
 		return;
 
+	/* Everything drawn here is darkened by m_Brightness, which is a whole extra
+	 * pass over the screen.  If the renderer can scale the colors as they're
+	 * drawn instead, do that and skip the pass.  It can only if nothing was
+	 * drawn before us this frame, since that would be darkened too, and if the
+	 * quads would darken everything the same amount. */
+	bool bDim = false;
+	float fBrightness;
+	if( RageTimer::GetTimeSinceStart() >= m_fNoDimUntil && m_Brightness.GetUniformBrightness(fBrightness) )
+		bDim = DISPLAY->SetColorScale( fBrightness, fBrightness, fBrightness );
+
+	m_Brightness.SetSkipDraw( bDim );
+	DrawLayers();
+	ActorFrame::DrawPrimitives();
+
+	if( bDim && !DISPLAY->SetColorScale(1,1,1) )
+	{
+		/* Something we drew can't be darkened that way (additive blending), and
+		 * the renderer has wiped it.  Draw it again with the quads, and don't
+		 * try again for a while, since it's likely to still be there. */
+		m_fNoDimUntil = RageTimer::GetTimeSinceStart() + 10;
+		m_Brightness.SetSkipDraw( false );
+		DrawLayers();
+		ActorFrame::DrawPrimitives();
+	}
+	m_Brightness.SetSkipDraw( false );
+}
+
+void Background::DrawLayers()
+{
 	if( IsDangerAllVisible() )
 	{
 		// Since this only shows when DANGER is visible, it will flash red on it's own accord :)
@@ -572,8 +603,6 @@ void Background::DrawPrimitives()
 
 	if( m_pDancingCharacters )
 		m_pDancingCharacters->Draw();
-
-	ActorFrame::DrawPrimitives();
 }
 
 bool Background::IsDangerAllVisible()
@@ -616,6 +645,8 @@ bool Background::IsDeadPlayerVisible( PlayerNumber pn )
 
 BrightnessOverlay::BrightnessOverlay()
 {
+	m_bSkipDraw = false;
+
 	float fQuadWidth = (RIGHT_EDGE-LEFT_EDGE)/2;
 	fQuadWidth -= g_fBackgroundCenterWidth/2;
 
@@ -628,6 +659,70 @@ BrightnessOverlay::BrightnessOverlay()
 	this->AddChild( &m_quadBGBrightnessFade );
 
 	SetActualBrightness();
+
+	for( int i = 0; i < 4; ++i )
+		m_Placement[i].Set( *GetPlacementActor(i) );
+}
+
+Actor *BrightnessOverlay::GetPlacementActor( int i )
+{
+	switch( i )
+	{
+	case 0:		return this;
+	case 3:		return &m_quadBGBrightnessFade;
+	default:	return &m_quadBGBrightness[i-1];
+	}
+}
+
+void BrightnessOverlay::Placement::Set( Actor &a )
+{
+	const Actor::TweenState &ts = a.GetCurrentTweenState();
+	pos = ts.pos;
+	rotation = ts.rotation;
+	scale = ts.scale;
+	quat = ts.quat;
+	fWidth = a.GetUnzoomedWidth();
+	fHeight = a.GetUnzoomedHeight();
+}
+
+bool BrightnessOverlay::Placement::Matches( Actor &a ) const
+{
+	const Actor::TweenState &ts = a.GetCurrentTweenState();
+	/* (RageVector's == compares addresses.) */
+	return !memcmp( &ts.pos, &pos, sizeof(pos) ) && !memcmp( &ts.rotation, &rotation, sizeof(rotation) ) &&
+		!memcmp( &ts.scale, &scale, sizeof(scale) ) && !memcmp( &ts.quat, &quat, sizeof(quat) ) &&
+		a.GetUnzoomedWidth() == fWidth && a.GetUnzoomedHeight() == fHeight;
+}
+
+bool BrightnessOverlay::GetUniformBrightness( float &fBrightnessOut )
+{
+	/* We draw the quads, so they must all be there, where they were put. */
+	if( m_bHidden || m_fHibernateSecondsLeft > 0 || m_Effect != no_effect )
+		return false;
+	for( int i = 0; i < 4; ++i )
+		if( !m_Placement[i].Matches( *GetPlacementActor(i) ) )
+			return false;
+
+	/* Compare the colors the way they're sent to the renderer, as bytes. */
+	int iAlpha = -1;
+	for( int i = 1; i < 4; ++i )
+	{
+		Actor &a = *GetPlacementActor(i);
+		if( !a.DrawsPlainFill() )
+			return false;
+		for( int c = 0; c < 4; ++c )
+		{
+			const RageVColor col = a.GetCurrentTweenState().diffuse[c];
+			if( col.r != 0 || col.g != 0 || col.b != 0 )
+				return false;
+			if( iAlpha == -1 )
+				iAlpha = col.a;
+			else if( iAlpha != col.a )
+				return false;
+		}
+	}
+	fBrightnessOut = (255 - iAlpha) / 255.0f;
+	return true;
 }
 
 void BrightnessOverlay::Update( float fDeltaTime )

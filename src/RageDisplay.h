@@ -169,6 +169,18 @@ public:
 	 * always turns it back on. */
 	virtual void SetBlending( bool b ) = 0;
 
+	/* Multiply the color (not alpha) of everything drawn from now on, so that
+	 * dimming what's already in the frame costs no extra pass.  This is only
+	 * the same picture as drawing black at alpha 1-s over it for NORMAL and ADD
+	 * blending (not BLEND_INVERT), and only if nothing was drawn earlier in the
+	 * frame, which would be left undimmed.  Returns false, changing nothing, if
+	 * the renderer can't do it or that's the case.  1,1,1 ends it, and is also
+	 * in effect after BeginFrame and EndFrame.  If, since it was set, something
+	 * was drawn that scaling doesn't dim the same way (additive blending, which
+	 * clamps at 1 instead of at the scale), ending it returns false and the
+	 * renderer has wiped everything drawn in the frame: draw it all again. */
+	virtual bool SetColorScale( float r, float g, float b ) { return false; }
+
 	virtual bool SupportsTextureFormat( PixelFormat pixfmt, bool realtime=false ) = 0;
 
 	/* return 0 if failed or internal texture resource handle 
