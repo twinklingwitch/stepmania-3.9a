@@ -93,6 +93,7 @@
 #define GLC_TEXTURE_MAX_ANISOTROPY		0x84FE
 #define GLC_MAX_TEXTURE_MAX_ANISOTROPY	0x84FF
 #define GLC_ALIASED_LINE_WIDTH_RANGE	0x846E
+#define GLC_HALF_FLOAT					0x140B
 
 typedef char GLCchar;
 typedef ptrdiff_t GLCsizeiptr;
@@ -389,15 +390,21 @@ namespace
 	Uniform g_Uniforms[NUM_UNIFORMS];
 	GLuint g_Program = 0;
 
-	/* What we send for each vertex. */
+	/*
+	 * What we send for each vertex.  Positions and texture coordinates have as
+	 * many components as they need: the draws we move on the CPU have no use
+	 * for the fourth.  Normals only matter to lighting and sphere mapping, so
+	 * they're half floats, and left empty for everything else.
+	 */
 	struct Vertex
 	{
-		float p[4];
-		float n[3];
-		float t[4];
+		float p[3];
+		float t[2];
 		GLubyte c[4];	// RGBA
-		GLubyte mode[4];	// unit 0's texture mode
+		GLushort n[3];	// half floats
+		GLubyte mode[2];	// unit 0's texture mode, then padding
 	};
+	typedef char VertexSizeCheck[sizeof(Vertex) == 32? 1: -1];
 
 	/* The queue.  Indices into it fit in 16 bits. */
 	enum { QUEUE_VERTICES = 8192 };
@@ -792,6 +799,24 @@ static inline Vertex *QueueSpace( bool bQuads, int iCount )
 	return v;
 }
 
+/* A float as a half float, which is plenty for a normal.  Anything that small
+ * rounds to zero, and anything that big to the largest number there is. */
+static inline GLushort FloatToHalf( float f )
+{
+	union { float f; uint32_t u; } v;
+	v.f = f;
+	const uint32_t iSign = (v.u >> 16) & 0x8000;
+	const int iExp = int((v.u >> 23) & 0xFF) - 127 + 15;
+	if( iExp <= 0 )
+		return GLushort( iSign );
+	if( iExp >= 31 )
+		return GLushort( iSign | 0x7BFF );
+	uint32_t h = iSign | (iExp << 10) | ((v.u & 0x7FFFFF) >> 13);
+	if( v.u & 0x1000 )
+		++h;
+	return GLushort( h );
+}
+
 /* What fills the vertices of a draw: its matrices and modes, copied out of
  * g_Draw so they stay in registers instead of being read back after every
  * vertex that's written. */
@@ -819,29 +844,29 @@ struct VertexFiller
 			out.p[0] = x*world.m[0][0] + y*world.m[1][0] + z*world.m[2][0] + world.m[3][0];
 			out.p[1] = x*world.m[0][1] + y*world.m[1][1] + z*world.m[2][1] + world.m[3][1];
 			out.p[2] = x*world.m[0][2] + y*world.m[1][2] + z*world.m[2][2] + world.m[3][2];
-			out.p[3] = x*world.m[0][3] + y*world.m[1][3] + z*world.m[2][3] + world.m[3][3];
+
+			/* Most texture matrices don't do anything. */
+			if( bTexMatrix )
+			{
+				out.t[0] = s*tex.m[0][0] + t*tex.m[1][0] + tex.m[3][0];
+				out.t[1] = s*tex.m[0][1] + t*tex.m[1][1] + tex.m[3][1];
+			}
+			else
+			{
+				out.t[0] = s;
+				out.t[1] = t;
+			}
+
+			out.n[0] = out.n[1] = out.n[2] = 0;
 		}
 		else
 		{
-			out.p[0] = x; out.p[1] = y; out.p[2] = z; out.p[3] = 1;
+			out.p[0] = x; out.p[1] = y; out.p[2] = z;
+			out.t[0] = s; out.t[1] = t;
+			out.n[0] = FloatToHalf( in.n.x );
+			out.n[1] = FloatToHalf( in.n.y );
+			out.n[2] = FloatToHalf( in.n.z );
 		}
-
-		/* Most texture matrices don't do anything. */
-		if( bOnCPU && bTexMatrix )
-		{
-			out.t[0] = s*tex.m[0][0] + t*tex.m[1][0] + tex.m[3][0];
-			out.t[1] = s*tex.m[0][1] + t*tex.m[1][1] + tex.m[3][1];
-			out.t[2] = s*tex.m[0][2] + t*tex.m[1][2] + tex.m[3][2];
-			out.t[3] = s*tex.m[0][3] + t*tex.m[1][3] + tex.m[3][3];
-		}
-		else
-		{
-			out.t[0] = s; out.t[1] = t; out.t[2] = 0; out.t[3] = 1;
-		}
-
-		out.n[0] = in.n.x;
-		out.n[1] = in.n.y;
-		out.n[2] = in.n.z;
 
 		/* RageVColor is BGRA. */
 		out.c[0] = in.c.r;
@@ -850,7 +875,7 @@ struct VertexFiller
 		out.c[3] = in.c.a;
 
 		out.mode[0] = mode;
-		out.mode[1] = out.mode[2] = out.mode[3] = 0;
+		out.mode[1] = 0;
 	}
 
 	bool bOnCPU, bTexMatrix;
@@ -1075,11 +1100,11 @@ static void InitContext()
 	g_iRingOffset = 0;
 
 	const GLsizei stride = sizeof(Vertex);
-	gl.VertexAttribPointer( ATTR_POSITION, 4, GL_FLOAT, GL_FALSE, stride, (const void *) offsetof(Vertex, p) );
-	gl.VertexAttribPointer( ATTR_NORMAL, 3, GL_FLOAT, GL_FALSE, stride, (const void *) offsetof(Vertex, n) );
-	gl.VertexAttribPointer( ATTR_TEXCOORD, 4, GL_FLOAT, GL_FALSE, stride, (const void *) offsetof(Vertex, t) );
+	gl.VertexAttribPointer( ATTR_POSITION, 3, GL_FLOAT, GL_FALSE, stride, (const void *) offsetof(Vertex, p) );
+	gl.VertexAttribPointer( ATTR_NORMAL, 3, GLC_HALF_FLOAT, GL_FALSE, stride, (const void *) offsetof(Vertex, n) );
+	gl.VertexAttribPointer( ATTR_TEXCOORD, 2, GL_FLOAT, GL_FALSE, stride, (const void *) offsetof(Vertex, t) );
 	gl.VertexAttribPointer( ATTR_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, (const void *) offsetof(Vertex, c) );
-	gl.VertexAttribPointer( ATTR_MODE, 4, GL_UNSIGNED_BYTE, GL_FALSE, stride, (const void *) offsetof(Vertex, mode) );
+	gl.VertexAttribPointer( ATTR_MODE, 1, GL_UNSIGNED_BYTE, GL_FALSE, stride, (const void *) offsetof(Vertex, mode) );
 	for( int i = ATTR_POSITION; i <= ATTR_MODE; ++i )
 		gl.EnableVertexAttribArray( i );
 
@@ -1585,7 +1610,14 @@ bool RageDisplay_GLCore::PrepareDraw( bool bForceGPU )
 	const int iMode1 = (w.Unit[1].bEnabled && w.Unit[1].Texture)? w.Unit[1].iMode: TEXMODE_OFF;
 	const bool bSphere0 = iMode0 != TEXMODE_OFF && w.Unit[0].bSphere;
 	const bool bSphere1 = iMode1 != TEXMODE_OFF && w.Unit[1].bSphere;
-	const bool bOnCPU = !bForceGPU && !w.bLighting && !bSphere0 && !bSphere1;
+
+	/* Vertices on the CPU leave out the last row's worth of coordinates, which
+	 * is only right if the matrices don't do anything projective. */
+	const RageMatrix *pWorld = GetWorldTop();
+	const RageMatrix &TexMatrix = w.Unit[0].TexMatrix;
+	const bool bAffine = pWorld->m[0][3] == 0 && pWorld->m[1][3] == 0 && pWorld->m[2][3] == 0 && pWorld->m[3][3] == 1 &&
+		(iMode0 == TEXMODE_OFF || (TexMatrix.m[0][3] == 0 && TexMatrix.m[1][3] == 0 && TexMatrix.m[3][3] == 1));
+	const bool bOnCPU = !bForceGPU && !w.bLighting && !bSphere0 && !bSphere1 && bAffine;
 
 	ApplyBlendAndDepth();
 	if( iMode0 != TEXMODE_OFF )
@@ -1602,7 +1634,6 @@ bool RageDisplay_GLCore::PrepareDraw( bool bForceGPU )
 		iLastProjectionGen = iGen;
 	}
 	const RageMatrix &CenteringView = GetCenteringView( iGen, GetCentering(), GetViewTop() );
-	const RageMatrix *pWorld = GetWorldTop();
 	if( bOnCPU )
 	{
 		SetUniformFloats( U_MODELVIEW, (const float *) &CenteringView, 16 );
