@@ -22,6 +22,8 @@
 #include "Foreach.h"
 #include "CatalogXml.h"
 #include "Bookkeeper.h"
+#include "ProfileWriter.h"
+#include "MemoryCardManager.h"
 
 //
 // Old file versions for backward compatibility
@@ -556,6 +558,9 @@ bool Profile::LoadAllFromDir( CString sDir, bool bRequireSignature )
 
 	LOG->Trace( "Profile::LoadAllFromDir( %s )", sDir.c_str() );
 
+	/* Stats.xml and its signatures may still be on their way to disk. */
+	ProfileWriter::WaitForDir( sDir );
+
 	InitAll();
 
 	LoadEditableDataFromDir( sDir );
@@ -636,40 +641,66 @@ bool Profile::LoadAllFromDir( CString sDir, bool bRequireSignature )
 	return true;	// FIXME?  Investigate what happens if we always return true.
 }
 
-bool Profile::SaveAllToDir( CString sDir, bool bSignData ) const
+/* Everything a save writes, copied out of the Profile so the writer thread never
+ * looks at live data. */
+class ProfileSaveJob: public ProfileWriteJob
 {
-	m_sLastPlayedMachineGuid = PROFILEMAN->GetMachineProfile()->m_sGuid;
-	m_LastPlayedDate = DateTime::GetNowDate();
+public:
+	ProfileSaveJob(): m_pStats(NULL), m_bRemembered(false), m_bSign(false), m_bPauseMemCardMount(false), m_pSongScores(NULL), m_bSaved(false) { }
+	~ProfileSaveJob() { delete m_pStats; }
+
+	void Run();
+
+	XNode *m_pStats;
+	IniFile m_Editable;
+	IniFile m_Remembered;
+	bool m_bRemembered;
+	bool m_bSign;
+	bool m_bPauseMemCardMount;
+
+	/* The web page: files to copy into the profile directory.  The sources are
+	 * resolved before the job is queued because ThemeManager isn't thread safe. */
+	vector<CString> m_asCopyFrom;
+	vector<CString> m_asCopyTo;
+
+	/* The song scores are most of Stats.xml.  The job builds that node itself,
+	 * from a copy of the scores, rather than the main thread doing it. */
+	XNode *m_pSongScores;	// in m_pStats
+	std::map<SongID,Profile::HighScoresForASong> m_SongHighScores;
+
+	bool m_bSaved;
+};
+
+void ProfileSaveJob::Run()
+{
+	const CString sDir = m_sDir;
+
+	const bool bPause = m_bPauseMemCardMount && MEMCARDMAN;
+	if( bPause )
+		MEMCARDMAN->PauseMountingThread();
 
 	// Save editable.xml
-	SaveEditableDataToDir( sDir );
-	SaveRememberedOptionsToDir( sDir );
+	m_Editable.WriteFile( sDir + EDITABLE_INI );
+	if( m_bRemembered )
+		m_Remembered.WriteFile( sDir + REMEMBERED_OPTIONS_INI );
 
 	// Save stats.xml
 	CString fn = sDir + STATS_XML;
 
-	XNode xml;
-	xml.name = "Stats";
-	xml.AppendChild( SaveGeneralDataCreateNode() );
-	xml.AppendChild( SaveSongScoresCreateNode() );
-	xml.AppendChild( SaveCourseScoresCreateNode() );
-	xml.AppendChild( SaveCategoryScoresCreateNode() );
-	xml.AppendChild( SaveScreenshotDataCreateNode() );
-	xml.AppendChild( SaveCalorieDataCreateNode() );
-	xml.AppendChild( SaveRecentSongScoresCreateNode() );
-	xml.AppendChild( SaveRecentCourseScoresCreateNode() );
-	if( IsMachine() )
-		xml.AppendChild( SaveCoinDataCreateNode() );
+	Profile::SaveSongScoresToNode( m_pSongScores, m_SongHighScores );
 
 	DISP_OPT opts = optDefault;
 	opts.stylesheet = STATS_XSL;
 	opts.write_tabs = false;
-	bool bSaved = xml.SaveToFile(fn, &opts);
-	
+	/* RageFile writes to a temporary file and renames it over the old one when it's
+	 * closed, so a crash leaves the old Stats.xml.  SLOW_FLUSH makes sure the new data
+	 * is on disk before that rename; some paths (memory cards) don't get it by default. */
+	m_bSaved = m_pStats->SaveToFile( fn, &opts, RageFile::SLOW_FLUSH );
+
 	// Update file cache, or else IsAFile in CryptManager won't see this new file.
 	FILEMAN->FlushDirCache( sDir );
-	
-	if( bSaved && bSignData )
+
+	if( m_bSaved && m_bSign )
 	{
 		CString sStatsXmlSigFile = fn+SIGNATURE_APPEND;
 		CryptManager::SignFileToFile(fn, sStatsXmlSigFile);
@@ -682,37 +713,96 @@ bool Profile::SaveAllToDir( CString sDir, bool bSignData ) const
 		CryptManager::SignFileToFile(sStatsXmlSigFile, sDontShareFile);
 	}
 
-	SaveStatsWebPageToDir( sDir );
+	for( unsigned i = 0; i < m_asCopyFrom.size(); ++i )
+		FileCopy( m_asCopyFrom[i], m_asCopyTo[i] );
 
 	// Empty directories if none exist.
 	FILEMAN->CreateDir( sDir + EDITS_SUBDIR );
 	FILEMAN->CreateDir( sDir + SCREENSHOTS_SUBDIR );
 
+	if( bPause )
+		MEMCARDMAN->UnPauseMountingThread();
+}
+
+static ProfileSaveJob *CreateSaveJob( const Profile &pro, CString sDir, bool bSignData )
+{
+	ASSERT( PROFILEMAN );
+
+	pro.m_sLastPlayedMachineGuid = PROFILEMAN->GetMachineProfile()->m_sGuid;
+	pro.m_LastPlayedDate = DateTime::GetNowDate();
+
+	ProfileSaveJob *pJob = new ProfileSaveJob;
+	pJob->m_sDir = sDir;
+	pJob->m_bSign = bSignData;
+
+	pro.SaveEditableDataToIni( pJob->m_Editable );
+	pJob->m_bRemembered = pro.SaveRememberedOptionsToIni( pJob->m_Remembered );
+
+	XNode *xml = new XNode;
+	xml->name = "Stats";
+	xml->AppendChild( pro.SaveGeneralDataCreateNode() );
+	pJob->m_pSongScores = xml->AppendChild( "SongScores" );
+	pJob->m_SongHighScores = pro.m_SongHighScores;
+	xml->AppendChild( pro.SaveCourseScoresCreateNode() );
+	xml->AppendChild( pro.SaveCategoryScoresCreateNode() );
+	xml->AppendChild( pro.SaveScreenshotDataCreateNode() );
+	xml->AppendChild( pro.SaveCalorieDataCreateNode() );
+	xml->AppendChild( pro.SaveRecentSongScoresCreateNode() );
+	xml->AppendChild( pro.SaveRecentCourseScoresCreateNode() );
+	if( pro.IsMachine() )
+		xml->AppendChild( pro.SaveCoinDataCreateNode() );
+	pJob->m_pStats = xml;
+
+	// The stats web page
+	pJob->m_asCopyFrom.push_back( THEME->GetPathO("Profile",STATS_XSL) );
+	pJob->m_asCopyTo.push_back( sDir+STATS_XSL );
+	pJob->m_asCopyFrom.push_back( THEME->GetPathO("Profile",CATALOG_XSL) );
+	pJob->m_asCopyTo.push_back( sDir+CATALOG_XSL );
+	pJob->m_asCopyFrom.push_back( THEME->GetPathO("Profile",COMMON_XSL) );
+	pJob->m_asCopyTo.push_back( sDir+COMMON_XSL );
+	pJob->m_asCopyFrom.push_back( CATALOG_XML_FILE );
+	pJob->m_asCopyTo.push_back( sDir+CATALOG_XML );
+
+	return pJob;
+}
+
+bool Profile::SaveAllToDir( CString sDir, bool bSignData ) const
+{
+	ProfileSaveJob *pJob = CreateSaveJob( *this, sDir, bSignData );
+
+	/* Don't write over an older save that's still being written. */
+	ProfileWriter::WaitForDir( sDir );
+	pJob->Run();
+
+	bool bSaved = pJob->m_bSaved;
+	delete pJob;
 	return bSaved;
 }
 
-void Profile::SaveEditableDataToDir( CString sDir ) const
+void Profile::SaveAllToDirAsync( CString sDir, bool bSignData, bool bPauseMemCardMount ) const
 {
-	IniFile ini;
+	ProfileSaveJob *pJob = CreateSaveJob( *this, sDir, bSignData );
+	pJob->m_bPauseMemCardMount = bPauseMemCardMount;
+	ProfileWriter::Queue( pJob );
+}
 
+void Profile::SaveEditableDataToIni( IniFile &ini ) const
+{
 	ini.SetValue( "Editable", "DisplayName",			m_sDisplayName );
 	ini.SetValue( "Editable", "LastUsedHighScoreName",	m_sLastUsedHighScoreName );
 	ini.SetValue( "Editable", "WeightPounds",			m_iWeightPounds );
-
-	ini.WriteFile( sDir + EDITABLE_INI );
 }
 
 /* Only written once something has been remembered, so a profile that never
  * used Remember Options doesn't get a new file. */
-void Profile::SaveRememberedOptionsToDir( CString sDir ) const
+bool Profile::SaveRememberedOptionsToIni( IniFile &ini ) const
 {
 	if( m_sRememberedPlayerOptions.empty() && m_sRememberedSongOptions.empty() )
-		return;
+		return false;
 
-	IniFile ini;
 	ini.SetValue( "Remembered", "PlayerOptions",	m_sRememberedPlayerOptions );
 	ini.SetValue( "Remembered", "SongOptions",		m_sRememberedSongOptions );
-	ini.WriteFile( sDir + REMEMBERED_OPTIONS_INI );
+	return true;
 }
 
 XNode* Profile::SaveGeneralDataCreateNode() const
@@ -834,6 +924,8 @@ XNode* Profile::SaveGeneralDataCreateNode() const
 
 void Profile::LoadEditableDataFromDir( CString sDir )
 {
+	ProfileWriter::WaitForDir( sDir );
+
 	CString fn = sDir + EDITABLE_INI;
 
 	//
@@ -866,6 +958,8 @@ void Profile::LoadEditableDataFromDir( CString sDir )
 
 void Profile::LoadRememberedOptionsFromDir( CString sDir )
 {
+	ProfileWriter::WaitForDir( sDir );
+
 	CString fn = sDir + REMEMBERED_OPTIONS_INI;
 	if( !IsAFile(fn) )
 		return;
@@ -1008,25 +1102,26 @@ void Profile::AddStepTotals( int iTotalTapsAndHolds, int iTotalJumps, int iTotal
 	}
 }
 
-XNode* Profile::SaveSongScoresCreateNode() const
+void Profile::SaveSongScoresToNode( XNode *pNode, const std::map<SongID,HighScoresForASong> &mapScores )
 {
 	CHECKPOINT;
 
-	const Profile* pProfile = this;
-	ASSERT( pProfile );
-
-	XNode* pNode = new XNode;
-	pNode->name = "SongScores";
-
-	for( std::map<SongID,HighScoresForASong>::const_iterator i = m_SongHighScores.begin();
-		i != m_SongHighScores.end();
+	for( std::map<SongID,HighScoresForASong>::const_iterator i = mapScores.begin();
+		i != mapScores.end();
 		i++ )
 	{	
 		const SongID &songID = i->first;
 		const HighScoresForASong &hsSong = i->second;
 
 		// skip songs that have never been played
-		if( pProfile->GetSongNumTimesPlayed(songID) == 0 )
+		int iTotalNumTimesPlayed = 0;
+		for( std::map<StepsID,HighScoresForASteps>::const_iterator j = hsSong.m_StepsHighScores.begin();
+			j != hsSong.m_StepsHighScores.end();
+			j++ )
+		{
+			iTotalNumTimesPlayed += j->second.hs.iNumTimesPlayed;
+		}
+		if( iTotalNumTimesPlayed == 0 )
 			continue;
 
 		XNode* pSongNode = pNode->AppendChild( songID.CreateNode() );
@@ -1049,8 +1144,6 @@ XNode* Profile::SaveSongScoresCreateNode() const
 			pStepsNode->AppendChild( hsl.CreateNode() );
 		}
 	}
-	
-	return pNode;
 }
 
 void Profile::LoadSongScoresFromNode( const XNode* pNode )
@@ -1250,16 +1343,6 @@ void Profile::LoadCategoryScoresFromNode( const XNode* pNode )
 			hsl.LoadFromNode( pHighScoreListNode );
 		}
 	}
-}
-
-void Profile::SaveStatsWebPageToDir( CString sDir ) const
-{
-	ASSERT( PROFILEMAN );
-
-	FileCopy( THEME->GetPathO("Profile",STATS_XSL), sDir+STATS_XSL );
-	FileCopy( THEME->GetPathO("Profile",CATALOG_XSL), sDir+CATALOG_XSL );
-	FileCopy( THEME->GetPathO("Profile",COMMON_XSL), sDir+COMMON_XSL );
-	FileCopy( CATALOG_XML_FILE, sDir+CATALOG_XML );
 }
 
 void Profile::AddScreenshot( const Screenshot &screenshot )

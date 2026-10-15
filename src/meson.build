@@ -299,6 +299,7 @@ global_singletons = files(
   'NoteSkinManager.cpp',
   'PrefsManager.cpp',
   'ProfileManager.cpp',
+  'ProfileWriter.cpp',
   'ScreenManager.cpp',
   'SongManager.cpp',
   'ThemeManager.cpp',

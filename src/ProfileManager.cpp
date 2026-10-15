@@ -18,6 +18,7 @@
 #include "RageUtil.h"
 #include "ThemeManager.h"
 #include "MemoryCardManager.h"
+#include "ProfileWriter.h"
 #if !defined(WITHOUT_EXTRAS)
 #include "WifeScores.h"
 #endif
@@ -39,6 +40,9 @@ ProfileManager::ProfileManager()
 
 ProfileManager::~ProfileManager()
 {
+	/* Saves are written in the background; don't quit (and tear down the
+	 * file system) before they're on disk. */
+	ProfileWriter::Shutdown();
 }
 
 void ProfileManager::Init()
@@ -199,15 +203,9 @@ bool ProfileManager::SaveProfile( PlayerNumber pn ) const
 	if( m_sProfileDir[pn].empty() )
 		return false;
 
-	if( ProfileWasLoadedFromMemoryCard(pn) )
-		MEMCARDMAN->PauseMountingThread();
-
-	bool b = m_Profile[pn].SaveAllToDir( m_sProfileDir[pn], PREFSMAN->m_bSignProfileData );
-
-	if( ProfileWasLoadedFromMemoryCard(pn) )
-		MEMCARDMAN->UnPauseMountingThread();
-	
-	return b;
+	/* The writer thread pauses the mounting thread while it writes to a memory card. */
+	m_Profile[pn].SaveAllToDirAsync( m_sProfileDir[pn], PREFSMAN->m_bSignProfileData, ProfileWasLoadedFromMemoryCard(pn) );
+	return true;
 }
 
 void ProfileManager::UnloadProfile( PlayerNumber pn )
@@ -281,6 +279,7 @@ bool ProfileManager::DeleteLocalProfile( CString sProfileID )
 {
 	// delete all files in profile dir
 	CString sProfileDir = USER_PROFILES_DIR + sProfileID;
+	ProfileWriter::WaitForDir( sProfileDir + "/" );
 	CStringArray asFilesToDelete;
 	GetDirListing( sProfileDir + "/*", asFilesToDelete, false, true );
 	for( unsigned i=0; i<asFilesToDelete.size(); i++ )
@@ -317,7 +316,7 @@ void ProfileManager::SaveMachineProfile() const
 	// are saved, so that the Player's profiles show the right machine name.
 	const_cast<ProfileManager *> (this)->m_MachineProfile.m_sDisplayName = PREFSMAN->m_sMachineName;
 
-	m_MachineProfile.SaveAllToDir( MACHINE_PROFILE_DIR, false ); /* don't sign machine profiles */
+	m_MachineProfile.SaveAllToDirAsync( MACHINE_PROFILE_DIR, false, false ); /* don't sign machine profiles */
 }
 
 

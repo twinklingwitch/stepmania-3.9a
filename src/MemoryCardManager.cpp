@@ -9,8 +9,18 @@
 #include "ProfileManager.h"
 #include "Foreach.h"
 #include "GameState.h"
+#include "ProfileWriter.h"
 
 MemoryCardManager*	MEMCARDMAN = NULL;	// global and accessable from anywhere in our program
+
+/* Profiles are written to cards in the background.  Mounting, unmounting and
+ * flushing a card under that write would lose it, and the writer pauses the
+ * mounting thread, so the main thread must not touch that state meanwhile. */
+static void WaitForCardWrites()
+{
+	FOREACH_PlayerNumber( p )
+		ProfileWriter::WaitForDir( MEM_CARD_MOUNT_POINT[p] );
+}
 
 
 MemoryCardManager::MemoryCardManager()
@@ -75,6 +85,7 @@ void MemoryCardManager::Update( float fDelta )
 			vector<UsbStorageDevice>::iterator iter = find( vDisconnects.begin(), vDisconnects.end(), assigned_device );
 			if( iter != vDisconnects.end() )
 			{
+				WaitForCardWrites();
 				m_pDriver->Unmount(&assigned_device, MEM_CARD_MOUNT_POINT[p]);
 				
 				assigned_device.MakeBlank();
@@ -193,6 +204,8 @@ MemoryCardState MemoryCardManager::GetCardState( PlayerNumber pn )
 
 void MemoryCardManager::LockCards( bool bLock )
 {
+	WaitForCardWrites();
+
 	bool bWasLocked = m_bCardsLocked;
 	m_bCardsLocked = bLock;
 	
@@ -224,6 +237,8 @@ void MemoryCardManager::LockCards( bool bLock )
 
 void MemoryCardManager::MountAllCards()
 {
+	WaitForCardWrites();
+
 	FOREACH_PlayerNumber( p )
 	{
 		if( m_Device[p].IsBlank() )	// they don't have an assigned card
@@ -235,6 +250,8 @@ void MemoryCardManager::MountAllCards()
 
 void MemoryCardManager::FlushAndReset()
 {
+	WaitForCardWrites();
+
 	FOREACH_PlayerNumber( p )
 	{
 		UsbStorageDevice &d = m_Device[p];
@@ -263,6 +280,8 @@ CString MemoryCardManager::GetName( PlayerNumber pn ) const
 
 void MemoryCardManager::PauseMountingThread()
 {
+	WaitForCardWrites();	// does nothing when it's the writer thread asking
+
 	m_pDriver->SetMountThreadState( MemoryCardDriver::paused );
 }
 

@@ -151,7 +151,7 @@ struct XNode
 	void GetXML( CString &sOut, DISP_OPT *opt = &optDefault );
 
 	bool LoadFromFile( CString sFile, PARSEINFO *pi = &piDefault );
-	bool SaveToFile( CString sFile, DISP_OPT *opt = &optDefault );
+	bool SaveToFile( CString sFile, DISP_OPT *opt = &optDefault, int iFlags = 0 );
 
 	// in own attribute list
 	const XAttr *GetAttr( const char* attrname ) const; 

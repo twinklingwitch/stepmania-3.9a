@@ -645,10 +645,28 @@ void XAttr::GetValue(DateTime &out) const	{ out.FromString( value ); }
 //--------------------------------------------------------
 // Coder    Date                      Desc
 //========================================================
-void XNode::SetValue(int v)				{ value = ssprintf("%d",v); }
-void XNode::SetValue(float v)			{ value = ssprintf("%f",v); }
-void XNode::SetValue(bool v)			{ value = ssprintf("%d",v); }
-void XNode::SetValue(unsigned v)		{ value = ssprintf("%u",v); }
+/* A profile has a hundred thousand of these; going through ssprintf for each
+ * one is most of the time spent building Stats.xml.  Same text as "%d", "%u"
+ * and "%f". */
+static void FormatNumber( CString &out, unsigned v, bool bNegative )
+{
+	char buf[16];
+	char *p = buf + sizeof(buf);
+	do
+	{
+		*--p = char('0' + v % 10);
+		v /= 10;
+	}
+	while( v );
+	if( bNegative )
+		*--p = '-';
+	out.assign( p, buf + sizeof(buf) - p );
+}
+
+void XNode::SetValue(int v)				{ FormatNumber( value, v < 0 ? 0u - (unsigned)v : (unsigned)v, v < 0 ); }
+void XNode::SetValue(float v)			{ char buf[64]; int n = snprintf( buf, sizeof(buf), "%f", v ); value.assign( buf, min(n, (int)sizeof(buf)-1) ); }
+void XNode::SetValue(bool v)			{ FormatNumber( value, v ? 1 : 0, false ); }
+void XNode::SetValue(unsigned v)		{ FormatNumber( value, v, false ); }
 void XNode::SetValue(const DateTime &v) { value = v.GetString(); }
 
 //========================================================
@@ -1247,10 +1265,10 @@ bool XNode::LoadFromFile( CString sFile, PARSEINFO *pi )
 	return true;
 }
 
-bool XNode::SaveToFile( CString sFile, DISP_OPT *opt )
+bool XNode::SaveToFile( CString sFile, DISP_OPT *opt, int iFlags )
 {
 	RageFile f;
-	if( !f.Open(sFile, RageFile::WRITE) )
+	if( !f.Open(sFile, RageFile::WRITE|iFlags) )
 	{
 		LOG->Warn("Couldn't open %s for writing: %s", sFile.c_str(), f.GetError().c_str() );
 		return false;

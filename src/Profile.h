@@ -16,6 +16,7 @@
 #include "StyleUtil.h"	// for StyleID
 
 struct XNode;
+class IniFile;
 
 //
 // Current file versions
@@ -261,7 +262,12 @@ public:
 	// Loading and saving
 	//
 	bool LoadAllFromDir( CString sDir, bool bRequireSignature );	// return false on error
-	bool SaveAllToDir( CString sDir, bool bSignData ) const;
+	bool SaveAllToDir( CString sDir, bool bSignData ) const;	// writes now, and returns whether it worked
+
+	/* Build what SaveAllToDir would write and let the writer thread do the writing.
+	 * Only the building happens here, so later changes to this Profile don't affect
+	 * the save.  Pass bPauseMemCardMount for a profile on a memory card. */
+	void SaveAllToDirAsync( CString sDir, bool bSignData, bool bPauseMemCardMount ) const;
 
 	void LoadEditableDataFromDir( CString sDir );
 	void LoadRememberedOptionsFromDir( CString sDir );
@@ -274,10 +280,11 @@ public:
 	void LoadRecentSongScoresFromNode( const XNode* pNode );
 	void LoadRecentCourseScoresFromNode( const XNode* pNode );
 
-	void SaveEditableDataToDir( CString sDir ) const;
-	void SaveRememberedOptionsToDir( CString sDir ) const;
+	void SaveEditableDataToIni( IniFile &ini ) const;
+	bool SaveRememberedOptionsToIni( IniFile &ini ) const;	// false if there's nothing to write
 	XNode* SaveGeneralDataCreateNode() const;
-	XNode* SaveSongScoresCreateNode() const;
+	/* Doesn't touch any Profile, so the writer thread can build this node from a copy of the scores. */
+	static void SaveSongScoresToNode( XNode *pNode, const std::map<SongID,HighScoresForASong> &mapScores );
 	XNode* SaveCourseScoresCreateNode() const;
 	XNode* SaveCategoryScoresCreateNode() const;
 	XNode* SaveScreenshotDataCreateNode() const;
@@ -287,7 +294,6 @@ public:
 
 	XNode* SaveCoinDataCreateNode() const;
 
-	void SaveStatsWebPageToDir( CString sDir ) const;
 
 private:
 	const HighScoresForASong *GetHighScoresForASong( const SongID& songID ) const;

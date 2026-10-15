@@ -4,6 +4,7 @@
 #include "RageLog.h"
 #include "PrefsManager.h"
 #include "RageFileManager.h"
+#include "ProfileWriter.h"
 
 #include "CryptHelpers.h"
 
@@ -135,6 +136,11 @@ bool CryptManager::VerifyFileWithFile( CString sPath, CString sSignatureFile )
 {
 	ASSERT( PREFSMAN->m_bSignProfileData );
 
+	/* Signed files are profile files, which may still be being written. */
+	ProfileWriter::WaitForDir( sPath );
+	if( !sSignatureFile.empty() )
+		ProfileWriter::WaitForDir( sSignatureFile );
+
 	CString sPubFilename = PUBLIC_KEY_PATH;
 	CString sMessageFilename = sPath;
 	if( sSignatureFile.empty() )
@@ -175,6 +181,8 @@ bool CryptManager::VerifyFileWithFile( CString sPath, CString sSignatureFile )
 bool CryptManager::Verify( CString sPath, CString sSignature )
 {
 	ASSERT( PREFSMAN->m_bSignProfileData );
+
+	ProfileWriter::WaitForDir( sPath );
 
 	CString sPubFilename = PUBLIC_KEY_PATH;
 	CString sMessageFilename = sPath;
