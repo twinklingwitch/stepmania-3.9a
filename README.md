@@ -73,6 +73,11 @@ The few intentional differences:
 - Sound goes through SDL; the ALSA, OSS and sndio drivers are gone (see
   [Sound](#sound)).
 - The loading window is SDL's; the GTK one is gone.
+- The game draws with OpenGL 3.3 (4.1 on macOS) by default, and falls back to
+  3.9's OpenGL 1.x renderer on drivers that don't have it.  The pictures are the
+  same, apart from antialiased lines (see [Video](#video)).  An existing
+  `StepMania.ini` keeps its `VideoRenderers` line, which was `opengl`; see
+  [Renderers](#renderers) to switch.
 - An optional Etterna-style scoring mode, off by default and adding the two
   settings `Wife` and `ShowWifeInGameplay`.  With it off nothing is different (see
   [Etterna-style scoring](#etterna-style-scoring)).
@@ -132,6 +137,21 @@ settings apart.
   Applications.  vanilla is `StepMania.app`, aura `StepMania-aura.app`.  Neither
   is notarized, so macOS refuses to open it at first; see
   [Gatekeeper](#gatekeeper).
+
+### Updating
+
+Unzip the new version over the old folder and let it replace the files.  Your
+preferences, key mappings, profiles, scores and song cache are in `Data/` and
+`Cache/`, which the zip doesn't contain (apart from a few files the game only
+reads), so they're kept, and so are the songs, themes and noteskins you added.
+On macOS, replace the app; your files are in
+`~/Library/Application Support/StepMania` and aren't touched.
+
+Releases up to 0.1.0 have an empty placeholder `Data/MachineProfile/Stats.xml`
+in the zip.  When updating from one of those, don't let it replace your
+`Data/MachineProfile/Stats.xml`, or the machine's scores and statistics are
+lost; back up `Data/MachineProfile` first to be safe.  Later releases don't
+have it.
 
 ### Making a release
 
@@ -370,6 +390,31 @@ offset in the options to correct for it.
 
 The game is started full screen by default.  Set `Windowed=1` in
 `Data/StepMania.ini` (or use the options menu) to run in a window.
+
+### Renderers
+
+`VideoRenderers` in `Data/StepMania.ini` is the list of renderers to try, in
+order:
+
+- `glcore`: OpenGL 3.3 core profile (4.1 on macOS).  It draws what 3.9's
+  renderer drew with one small shader program, sends vertices through buffer
+  objects and draws runs of sprites that share their state in one draw call.
+  It costs less CPU time per frame than `opengl`, mostly in the graphics
+  driver, which helps most on slow machines and on macOS, where Apple's OpenGL
+  runs on top of Metal.
+- `opengl`: 3.9's OpenGL 1.x renderer (with the same batching of draw calls),
+  for drivers without OpenGL 3.3.
+- `null`: draws nothing.
+
+The default is `glcore,opengl`, so a driver that can't make an OpenGL 3.3
+context gets the old renderer.  A `StepMania.ini` from before this keeps its
+`VideoRenderers=opengl`; change it to `glcore,opengl` (or delete the line) to
+use the new one.  `log.txt` says which one is running ("Current renderer").
+
+The only difference you can see: core OpenGL has no antialiased or wide lines,
+so with `glcore` the outlines of the groove radar and graph are drawn with
+polygons, as `opengl` does with "Smooth Lines" off, and the outline of
+cel-shaded characters is one pixel wide on macOS.
 
 ## Etterna-style scoring
 
@@ -937,8 +982,9 @@ Range").  Give it in hex in `Data/StepMania.ini`:
 ### Limits
 
 - Only built and run under Wine so far.  Real hardware has not been tested.
-- A GPU driver with OpenGL is needed.  The game uses the legacy fixed function
-  pipeline, so a core profile only driver will not do.
+- A GPU driver with OpenGL is needed: OpenGL 3.3 for the default renderer, or
+  a compatibility profile (any OpenGL 1.x driver) for the old one it falls back
+  to (see [Renderers](#renderers)).
 - No installer.  If the folder is not writable (`C:\Program Files`), the game
   stores preferences, profiles, the song cache and logs in
   `%APPDATA%\StepMania\3.9` (`3.9a` for the 3.9a build), and looks there for
@@ -959,9 +1005,10 @@ It differs from the other systems like this:
 - Everything platform specific goes through SDL 3: the OpenGL window, keyboard
   and joystick input, sound (CoreAudio) and error dialogs.  None of 3.9's
   Mac OS X code (Carbon, QuickTime, the old CoreAudio driver) is left.
-- OpenGL is Apple's legacy 2.1 context, the only one with the fixed function
-  pipeline 3.9 draws with.  Apple has deprecated OpenGL, but it still works,
-  translated to Metal.
+- The default renderer uses Apple's OpenGL 4.1 core profile; the old one
+  (`VideoRenderers=opengl`) uses the legacy 2.1 context, the only one with the
+  fixed function pipeline 3.9 draws with.  Apple has deprecated OpenGL, but
+  both still work, translated to Metal.
 - On Retina displays the game draws at the display's full resolution.  The
   resolution in the options is in the usual (point) units, so 640x480 is a
   640x480 point window drawn with 1280x960 pixels.
