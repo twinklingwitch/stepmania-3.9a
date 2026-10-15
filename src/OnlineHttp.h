@@ -21,6 +21,8 @@ struct OnlineHttpRequest
 	CString sURL;
 	CString sBody;		// JSON, or empty for none
 	CString sToken;		// bearer token, or empty
+	CString sBuild;		// an official build's name, or empty
+	CString sSignature;	// the body signed with the build's key
 	bool bCompress;		// send the body gzip compressed
 	int iTimeoutSeconds;
 	OnlineHttpRequest(): sMethod("GET"), bCompress(false), iTimeoutSeconds(30) { }

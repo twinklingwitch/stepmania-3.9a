@@ -101,6 +101,20 @@ jobs:
           make -j"$(nproc)"
           make install DESTDIR="$RUNNER_TEMP/ffmpeg"
 
+      # With the ONLINE_BUILD_KEY secret, the aura build is an official one: it
+      # signs its online requests, which a server that only takes official
+      # builds needs for tickets and scores.  Without the secret (a fork), it
+      # is built like anyone's.
+      - name: Make it an official build
+        if: matrix.flavor == 'aura'
+        env:
+          ONLINE_BUILD_KEY: ${{ secrets.ONLINE_BUILD_KEY }}
+        run: |
+          if [ -z "$ONLINE_BUILD_KEY" ]; then echo "No ONLINE_BUILD_KEY secret: not an official build"; exit 0; fi
+          if [ "$GITHUB_REF_TYPE" = tag ]; then tag=$GITHUB_REF_NAME; else tag=${GITHUB_SHA:0:7}; fi
+          python3 Utils/online-build-header.py "$tag-windows-x64" "$RUNNER_TEMP/OnlineBuild.h"
+          echo "ONLINE_BUILD_OPTION=-Donline_build=$RUNNER_TEMP/OnlineBuild.h" >> "$GITHUB_ENV"
+
       - name: Configure
         run: |
           cp -R "$RUNNER_TEMP/ffmpeg$SYSROOT/." "$SYSROOT/"
@@ -108,7 +122,7 @@ jobs:
           sed -i "/^\[binaries\]/a exe_wrapper = 'wine'" "$SYSROOT/cross.ini"
           wineboot --init
           meson setup build --cross-file "$SYSROOT/cross.ini" --prefix=/stepmania \
-            $COMMON_OPTIONS ${{ matrix.options }}
+            $COMMON_OPTIONS ${{ matrix.options }} $ONLINE_BUILD_OPTION
 
       - name: Build
         run: meson compile -C build
@@ -210,9 +224,23 @@ jobs:
           make -j"$(nproc)"
           make install
 
+      # With the ONLINE_BUILD_KEY secret, the aura build is an official one: it
+      # signs its online requests, which a server that only takes official
+      # builds needs for tickets and scores.  Without the secret (a fork), it
+      # is built like anyone's.
+      - name: Make it an official build
+        if: matrix.flavor == 'aura'
+        env:
+          ONLINE_BUILD_KEY: ${{ secrets.ONLINE_BUILD_KEY }}
+        run: |
+          if [ -z "$ONLINE_BUILD_KEY" ]; then echo "No ONLINE_BUILD_KEY secret: not an official build"; exit 0; fi
+          if [ "$GITHUB_REF_TYPE" = tag ]; then tag=$GITHUB_REF_NAME; else tag=${GITHUB_SHA:0:7}; fi
+          python3 Utils/online-build-header.py "$tag-linux-x64" "$RUNNER_TEMP/OnlineBuild.h"
+          echo "ONLINE_BUILD_OPTION=-Donline_build=$RUNNER_TEMP/OnlineBuild.h" >> "$GITHUB_ENV"
+
       - name: Configure
         run: |
-          PKG_CONFIG_PATH="$DEPS/lib/pkgconfig" meson setup build $COMMON_OPTIONS ${{ matrix.options }}
+          PKG_CONFIG_PATH="$DEPS/lib/pkgconfig" meson setup build $COMMON_OPTIONS ${{ matrix.options }} $ONLINE_BUILD_OPTION
 
       - name: Build
         run: meson compile -C build
@@ -289,11 +317,25 @@ jobs:
           brew install meson ninja pkgconf sdl3 libpng pcre2 libsamplerate openssl@3 \
             libvorbis mad jpeg-turbo ffmpeg
 
+      # With the ONLINE_BUILD_KEY secret, the aura build is an official one: it
+      # signs its online requests, which a server that only takes official
+      # builds needs for tickets and scores.  Without the secret (a fork), it
+      # is built like anyone's.
+      - name: Make it an official build
+        if: matrix.flavor == 'aura'
+        env:
+          ONLINE_BUILD_KEY: ${{ secrets.ONLINE_BUILD_KEY }}
+        run: |
+          if [ -z "$ONLINE_BUILD_KEY" ]; then echo "No ONLINE_BUILD_KEY secret: not an official build"; exit 0; fi
+          if [ "$GITHUB_REF_TYPE" = tag ]; then tag=$GITHUB_REF_NAME; else tag=${GITHUB_SHA:0:7}; fi
+          python3 Utils/online-build-header.py "$tag-macos-arm64" "$RUNNER_TEMP/OnlineBuild.h"
+          echo "ONLINE_BUILD_OPTION=-Donline_build=$RUNNER_TEMP/OnlineBuild.h" >> "$GITHUB_ENV"
+
       - name: Configure
         run: |
           # openssl@3 (and jpeg-turbo, if it is keg-only) aren't on pkg-config's path.
           export PKG_CONFIG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix jpeg-turbo)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
-          meson setup build $COMMON_OPTIONS ${{ matrix.options }}
+          meson setup build $COMMON_OPTIONS ${{ matrix.options }} $ONLINE_BUILD_OPTION
 
       - name: Build
         run: meson compile -C build

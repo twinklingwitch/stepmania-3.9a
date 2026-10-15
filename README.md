@@ -155,6 +155,15 @@ release: Actions, Release, Run workflow (or `gh workflow run release.yml --ref
 a tag in their names.  GitHub only offers manual workflows that are on the
 default branch, but they can build any branch.
 
+With the repository secret `ONLINE_BUILD_KEY` (at least 32 random bytes in
+hex, e.g. `openssl rand -hex 32`), the aura builds are official builds: each
+gets its own key, made from the secret and the build's name (like
+`v0.3.0-windows-x64`) by `Utils/online-build-header.py`, and signs its online
+requests with it.  A server given the same secret (39server's
+`SMSERVER_BUILD_KEY`) takes tickets and scores only from official builds, so
+a game built from the source can't submit.  Without the secret the builds
+are like anyone's.
+
 How each system is built:
 
 - Windows is cross-compiled in a Debian 13 container against MSYS2's

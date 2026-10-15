@@ -18,6 +18,11 @@
 
 #include <math.h>
 #include <time.h>
+#if defined(HAVE_ONLINE_BUILD)
+#include "OnlineBuild.h"
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
+#endif
 #if !defined(WINDOWS)
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -86,6 +91,27 @@ bool OnlineParseBody( const OnlineHttpResponse &r, JsonValue &v )
 	return false;
 }
 
+#if defined(HAVE_ONLINE_BUILD)
+/* The body, signed with HMAC-SHA256 under this build's key, in hex.  The key
+ * is kept masked so it isn't a plain string in the executable; that only
+ * slows down someone looking for it. */
+static CString SignForBuild( const CString &sBody )
+{
+	unsigned char key[sizeof(ONLINE_BUILD_KEY_MASKED)];
+	for( unsigned i = 0; i < sizeof(key); ++i )
+		key[i] = ONLINE_BUILD_KEY_MASKED[i] ^ ONLINE_BUILD_KEY_MASK[i];
+	unsigned char mac[EVP_MAX_MD_SIZE];
+	unsigned iLen = 0;
+	HMAC( EVP_sha256(), key, sizeof(key), (const unsigned char *) sBody.data(), sBody.size(), mac, &iLen );
+	memset( key, 0, sizeof(key) );
+
+	CString sHex;
+	for( unsigned i = 0; i < iLen; ++i )
+		sHex += ssprintf( "%02x", mac[i] );
+	return sHex;
+}
+#endif
+
 /* Only the path goes in the log; see OnlineHttp. */
 int OnlineRequest( const CString &sServer, const CString &sMethod, const CString &sPath, const CString &sBody,
 	const CString &sToken, int iTimeout )
@@ -95,6 +121,10 @@ int OnlineRequest( const CString &sServer, const CString &sMethod, const CString
 	req.sURL = sServer + "/api/v1" + sPath;
 	req.sBody = sBody;
 	req.sToken = sToken;
+#if defined(HAVE_ONLINE_BUILD)
+	req.sBuild = ONLINE_BUILD_NAME;
+	req.sSignature = SignForBuild( sBody );
+#endif
 	req.iTimeoutSeconds = iTimeout;
 	req.bCompress = sBody.size() > 32*1024;
 	return OnlineHttp::Send( req );

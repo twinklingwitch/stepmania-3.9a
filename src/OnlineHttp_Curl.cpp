@@ -119,6 +119,14 @@ void OnlineHttpBackendPerform( void *pContext, const OnlineHttpRequest &req, con
 		sAuth = "Authorization: Bearer " + req.sToken;
 		pHeaders = curl_slist_append( pHeaders, sAuth.c_str() );
 	}
+	CString sBuild, sSignature;
+	if( !req.sBuild.empty() )
+	{
+		sBuild = "X-Build: " + req.sBuild;
+		sSignature = "X-Build-Signature: " + req.sSignature;
+		pHeaders = curl_slist_append( pHeaders, sBuild.c_str() );
+		pHeaders = curl_slist_append( pHeaders, sSignature.c_str() );
+	}
 
 	CString sBody = req.sBody;
 	if( req.sMethod == "POST" )

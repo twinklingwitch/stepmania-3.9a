@@ -8,3 +8,4 @@ option('tests', type: 'boolean', value: false, description: 'Build and register 
 option('dll_dirs', type: 'array', value: [], description: 'Windows: directories to copy DLLs from when installing')
 option('online', type: 'feature', value: 'auto', description: 'Online scores: libcurl on Unix, WinHTTP on Windows')
 option('extras', type: 'boolean', value: true, description: 'The aura build: Wife scoring, MSD, local and online leaderboards, chat and rooms.  Off: plain StepMania 3.9 with the fixes')
+option('online_build', type: 'string', value: '', description: 'Official builds: a header from Utils/online-build-header.py, with the build\'s name and the key it signs online requests with')

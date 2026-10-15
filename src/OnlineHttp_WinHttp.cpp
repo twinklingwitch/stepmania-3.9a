@@ -113,6 +113,8 @@ void OnlineHttpBackendPerform( void *pContext, const OnlineHttpRequest &req, con
 	CString sHeaders = "Accept: application/json\r\nUser-Agent: " + sUserAgent + "\r\n";
 	if( !req.sToken.empty() )
 		sHeaders += "Authorization: Bearer " + req.sToken + "\r\n";
+	if( !req.sBuild.empty() )
+		sHeaders += "X-Build: " + req.sBuild + "\r\nX-Build-Signature: " + req.sSignature + "\r\n";
 	CString sBody = req.sBody;
 	if( req.sMethod == "POST" )
 	{

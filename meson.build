@@ -217,6 +217,14 @@ if online_dep.found()
   conf.set('HAVE_ONLINE', 1)
 endif
 
+# An official build signs its online requests with a key only the release
+# workflow has (Utils/online-build-header.py); a server set up to take only
+# official builds refuses tickets and scores from any other build.
+if online_dep.found() and get_option('online_build') != ''
+  configure_file(input: get_option('online_build'), output: 'OnlineBuild.h', copy: true)
+  conf.set('HAVE_ONLINE_BUILD', 1)
+endif
+
 use_networking = get_option('networking')
 if not use_networking
   conf.set('WITHOUT_NETWORKING', 1)
