@@ -271,14 +271,28 @@ void RageDisplay::DrawLineStripInternal( const RageSpriteVertex v[], int iNumVer
 void RageDisplay::DrawCircleInternal( const RageSpriteVertex &p, float radius )
 {
 	const int subdivisions = 32;
+
+	/* The circle is the same every time; only work it out once. */
+	static float fCos[subdivisions+1], fSin[subdivisions+1];
+	static bool bInited = false;
+	if( !bInited )
+	{
+		for( int i = 0; i < subdivisions+1; ++i )
+		{
+			const float fRotation = float(i) / subdivisions * 2*PI;
+			fCos[i] = cosf(fRotation);
+			fSin[i] = sinf(fRotation);
+		}
+		bInited = true;
+	}
+
 	RageSpriteVertex v[subdivisions+2];
 	v[0] = p;
 
-	for(int i = 0; i < subdivisions+1; ++i) 
+	for(int i = 0; i < subdivisions+1; ++i)
 	{
-		const float fRotation = float(i) / subdivisions * 2*PI;
-		const float fX = cosf(fRotation) * radius;
-		const float fY = -sinf(fRotation) * radius;
+		const float fX = fCos[i] * radius;
+		const float fY = -fSin[i] * radius;
 		v[1+i] = v[0];
 		v[1+i].p.x += fX;
 		v[1+i].p.y += fY;

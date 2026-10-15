@@ -90,6 +90,8 @@ protected:
 	bool SupportsSurfaceFormat( PixelFormat pixfmt );
 	
 	void SendCurrentMatrices();
+	void SendMatrices( const RageMatrix *pWorld );
+	bool BeginBatchedDraw( unsigned Mode, int iNumVerts );
 };
 
 #endif

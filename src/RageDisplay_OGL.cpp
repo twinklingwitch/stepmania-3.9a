@@ -307,7 +307,6 @@ static void FlushGLErrors()
  * anything that changes one of these states without going through the cache
  * has to forget it.  Everything is forgotten when the context is (re)created.
  *
- * Blending (GL_BLEND, glBlendFunc, glDepthRange) is not cached.
  */
 namespace
 {
@@ -343,6 +342,8 @@ namespace
 		vector<signed char> TextureWrap;
 
 		int iZWrite, iDepthTest, iDepthFunc, iCullFace, iCullMode;
+		int iBlend, iBlendSrc, iBlendDst, iDepthRange;
+		int iLighting, iSphereMapping;
 
 		GLStateCache(): bMatricesSent( false ) { Invalidate(); }
 
@@ -363,6 +364,8 @@ namespace
 			}
 			TextureWrap.clear();
 			iZWrite = iDepthTest = iDepthFunc = iCullFace = iCullMode = -1;
+			iBlend = iBlendSrc = iBlendDst = iDepthRange = -1;
+			iLighting = iSphereMapping = -1;
 		}
 
 		/* Forget the client array state, after something else set it. */
@@ -397,6 +400,7 @@ namespace
 }
 
 static void FlushTextureEnables();
+static void SetBlendFunc( GLenum src, GLenum dst );
 
 static void SetClientState( int iArray, GLenum array, bool bOn )
 {
@@ -431,6 +435,104 @@ static void TurnOffHardwareVBO()
 		GLExt.glBindBufferARB( GL_ELEMENT_ARRAY_BUFFER_ARB, 0 );
 		g_State.bBuffersUnbound = true;
 	}
+}
+
+/*
+ * Batching.
+ *
+ * Nearly everything we draw is a handful of vertices: a quad for each arrow,
+ * glyph run or sprite, each pushed through its own glDrawArrays.  The driver
+ * work for a draw call costs far more than the vertices, and runs of draws
+ * share all of their GL state (a column of arrows, say).  So plain colored and
+ * textured geometry isn't drawn right away: the world matrix is applied here
+ * instead of in GL, and the vertices are queued.  The queue goes out in one
+ * draw call when the next draw can't join it, or before anything changes GL
+ * state that it depends on.  Every place that sends GL state calls FlushBatch
+ * before doing so (the state cache makes that cheap: it only reaches GL when
+ * something changed), so draws still happen in order, with the state they
+ * were made with.
+ *
+ * Lighting and sphere mapping need eye-space normals, and a world matrix
+ * with a projective part can't be applied to the vertices alone; those draws
+ * still go straight to GL.
+ */
+namespace
+{
+	struct BatchVertex
+	{
+		float p[3];
+		GLubyte c[4];
+		float t[2];
+	};
+
+	enum { BATCH_VERTICES = 8192 };
+
+	struct Batch
+	{
+		BatchVertex v[BATCH_VERTICES];
+		int iNum;
+		GLenum Mode;		// GL_QUADS or GL_TRIANGLES
+		unsigned iCameraGen;	// GetCameraMatrixGeneration() of the queued vertices
+
+		/* The modelview matrix of the last batched draw, had it gone to GL itself;
+		 * see SetLightDirectional. */
+		bool bLastDrawBatched;
+		RageMatrix LastWorld, LastCenteringView;
+	};
+	Batch g_Batch;
+}
+
+static void FlushBatch()
+{
+	if( g_Batch.iNum == 0 )
+		return;
+	const int iNum = g_Batch.iNum;
+	g_Batch.iNum = 0;
+
+	TurnOffHardwareVBO();
+	const GLsizei stride = sizeof(BatchVertex);
+	BatchVertex *v = g_Batch.v;
+	SetClientState( ARRAY_VERTEX, GL_VERTEX_ARRAY, true );
+	if( g_State.pArray[ARRAY_VERTEX] != v[0].p )
+	{
+		glVertexPointer( 3, GL_FLOAT, stride, v[0].p );
+		g_State.pArray[ARRAY_VERTEX] = v[0].p;
+	}
+	SetClientState( ARRAY_COLOR, GL_COLOR_ARRAY, true );
+	if( g_State.pArray[ARRAY_COLOR] != v[0].c )
+	{
+		glColorPointer( 4, GL_UNSIGNED_BYTE, stride, v[0].c );
+		g_State.pArray[ARRAY_COLOR] = v[0].c;
+	}
+	SetClientState( ARRAY_TEXCOORD, GL_TEXTURE_COORD_ARRAY, true );
+	if( g_State.pArray[ARRAY_TEXCOORD] != v[0].t )
+	{
+		glTexCoordPointer( 2, GL_FLOAT, stride, v[0].t );
+		g_State.pArray[ARRAY_TEXCOORD] = v[0].t;
+	}
+	SetClientState( ARRAY_NORMAL, GL_NORMAL_ARRAY, false );
+
+	glDrawArrays( g_Batch.Mode, 0, iNum );
+}
+
+/* Copy a vertex into the batch, moving it by the world matrix (an affine one;
+ * see BeginBatchedDraw). */
+static inline void ToBatchVertex( BatchVertex &out, const RageSpriteVertex &in, const RageMatrix &w )
+{
+	const float x = in.p.x, y = in.p.y, z = in.p.z;
+	out.p[0] = x*w.m[0][0] + y*w.m[1][0] + z*w.m[2][0] + w.m[3][0];
+	out.p[1] = x*w.m[0][1] + y*w.m[1][1] + z*w.m[2][1] + w.m[3][1];
+	out.p[2] = x*w.m[0][2] + y*w.m[1][2] + z*w.m[2][2] + w.m[3][2];
+
+	/* RageVColor is BGRA. */
+	const RageVColor &c = in.c;
+	out.c[0] = c.r;
+	out.c[1] = c.g;
+	out.c[2] = c.b;
+	out.c[3] = c.a;
+
+	out.t[0] = in.t.x;
+	out.t[1] = in.t.y;
 }
 
 RageDisplay_OGL::RageDisplay_OGL( VideoModeParams p, bool bAllowUnacceleratedRenderer )
@@ -714,6 +816,7 @@ static inline void UpdateDepthState()
 	{
 		if( g_State.iDepthTest != 0 )
 		{
+			FlushBatch();
 			glDisable( GL_DEPTH_TEST );
 			g_State.iDepthTest = 0;
 		}
@@ -722,6 +825,7 @@ static inline void UpdateDepthState()
 
 	if( g_Depth.bClearPending )
 	{
+		FlushBatch();
 		/* Clearing is affected by the depth mask. */
 		if( !g_Depth.bWrite )
 			glDepthMask( true );
@@ -733,6 +837,7 @@ static inline void UpdateDepthState()
 
 	if( g_State.iDepthTest != 1 )
 	{
+		FlushBatch();
 		glEnable( GL_DEPTH_TEST );
 		g_State.iDepthTest = 1;
 	}
@@ -744,6 +849,7 @@ static inline void UpdateDepthState()
 CString RageDisplay_OGL::TryVideoMode( VideoModeParams p, bool &bNewDeviceOut )
 {
 //	LOG->Trace( "RageDisplay_OGL::SetVideoMode( %d, %d, %d, %d, %d, %d )", windowed, width, height, bpp, rate, vsync );
+	FlushBatch();
 	CString err;
 	err = wind->TryVideoMode( p, bNewDeviceOut );
 	if( err != "" )
@@ -789,6 +895,8 @@ CString RageDisplay_OGL::TryVideoMode( VideoModeParams p, bool &bNewDeviceOut )
 
 void RageDisplay_OGL::SetViewport(int shift_left, int shift_down)
 {
+	FlushBatch();
+
 	/* left and down are on a 0..SCREEN_WIDTH, 0..SCREEN_HEIGHT scale.
 	 * Scale them to the actual viewport range, in framebuffer pixels. */
 	int iWidth, iHeight;
@@ -808,6 +916,7 @@ int RageDisplay_OGL::GetMaxTextureSize() const
 
 bool RageDisplay_OGL::BeginFrame()
 {
+	FlushBatch();
 	glClearColor( 0,0,0,1 );
 	SetZWrite( true );
 	glClear( GL_COLOR_BUFFER_BIT );
@@ -818,6 +927,8 @@ bool RageDisplay_OGL::BeginFrame()
 
 void RageDisplay_OGL::EndFrame()
 {
+	FlushBatch();
+
 	/* The frame isn't done until the GPU is, and we need to know how long that
 	 * takes to pace frames.  There's nothing else for the CPU to do meanwhile. */
 	if( IsPacing() )
@@ -831,6 +942,8 @@ void RageDisplay_OGL::EndFrame()
 
 RageSurface* RageDisplay_OGL::CreateScreenshot()
 {
+	FlushBatch();
+
 	int width, height;
 	wind->GetFramebufferSize( width, height );
 
@@ -856,6 +969,8 @@ static void SetupVertices( const RageSpriteVertex v[], int iNumVerts )
 	/* Positions, normals and texture coordinates are sent straight out of a
 	 * copy of the vertices; only the colors need reordering, since RageVColor
 	 * is BGRA. */
+	FlushBatch();
+
 	static RageSpriteVertex *Vertex;
 	static GLubyte *Color;
 	static int Size = 0;
@@ -914,13 +1029,32 @@ static void LoadMatrix( GLenum mode, const RageMatrix &m, bool &bValid, RageMatr
 {
 	if( bValid && !memcmp(&last, &m, sizeof(m)) )
 		return;
+	FlushBatch();
 	SetMatrixMode( mode );
 	glLoadMatrixf( (const float*)&m );
 	bValid = true;
 	last = m;
 }
 
-void RageDisplay_OGL::SendCurrentMatrices()
+/* The product of the centering and view matrices, for camera generation iGen. */
+static const RageMatrix &GetCenteringView( unsigned iGen, const RageMatrix *pCentering, const RageMatrix *pView )
+{
+	static bool bCenteringViewValid = false;
+	static unsigned iCenteringViewGen;
+	static RageMatrix CenteringView;
+	if( !bCenteringViewValid || iCenteringViewGen != iGen )
+	{
+		RageMatrixMultiply( &CenteringView, pCentering, pView );
+		iCenteringViewGen = iGen;
+		bCenteringViewValid = true;
+	}
+	return CenteringView;
+}
+
+/* Send the projection and texture matrices, and modelview = CenteringView *
+ * extra (the world matrix, or identity for batched vertices, which already
+ * have it applied). */
+void RageDisplay_OGL::SendMatrices( const RageMatrix *pWorld )
 {
 	/* Usually only the world matrix changes from one draw to the next.  The
 	 * others are only compared with what we sent if they may have changed. */
@@ -932,25 +1066,21 @@ void RageDisplay_OGL::SendCurrentMatrices()
 		g_State.iProjectionGen = iGen;
 	}
 
-	/* Keep the product of the centering and view matrices. */
-	static bool bCenteringViewValid = false;
-	static unsigned iCenteringViewGen;
-	static RageMatrix CenteringView;
-	if( !bCenteringViewValid || iCenteringViewGen != iGen )
+	const RageMatrix &CenteringView = GetCenteringView( iGen, GetCentering(), GetViewTop() );
+	if( pWorld )
 	{
-		RageMatrixMultiply( &CenteringView, GetCentering(), GetViewTop() );
-		iCenteringViewGen = iGen;
-		bCenteringViewValid = true;
+		RageMatrix modelView;
+		RageMatrixMultiply( &modelView, &CenteringView, pWorld );
+		LoadMatrix( GL_MODELVIEW, modelView, g_State.bModelViewValid, g_State.ModelView );
 	}
-
-	RageMatrix modelView;
-	RageMatrixMultiply( &modelView, &CenteringView, GetWorldTop() );
-	LoadMatrix( GL_MODELVIEW, modelView, g_State.bModelViewValid, g_State.ModelView );
+	else
+		LoadMatrix( GL_MODELVIEW, CenteringView, g_State.bModelViewValid, g_State.ModelView );
 
 	/* The texture matrix belongs to the active texture unit. */
 	const int iUnit = g_State.ActiveUnit();
 	if( iUnit == -1 )
 	{
+		FlushBatch();
 		SetMatrixMode( GL_TEXTURE );
 		glLoadMatrixf( (const float*)GetTextureTop() );
 	}
@@ -960,6 +1090,42 @@ void RageDisplay_OGL::SendCurrentMatrices()
 		g_State.iTextureMatrixGen[iUnit] = iGen;
 	}
 	g_State.bMatricesSent = true;
+}
+
+void RageDisplay_OGL::SendCurrentMatrices()
+{
+	FlushBatch();
+	SendMatrices( GetWorldTop() );
+	g_Batch.bLastDrawBatched = false;
+}
+
+/* Get ready to queue iNumVerts vertices drawn with Mode at g_Batch.v[g_Batch.iNum],
+ * or return false if this draw has to go to GL itself. */
+bool RageDisplay_OGL::BeginBatchedDraw( unsigned Mode, int iNumVerts )
+{
+	if( g_State.iLighting != 0 || g_State.iSphereMapping == 1 || iNumVerts > BATCH_VERTICES )
+		return false;
+
+	const RageMatrix &w = *GetWorldTop();
+	if( w.m[0][3] != 0 || w.m[1][3] != 0 || w.m[2][3] != 0 || w.m[3][3] != 1 )
+		return false;
+
+	const unsigned iGen = GetCameraMatrixGeneration();
+	if( g_Batch.Mode != Mode || g_Batch.iCameraGen != iGen || g_Batch.iNum + iNumVerts > BATCH_VERTICES )
+		FlushBatch();
+
+	/* These only reach GL (and flush the queue first) if something changed. */
+	TurnOffHardwareVBO();
+	FlushTextureEnables();
+	UpdateDepthState();
+	SendMatrices( NULL );
+
+	g_Batch.Mode = Mode;
+	g_Batch.iCameraGen = iGen;
+	g_Batch.bLastDrawBatched = true;
+	g_Batch.LastWorld = w;
+	g_Batch.LastCenteringView = GetCenteringView( iGen, GetCentering(), GetViewTop() );
+	return true;
 }
 
 class RageCompiledGeometrySWOGL : public RageCompiledGeometry
@@ -1278,63 +1444,123 @@ void RageDisplay_OGL::DeleteCompiledGeometry( RageCompiledGeometry* p )
 	delete p;
 }
 
+/* Draw directly, without the batch. */
+#define DRAW_DIRECTLY( mode ) \
+	FlushBatch(); \
+	TurnOffHardwareVBO(); \
+	FlushTextureEnables(); \
+	UpdateDepthState(); \
+	SendCurrentMatrices(); \
+	SetupVertices( v, iNumVerts ); \
+	glDrawArrays( mode, 0, iNumVerts );
+
 void RageDisplay_OGL::DrawQuadsInternal( const RageSpriteVertex v[], int iNumVerts )
 {
-	TurnOffHardwareVBO();
-	FlushTextureEnables();
-	UpdateDepthState();
-	SendCurrentMatrices();
+	if( !BeginBatchedDraw(GL_QUADS, iNumVerts) )
+	{
+		DRAW_DIRECTLY( GL_QUADS );
+		return;
+	}
 
-	SetupVertices( v, iNumVerts );
-	glDrawArrays( GL_QUADS, 0, iNumVerts );
+	const RageMatrix &w = *GetWorldTop();
+	BatchVertex *out = &g_Batch.v[g_Batch.iNum];
+	for( int i = 0; i < iNumVerts; ++i )
+		ToBatchVertex( out[i], v[i], w );
+	g_Batch.iNum += iNumVerts;
 }
 
 void RageDisplay_OGL::DrawQuadStripInternal( const RageSpriteVertex v[], int iNumVerts )
 {
-	TurnOffHardwareVBO();
-	FlushTextureEnables();
-	UpdateDepthState();
-	SendCurrentMatrices();
+	/* Quad i of a strip is vertices 2i, 2i+1, 2i+3, 2i+2. */
+	const int iQuads = iNumVerts/2 - 1;
+	if( !BeginBatchedDraw(GL_QUADS, iQuads*4) )
+	{
+		DRAW_DIRECTLY( GL_QUAD_STRIP );
+		return;
+	}
 
-	SetupVertices( v, iNumVerts );
-	glDrawArrays( GL_QUAD_STRIP, 0, iNumVerts );
+	const RageMatrix &w = *GetWorldTop();
+	BatchVertex *out = &g_Batch.v[g_Batch.iNum];
+	for( int i = 0; i < iQuads; ++i )
+	{
+		ToBatchVertex( out[0], v[i*2+0], w );
+		ToBatchVertex( out[1], v[i*2+1], w );
+		ToBatchVertex( out[2], v[i*2+3], w );
+		ToBatchVertex( out[3], v[i*2+2], w );
+		out += 4;
+	}
+	g_Batch.iNum += iQuads*4;
 }
 
 void RageDisplay_OGL::DrawFanInternal( const RageSpriteVertex v[], int iNumVerts )
 {
-	TurnOffHardwareVBO();
-	FlushTextureEnables();
-	UpdateDepthState();
-	SendCurrentMatrices();
+	const int iTriangles = iNumVerts - 2;
+	if( !BeginBatchedDraw(GL_TRIANGLES, iTriangles*3) )
+	{
+		DRAW_DIRECTLY( GL_TRIANGLE_FAN );
+		return;
+	}
 
-	SetupVertices( v, iNumVerts );
-	glDrawArrays( GL_TRIANGLE_FAN, 0, iNumVerts );
+	const RageMatrix &w = *GetWorldTop();
+	BatchVertex *out = &g_Batch.v[g_Batch.iNum];
+	BatchVertex center;
+	ToBatchVertex( center, v[0], w );
+	ToBatchVertex( out[1], v[1], w );
+	for( int i = 0; i < iTriangles; ++i )
+	{
+		out[0] = center;
+		if( i > 0 )
+			out[1] = out[-1];
+		ToBatchVertex( out[2], v[i+2], w );
+		out += 3;
+	}
+	g_Batch.iNum += iTriangles*3;
 }
 
 void RageDisplay_OGL::DrawStripInternal( const RageSpriteVertex v[], int iNumVerts )
 {
-	TurnOffHardwareVBO();
-	FlushTextureEnables();
-	UpdateDepthState();
-	SendCurrentMatrices();
+	/* Triangle i of a strip is vertices i, i+1, i+2, with every other one
+	 * flipped to keep the winding. */
+	const int iTriangles = iNumVerts - 2;
+	if( !BeginBatchedDraw(GL_TRIANGLES, iTriangles*3) )
+	{
+		DRAW_DIRECTLY( GL_TRIANGLE_STRIP );
+		return;
+	}
 
-	SetupVertices( v, iNumVerts );
-	glDrawArrays( GL_TRIANGLE_STRIP, 0, iNumVerts );
+	const RageMatrix &w = *GetWorldTop();
+	BatchVertex *out = &g_Batch.v[g_Batch.iNum];
+	for( int i = 0; i < iTriangles; ++i )
+	{
+		const bool bOdd = (i & 1) != 0;
+		ToBatchVertex( out[0], v[bOdd? i+1:i], w );
+		ToBatchVertex( out[1], v[bOdd? i:i+1], w );
+		ToBatchVertex( out[2], v[i+2], w );
+		out += 3;
+	}
+	g_Batch.iNum += iTriangles*3;
 }
 
 void RageDisplay_OGL::DrawTrianglesInternal( const RageSpriteVertex v[], int iNumVerts )
 {
-	TurnOffHardwareVBO();
-	FlushTextureEnables();
-	UpdateDepthState();
-	SendCurrentMatrices();
+	if( !BeginBatchedDraw(GL_TRIANGLES, iNumVerts) )
+	{
+		DRAW_DIRECTLY( GL_TRIANGLES );
+		return;
+	}
 
-	SetupVertices( v, iNumVerts );
-	glDrawArrays( GL_TRIANGLES, 0, iNumVerts );
+	const RageMatrix &w = *GetWorldTop();
+	BatchVertex *out = &g_Batch.v[g_Batch.iNum];
+	for( int i = 0; i < iNumVerts; ++i )
+		ToBatchVertex( out[i], v[i], w );
+	g_Batch.iNum += iNumVerts;
 }
+
+#undef DRAW_DIRECTLY
 
 void RageDisplay_OGL::DrawCompiledGeometryInternal( const RageCompiledGeometry *p, int iMeshIndex )
 {
+	FlushBatch();
 	TurnOffHardwareVBO();
 	FlushTextureEnables();
 	UpdateDepthState();
@@ -1345,6 +1571,7 @@ void RageDisplay_OGL::DrawCompiledGeometryInternal( const RageCompiledGeometry *
 
 void RageDisplay_OGL::DrawLineStripInternal( const RageSpriteVertex v[], int iNumVerts, float LineWidth )
 {
+	FlushBatch();
 	TurnOffHardwareVBO();
 	UpdateDepthState();
 
@@ -1429,6 +1656,7 @@ static void BindTexture( unsigned uTexHandle )
 	const int iUnit = g_State.ActiveUnit();
 	if( iUnit != -1 && g_State.iBoundTexture[iUnit] == int64_t(uTexHandle) )
 		return;
+	FlushBatch();
 	glBindTexture( GL_TEXTURE_2D, uTexHandle );
 	if( iUnit != -1 )
 		g_State.iBoundTexture[iUnit] = uTexHandle;
@@ -1439,9 +1667,13 @@ static bool SetTexEnvState( int iMode )
 {
 	const int iUnit = g_State.ActiveUnit();
 	if( iUnit == -1 )
+	{
+		FlushBatch();
 		return true;
+	}
 	if( g_State.iTexEnv[iUnit] == iMode )
 		return false;
+	FlushBatch();
 	g_State.iTexEnv[iUnit] = iMode;
 	return true;
 }
@@ -1499,6 +1731,7 @@ static void FlushTextureEnables()
 		if( bOn == -1 || bOn == g_State.iTexture2D[i] )
 			continue;
 
+		FlushBatch();
 		if( GLExt.glActiveTextureARB )
 			SetActiveTextureUnit( i );
 		if( bOn )
@@ -1525,7 +1758,7 @@ void RageDisplay_OGL::SetTextureModeGlow(GlowMode m)
 	switch(m)
 	{
 	case GLOW_BRIGHTEN:
-		glBlendFunc( GL_SRC_ALPHA, GL_ONE );
+		SetBlendFunc( GL_SRC_ALPHA, GL_ONE );
 		return;
 
 	case GLOW_WHITEN:
@@ -1558,31 +1791,61 @@ void RageDisplay_OGL::SetTextureFiltering( bool b )
 
 }
 
+static void SetBlendEnabled( bool b )
+{
+	if( g_State.iBlend == int(b) )
+		return;
+	FlushBatch();
+	if( b )
+		glEnable( GL_BLEND );
+	else
+		glDisable( GL_BLEND );
+	g_State.iBlend = b;
+}
+
+static void SetBlendFunc( GLenum src, GLenum dst )
+{
+	if( g_State.iBlendSrc == int(src) && g_State.iBlendDst == int(dst) )
+		return;
+	FlushBatch();
+	glBlendFunc( src, dst );
+	g_State.iBlendSrc = src;
+	g_State.iBlendDst = dst;
+}
+
 void RageDisplay_OGL::SetBlendMode( BlendMode mode )
 {
-	glEnable(GL_BLEND);
+	SetBlendEnabled( true );
 
-	glDepthRange( 0.05, 1.0 );
+	/* BLEND_NO_EFFECT is almost exclusively used to draw masks to the Z-buffer.
+	 * Make sure masks always win the depth test when drawn at the same position. */
+	const int iDepthRange = mode == BLEND_NO_EFFECT? 1:0;
+	if( g_State.iDepthRange != iDepthRange )
+	{
+		FlushBatch();
+		if( iDepthRange )
+			glDepthRange( 0.0, 0.95 );	// this bias is bigger than it needs to be to handle the coplanar case
+		else
+			glDepthRange( 0.05, 1.0 );
+		g_State.iDepthRange = iDepthRange;
+	}
+
 	switch( mode )
 	{
 	case BLEND_NORMAL:
-		glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+		SetBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 		break;
 	case BLEND_ADD:
-		glBlendFunc( GL_SRC_ALPHA, GL_ONE );
+		SetBlendFunc( GL_SRC_ALPHA, GL_ONE );
 		break;
 	case BLEND_NO_EFFECT:
 		/* XXX: Would it be faster and have the same effect to say glDisable(GL_COLOR_WRITEMASK)? */
-		glBlendFunc( GL_ZERO, GL_ONE );
-
-		/* This is almost exclusively used to draw masks to the Z-buffer.  Make sure
-		 * masks always win the depth test when drawn at the same position. */
-		glDepthRange( 0.0, 0.95 );	// this bias is bigger than it needs to be to handle the coplanar case
+		SetBlendFunc( GL_ZERO, GL_ONE );
 		break;
 	case BLEND_INVERT:
 		/* Expects white premultiplied by alpha: fades from the destination
 		 * to its inverse as alpha goes 0 -> 1. */
-		glBlendFunc( GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA );
+		SetBlendFunc( GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA );
 		break;
 	default:
 		ASSERT(0);
@@ -1591,10 +1854,7 @@ void RageDisplay_OGL::SetBlendMode( BlendMode mode )
 
 void RageDisplay_OGL::SetBlending( bool b )
 {
-	if( b )
-		glEnable( GL_BLEND );
-	else
-		glDisable( GL_BLEND );
+	SetBlendEnabled( b );
 }
 
 bool RageDisplay_OGL::IsZWriteEnabled() const
@@ -1626,6 +1886,7 @@ void RageDisplay_OGL::SetZWrite( bool b )
 {
 	if( g_State.iZWrite == int(b) )
 		return;
+	FlushBatch();
 	glDepthMask( b );
 	g_State.iZWrite = b;
 	g_Depth.bWrite = b;
@@ -1646,6 +1907,7 @@ void RageDisplay_OGL::SetZTestMode( ZTestMode mode )
 	}
 	if( g_State.iDepthFunc == int(func) )
 		return;
+	FlushBatch();
 	glDepthFunc( func );
 	g_State.iDepthFunc = func;
 }
@@ -1657,6 +1919,7 @@ void RageDisplay_OGL::SetTextureWrapping( bool b )
 	if( iTexture != -1 && g_State.Wrap(unsigned(iTexture)) == int(b) )
 		return;
 
+	FlushBatch();
 	GLenum mode = b ? GL_REPEAT : GL_CLAMP_TO_EDGE;
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, mode );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, mode );
@@ -1677,6 +1940,7 @@ void RageDisplay_OGL::SetMaterial(
 	// want Models to have basic color and transparency.
 	// We can do this fake lighting by setting the vertex color.
 
+	FlushBatch();
 	GLboolean bLighting;
 	glGetBooleanv( GL_LIGHTING, &bLighting );
 
@@ -1696,12 +1960,17 @@ void RageDisplay_OGL::SetMaterial(
 
 void RageDisplay_OGL::SetLighting( bool b )
 {
+	if( g_State.iLighting == int(b) )
+		return;
+	FlushBatch();
 	if( b )	glEnable( GL_LIGHTING );
 	else	glDisable( GL_LIGHTING );
+	g_State.iLighting = b;
 }
 
 void RageDisplay_OGL::SetLightOff( int index )
 {
+	FlushBatch();
 	glDisable( GL_LIGHT0+index );
 }
 void RageDisplay_OGL::SetLightDirectional( 
@@ -1711,8 +1980,19 @@ void RageDisplay_OGL::SetLightDirectional(
 	const RageColor &specular, 
 	const RageVector3 &dir )
 {
+	FlushBatch();
+
 	// Light coordinates are transformed by the modelview matrix, but
 	// we are being passed in world-space coords.
+	/* That's whatever modelview the last draw sent.  If it was batched, GL
+	 * never saw it; send it now, so lit actors look as they always have. */
+	if( g_Batch.bLastDrawBatched )
+	{
+		RageMatrix modelView;
+		RageMatrixMultiply( &modelView, &g_Batch.LastCenteringView, &g_Batch.LastWorld );
+		LoadMatrix( GL_MODELVIEW, modelView, g_State.bModelViewValid, g_State.ModelView );
+		g_Batch.bLastDrawBatched = false;
+	}
 	/* (SendCurrentMatrices used to always leave GL_TEXTURE current, so this
 	 * has really always pushed the texture matrix.) */
 	if( g_State.bMatricesSent )
@@ -1739,12 +2019,14 @@ void RageDisplay_OGL::SetCullMode( CullMode mode )
 	{
 		if( g_State.iCullMode != 1 )
 		{
+			FlushBatch();
 			glEnable( GL_CULL_FACE );
 			g_State.iCullMode = 1;
 		}
 		const GLenum face = mode == CULL_BACK? GL_BACK: GL_FRONT;
 		if( g_State.iCullFace != int(face) )
 		{
+			FlushBatch();
 			glCullFace( face );
 			g_State.iCullFace = face;
 		}
@@ -1753,6 +2035,7 @@ void RageDisplay_OGL::SetCullMode( CullMode mode )
 	case CULL_NONE:
 		if( g_State.iCullMode != 0 )
 		{
+			FlushBatch();
 			glDisable( GL_CULL_FACE );
 			g_State.iCullMode = 0;
 		}
@@ -1770,6 +2053,8 @@ const RageDisplay::PixelFormatDesc *RageDisplay_OGL::GetPixelFormatDesc(PixelFor
 
 void RageDisplay_OGL::DeleteTexture( unsigned uTexHandle )
 {
+	FlushBatch();
+
 	unsigned int uTexID = uTexHandle;
 
 	FlushGLErrors();
@@ -1819,6 +2104,7 @@ unsigned RageDisplay_OGL::CreateTexture(
 	RageSurface* img,
 	bool bGenerateMipMaps )
 {
+	FlushBatch();
 	ASSERT( pixfmt < NUM_PIX_FORMATS );
 	ASSERT( img->w == power_of_two(img->w) && img->h == power_of_two(img->h) );
 
@@ -1994,6 +2280,8 @@ void RageDisplay_OGL::UpdateTexture(
 	RageSurface* img,
 	int xoffset, int yoffset, int width, int height )
 {
+	/* The queue may still draw the old contents. */
+	FlushBatch();
 	BindTexture( uTexHandle );
 
 	bool FreeImg;
@@ -2027,11 +2315,13 @@ void RageDisplay_OGL::SetPolygonMode( PolygonMode pm )
 	case POLYGON_LINE:	m = GL_LINE; break;
 	default:	ASSERT(0);	return;
 	}
+	FlushBatch();
 	glPolygonMode( GL_FRONT_AND_BACK, m );
 }
 
 void RageDisplay_OGL::SetLineWidth( float fWidth )
 {
+	FlushBatch();
 	glLineWidth( fWidth );
 }
 
@@ -2042,6 +2332,7 @@ CString RageDisplay_OGL::GetTextureDiagnostics( unsigned id ) const
 
 void RageDisplay_OGL::SetAlphaTest( bool b )
 {
+	FlushBatch();
 	glAlphaFunc( GL_GREATER, 0.01f );
 	if( b )
 		glEnable( GL_ALPHA_TEST );
@@ -2108,6 +2399,10 @@ bool RageDisplay_OGL::SupportsTextureFormat( PixelFormat pixfmt, bool realtime )
 
 void RageDisplay_OGL::SetSphereEnironmentMapping( bool b )
 {
+	if( g_State.iSphereMapping == int(b) )
+		return;
+	FlushBatch();
+	g_State.iSphereMapping = b;
 	if( b )
 	{
 		glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
