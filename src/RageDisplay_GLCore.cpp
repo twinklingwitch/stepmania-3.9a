@@ -740,6 +740,12 @@ static void FlushQueue()
 	BindArrayBuffer( g_StreamBuffer );
 
 	const int iBytes = iNum * sizeof(Vertex);
+#if defined(DARWIN)
+	/* macOS's GL is slow to map buffers and may wait for the GPU to do it.  A
+	 * new buffer for each run never waits. */
+	gl.BufferData( GLC_ARRAY_BUFFER, iBytes, g_Queue, GLC_STREAM_DRAW );
+	g_iRingOffset = 0;
+#else
 	if( g_iRingOffset + iBytes > RING_BYTES )
 	{
 		/* Start a new buffer; the old one goes away once GL is done with it. */
@@ -756,6 +762,7 @@ static void FlushQueue()
 	}
 	else
 		gl.BufferSubData( GLC_ARRAY_BUFFER, g_iRingOffset, iBytes, g_Queue );
+#endif
 
 	const GLint iFirst = g_iRingOffset / sizeof(Vertex);
 	if( g_bQueueQuads )
@@ -1541,9 +1548,12 @@ bool RageDisplay_GLCore::PrepareDraw( bool bForceGPU )
 		RageMatrix ModelView;
 		RageMatrixMultiply( &ModelView, &CenteringView, pWorld );
 		SetUniformFloats( U_MODELVIEW, (const float *) &ModelView, 16 );
-		float fNormal[9];
-		GetNormalMatrix( ModelView, fNormal );
-		SetUniformFloats( U_NORMALMATRIX, fNormal, 9 );
+		if( w.bLighting || bSphere0 || bSphere1 )
+		{
+			float fNormal[9];
+			GetNormalMatrix( ModelView, fNormal );
+			SetUniformFloats( U_NORMALMATRIX, fNormal, 9 );
+		}
 		SetUniformFloats( U_TEXMATRIX0, (const float *) &w.Unit[0].TexMatrix, 16 );
 	}
 	g_LastWorld = *pWorld;
@@ -1747,9 +1757,9 @@ unsigned RageDisplay_GLCore::CreateTexture(
 	GLenum error = glGetError();
 	if( error != GL_NO_ERROR )
 	{
-		LOG->Trace( "glTexImage2D(format 0x%x, %ix%i, format 0x%x, type 0x%x, pixfmt %i, imgpixfmt %i): error 0x%x",
+		/* The texture is left empty; that's better than not playing at all. */
+		LOG->Warn( "glTexImage2D(format 0x%x, %ix%i, format 0x%x, type 0x%x, pixfmt %i, imgpixfmt %i): error 0x%x",
 			glTexFormat, img->w, img->h, glImageFormat, glImageType, pixfmt, imgpixfmt, error );
-		ASSERT(0);
 	}
 	if( bGenerateMipMaps )
 		gl.GenerateMipmap( GL_TEXTURE_2D );
