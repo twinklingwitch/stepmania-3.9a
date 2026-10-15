@@ -125,6 +125,7 @@ protected:
 	float				m_fInfoSettled;
 	bool				m_bInfoSlowPending;
 	bool				m_bInfoMSDPending;	// the MSD is being worked out
+	bool				m_bInfoBestPending;	// the Wife best score is waiting for the score files
 
 	bool				m_bMadeChoice;
 	bool				m_bGoToOptions;

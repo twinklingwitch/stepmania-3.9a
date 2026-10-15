@@ -23,6 +23,7 @@ WifeManager *WIFE = NULL;	// global and accessable from anywhere in our program
 WifeManager::WifeManager()
 {
 	m_pPreload = NULL;
+	m_bPreloadDone = true;
 }
 
 WifeManager::~WifeManager()
@@ -235,6 +236,7 @@ int WifeManager::PreloadMain( void *p )
 		for( unsigned j=0; j<v.size(); j++ )
 			pThis->m_PreloadScores[i].Add( v[j] );
 	}
+	pThis->m_bPreloadDone = true;
 	return 0;
 }
 
@@ -257,6 +259,7 @@ void WifeManager::Preload()
 	m_PreloadDirs = vDirs;
 	m_PreloadScores.clear();
 	m_PreloadScores.resize( vDirs.size() );
+	m_bPreloadDone = false;
 	m_pPreload = new RageThread;
 	m_pPreload->SetName( "Wife scores" );
 	m_pPreload->Create( PreloadMain, this );
@@ -271,7 +274,14 @@ void WifeManager::FinishPreload()
 	m_pPreload->Wait();
 	SAFE_DELETE( m_pPreload );
 	for( unsigned i=0; i<m_PreloadDirs.size(); i++ )
-		m_Cache.insert( std::make_pair(m_PreloadDirs[i], m_PreloadScores[i]) );
+	{
+		std::pair<std::map< CString, ScoreSet >::iterator, bool> ins = m_Cache.insert( std::make_pair(m_PreloadDirs[i], ScoreSet()) );
+		if( ins.second )
+		{
+			ins.first->second.v.swap( m_PreloadScores[i].v );
+			ins.first->second.byChart.swap( m_PreloadScores[i].byChart );
+		}
+	}
 	m_PreloadDirs.clear();
 	m_PreloadScores.clear();
 }
@@ -284,10 +294,9 @@ const WifeManager::ScoreSet &WifeManager::GetScores( const CString &sProfileDir 
 	{
 		vector<WifeScoreEntry> v;
 		WifeScores::Load( sProfileDir, v );
-		ScoreSet set;
+		it = m_Cache.insert( std::make_pair(sProfileDir, ScoreSet()) ).first;
 		for( unsigned i=0; i<v.size(); i++ )
-			set.Add( v[i] );
-		it = m_Cache.insert( std::make_pair(sProfileDir, set) ).first;
+			it->second.Add( v[i] );
 	}
 	return it->second;
 }

@@ -48,6 +48,9 @@ public:
 	 * be read.  Whatever needs the scores waits for the thread if it isn't
 	 * done. */
 	void Preload();
+	/* False while that thread is still reading; asking for a leaderboard then
+	 * waits for it. */
+	bool PreloadDone() const { return m_pPreload == NULL || m_bPreloadDone; }
 
 	/* The part Player uses while a song is played. */
 	void BeginSong( PlayerNumber pn, const NoteData &nd, const Song *pSong, const Steps *pSteps );
@@ -124,6 +127,7 @@ private:
 	void AddToCache( const CString &sProfileDir, const WifeScoreEntry &e, bool bAdded );
 
 	RageThread *m_pPreload;
+	volatile bool m_bPreloadDone;
 	vector<CString> m_PreloadDirs;
 	vector<ScoreSet> m_PreloadScores;
 	static int PreloadMain( void *p );

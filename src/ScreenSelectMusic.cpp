@@ -248,6 +248,7 @@ ScreenSelectMusic::ScreenSelectMusic( CString sClassName ) : ScreenWithMenuEleme
 	m_fInfoSettled = 0;
 	m_bInfoSlowPending = false;
 	m_bInfoMSDPending = false;
+	m_bInfoBestPending = false;
 
 	if( SHOW_DIFFICULTY_LIST )
 	{
@@ -835,6 +836,7 @@ void ScreenSelectMusic::UpdateChartInfo( float fDeltaTime )
 		m_fInfoSettled = 0;
 		m_bInfoSlowPending = pSteps != NULL;
 		m_bInfoMSDPending = false;
+		m_bInfoBestPending = false;
 
 		SetInfo( INFO_RATE, "Rate " + ChartInfo::RateString(fRate) );
 		SetInfo( INFO_LENGTH, pSteps? ChartInfo::LengthString(pSong, fRate): CString() );
@@ -855,12 +857,18 @@ void ScreenSelectMusic::UpdateChartInfo( float fDeltaTime )
 			return;
 
 		m_bInfoMSDPending = (m_bShowInfo[INFO_MSD] || m_bShowInfo[INFO_SKILLSETS])  &&  ChartMSD::IsSupported(pSteps);
-		if( m_bShowInfo[INFO_BEST] )
-			SetInfo( INFO_BEST, ChartInfo::BestScoreString(pn, pSong, pSteps, fRate, true) );
+		m_bInfoBestPending = m_bShowInfo[INFO_BEST];
 #endif
 	}
 
 #if !defined(WITHOUT_EXTRAS)
+	/* The first time, that waits for the score files to be read. */
+	if( m_bInfoBestPending  &&  WIFE->PreloadDone() )
+	{
+		m_bInfoBestPending = false;
+		SetInfo( INFO_BEST, ChartInfo::BestScoreString(pn, pSong, pSteps, fRate, true) );
+	}
+
 	/* Working out the MSD of a chart that hasn't been looked at yet takes
 	 * a while; it's done on a thread and shows up when it's ready. */
 	if( m_bInfoMSDPending )
