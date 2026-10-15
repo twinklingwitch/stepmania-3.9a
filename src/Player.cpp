@@ -83,6 +83,10 @@ PlayerMinus::PlayerMinus()
 	m_iOffsetSample = 0;
 	m_bStepFromMine = false;
 
+	m_iHoldIndexRevision = -1;
+	m_iNextHoldByStart = 0;
+	m_iHoldPrunedEndRow = -1;
+
 	this->AddChild( &m_ArrowBackdrop );
 	this->AddChild( &m_Judgment );
 	this->AddChild( &m_ProTimingDisplay );
@@ -124,6 +128,7 @@ void PlayerMinus::Load( PlayerNumber pn, const NoteData* pNoteData, LifeMeter* p
 
 	// init scoring
 	NoteDataWithScoring::Init();
+	m_iHoldIndexRevision = -1;
 
 	// copy note data
 	this->CopyAll( pNoteData );
@@ -322,129 +327,7 @@ void PlayerMinus::Update( float fDeltaTime )
 	//
 	// update HoldNotes logic
 	//
-	for( int i=0; i < GetNumHoldNotes(); i++ )		// for each HoldNote
-	{
-		const HoldNote &hn = GetHoldNote(i);
-		HoldNoteScore hns = GetHoldNoteScore(hn);
-
-		m_pNoteField->m_HeldHoldNotes[hn] = false;	// set hold flag so NoteField can do intelligent drawing
-		m_pNoteField->m_ActiveHoldNotes[hn] = false;	// set hold flag so NoteField can do intelligent drawing
-
-
-		if( hns != HNS_NONE )	// if this HoldNote already has a result
-			continue;	// we don't need to update the logic for this one
-		if( iSongRow < hn.iStartRow )
-			continue;	// hold hasn't happened yet
-
-		const StyleInput StyleI( m_PlayerNumber, hn.iTrack );
-		const GameInput GameI = GAMESTATE->GetCurrentStyle()->StyleInputToGameInput( StyleI );
-
-		// if they got a bad score or haven't stepped on the corresponding tap yet
-		const TapNoteScore tns = GetTapNoteScore( hn.iTrack, hn.iStartRow );
-		const bool bSteppedOnTapNote = tns != TNS_NONE  &&  tns != TNS_MISS;	// did they step on the start of this hold?
-
-		float fLife = GetHoldNoteLife(hn);
-
-		// If the song beat is in the range of this hold:
-		if( hn.iStartRow <= iSongRow && iSongRow <= hn.iEndRow )
-		{
-			bool bIsHoldingButton = INPUTMAPPER->IsButtonDown( GameI );
-			
-			// TODO: Make the CPU miss sometimes.
-			if( GAMESTATE->m_PlayerController[m_PlayerNumber] != PC_HUMAN )
-				bIsHoldingButton = true;
-
-			// set hold flag so NoteField can do intelligent drawing
-			m_pNoteField->m_HeldHoldNotes[hn] = bIsHoldingButton && bSteppedOnTapNote;
-			m_pNoteField->m_ActiveHoldNotes[hn] = bSteppedOnTapNote;
-
-			if( bSteppedOnTapNote )
-			{
-				/* This hold note is not judged and we stepped on its head.  Update
-				 * iLastHeldRow. */
-				HoldNoteResult *hnr = m_pNoteField->CreateHoldNoteResult( hn );
-				hnr->iLastHeldRow = min( iSongRow, hn.iEndRow );
-
-				hnr = this->CreateHoldNoteResult( hn );
-				hnr->iLastHeldRow = min( iSongRow, hn.iEndRow );
-			}
-
-
-			if( bSteppedOnTapNote && bIsHoldingButton )
-			{
-				// Increase life
-				fLife = 1;
-
-				m_pNoteField->DidHoldNote( hn.iTrack );		// update the "electric ghost" effect
-			}
-			else
-			{
-				/* What is this conditional for?  It causes a problem: if a hold note
-				 * begins on a freeze, you can tap it and then release it for the
-				 * duration of the freeze; life doesn't count down until we're
-				 * past the first beat. */
-//				if( fSongBeat-hn.fStartBeat > GAMESTATE->m_fCurBPS * GetMaxStepDistanceSeconds() )
-//				{
-					// Decrease life
-					fLife -= fDeltaTime/ADJUSTED_WINDOW(OK);
-					fLife = max( fLife, 0 );	// clamp
-//				}
-			}
-		}
-
-		/* check for NG.  If the head was missed completely, don't count
-		 * an NG. */
-		if( bSteppedOnTapNote && fLife == 0 )	// the player has not pressed the button for a long time!
-			hns = HNS_NG;
-
-		// check for OK
-		if( iSongRow >= hn.iEndRow && bSteppedOnTapNote && fLife > 0 )	// if this HoldNote is in the past
-		{
-			fLife = 1;
-			hns = HNS_OK;
-			m_pNoteField->DidTapNote( StyleI.col, TNS_PERFECT, true );	// bright ghost flash
-		}
-
-		if( hns != HNS_NONE )
-		{
-			/* this note has been judged */
-			HandleHoldScore( hns, tns );
-#if !defined(WITHOUT_EXTRAS)
-			if( hns == HNS_NG  &&  WIFE->IsActive(m_PlayerNumber) )
-				WIFE->HoldDropped( m_PlayerNumber, hn.iTrack, hn.iStartRow, WIFE_SUBTYPE_HOLD );
-			if( ONLINE->IsRecording(m_PlayerNumber) )
-				ONLINE->LogHold( m_PlayerNumber, hn.iTrack, hn.iStartRow, hns == HNS_OK, GAMESTATE->m_fMusicSeconds );
-#endif
-			m_HoldJudgment[hn.iTrack].SetHoldJudgment( hns );
-
-			int ms_error = (hns == HNS_OK)? 0:MAX_PRO_TIMING_ERROR;
-
-			g_CurStageStats.iTotalError[m_PlayerNumber] += ms_error;
-			if( hns == HNS_NG ) /* don't show a 0 for an OK */
-				m_ProTimingDisplay.SetJudgment( ms_error, TNS_MISS );
-		}
-
-		m_pNoteField->SetHoldNoteLife(hn, fLife);	// update the NoteField display
-		m_pNoteField->SetHoldNoteScore(hn, hns);	// update the NoteField display
-
-		SetHoldNoteLife(hn, fLife);
-		SetHoldNoteScore(hn, hns);
-	}
-
-#if !defined(WITHOUT_EXTRAS)
-	/* A hold whose head was missed never gets a result of its own.  Wife scoring
-	 * charges it as a dropped hold once it's over. */
-	if( WIFE->IsActive(m_PlayerNumber) )
-	{
-		for( int i=0; i < GetNumHoldNotes(); i++ )
-		{
-			const HoldNote &hn = GetHoldNote(i);
-			if( GetHoldNoteScore(hn) == HNS_NONE  &&  iSongRow >= hn.iEndRow  &&
-				GetTapNoteScore(hn.iTrack, hn.iStartRow) == TNS_MISS )
-				WIFE->HoldDropped( m_PlayerNumber, hn.iTrack, hn.iStartRow, WIFE_SUBTYPE_HOLD );
-		}
-	}
-#endif
+	UpdateHoldNotes( iSongRow, fDeltaTime );
 
 	{
 		// Why was this originally "BeatToNoteRowNotRounded"?  It should be rounded.  -Chris
@@ -484,6 +367,227 @@ void PlayerMinus::Update( float fDeltaTime )
 	m_pNoteField->CacheAllUsedNoteSkins();
 
 	ActorFrame::Update( fDeltaTime );
+}
+
+/* Order the holds by where they start, so that the ones that start as the song moves
+ * along can be picked up in turn. */
+struct HoldStartsBefore
+{
+	const NoteData *m_pData;
+	HoldStartsBefore( const NoteData *pData ): m_pData(pData) { }
+	bool operator()( int a, int b ) const
+	{
+		const int iStartA = m_pData->GetHoldNote(a).iStartRow;
+		const int iStartB = m_pData->GetHoldNote(b).iStartRow;
+		if( iStartA != iStartB )
+			return iStartA < iStartB;
+		return a < b;
+	}
+};
+
+void PlayerMinus::RebuildHoldIndex()
+{
+	m_iHoldIndexRevision = GetHoldNotesRevision();
+
+	m_vHoldsByStart.resize( GetNumHoldNotes() );
+	for( int i=0; i < GetNumHoldNotes(); i++ )
+		m_vHoldsByStart[i] = i;
+	sort( m_vHoldsByStart.begin(), m_vHoldsByStart.end(), HoldStartsBefore(this) );
+
+	m_iNextHoldByStart = 0;
+	m_vActiveHolds.clear();
+	m_vHoldsDroppedPending.clear();
+	m_iHoldPrunedEndRow = -1;
+}
+
+void PlayerMinus::UpdateHoldNotes( int iSongRow, float fDeltaTime )
+{
+	// The NoteField's flags are only valid for this frame.
+	m_pNoteField->ClearHoldFlags();
+
+	/* Start over if the holds were changed, or if the song went back far enough to
+	 * reach a hold that was already set aside. */
+	if( m_iHoldIndexRevision != GetHoldNotesRevision() ||
+		(m_iHoldPrunedEndRow >= 0 && iSongRow <= m_iHoldPrunedEndRow) )
+		RebuildHoldIndex();
+
+	// Pick up the holds that have started since last time.
+	bool bAddedHolds = false;
+	while( m_iNextHoldByStart < m_vHoldsByStart.size() )
+	{
+		const int i = m_vHoldsByStart[m_iNextHoldByStart];
+		const HoldNote &hn = GetHoldNote(i);
+		if( hn.iStartRow > iSongRow )
+			break;
+		m_iNextHoldByStart++;
+
+		if( GetHoldNoteScore(hn) == HNS_NONE )
+		{
+			m_vActiveHolds.push_back( i );
+			bAddedHolds = true;
+		}
+	}
+	if( bAddedHolds )
+		sort( m_vActiveHolds.begin(), m_vActiveHolds.end() );
+
+#if !defined(WITHOUT_EXTRAS)
+	const bool bWifeActive = WIFE->IsActive(m_PlayerNumber);
+#endif
+	m_vHoldsDroppedNow.clear();
+
+	unsigned iNumKept = 0;
+	for( unsigned a=0; a < m_vActiveHolds.size(); a++ )		// for each HoldNote that's in play
+	{
+		const int i = m_vActiveHolds[a];
+		const HoldNote &hn = GetHoldNote(i);
+
+		if( UpdateHoldNote( hn, iSongRow, fDeltaTime ) != HNS_NONE )
+			continue;	// this one has its result now; nothing more to do for it
+
+		/* A hold whose head was missed never gets a result of its own.  Wife scoring
+		 * charges it as a dropped hold once it's over.  Nothing about it changes
+		 * after that, so stop looking at it. */
+		if( iSongRow >= hn.iEndRow  &&  GetTapNoteScore(hn.iTrack, hn.iStartRow) == TNS_MISS )
+		{
+			m_vHoldsDroppedNow.push_back( i );
+			if( iSongRow > hn.iEndRow )
+			{
+#if !defined(WITHOUT_EXTRAS)
+				if( !bWifeActive )
+					m_vHoldsDroppedPending.push_back( i );
+#endif
+				m_iHoldPrunedEndRow = max( m_iHoldPrunedEndRow, hn.iEndRow );
+				continue;
+			}
+		}
+
+		m_vActiveHolds[iNumKept++] = i;
+	}
+	m_vActiveHolds.resize( iNumKept );
+
+#if !defined(WITHOUT_EXTRAS)
+	if( bWifeActive )
+	{
+		if( !m_vHoldsDroppedPending.empty() )
+		{
+			m_vHoldsDroppedNow.insert( m_vHoldsDroppedNow.end(), m_vHoldsDroppedPending.begin(), m_vHoldsDroppedPending.end() );
+			m_vHoldsDroppedPending.clear();
+			sort( m_vHoldsDroppedNow.begin(), m_vHoldsDroppedNow.end() );
+			m_vHoldsDroppedNow.erase( unique( m_vHoldsDroppedNow.begin(), m_vHoldsDroppedNow.end() ), m_vHoldsDroppedNow.end() );
+		}
+
+		for( unsigned a=0; a < m_vHoldsDroppedNow.size(); a++ )
+		{
+			const HoldNote &hn = GetHoldNote( m_vHoldsDroppedNow[a] );
+			WIFE->HoldDropped( m_PlayerNumber, hn.iTrack, hn.iStartRow, WIFE_SUBTYPE_HOLD );
+		}
+	}
+#endif
+}
+
+/* Returns the result of the hold if it got one, HNS_NONE if it's still going. */
+HoldNoteScore PlayerMinus::UpdateHoldNote( const HoldNote &hn, int iSongRow, float fDeltaTime )
+{
+	if( iSongRow < hn.iStartRow )
+		return HNS_NONE;	// hold hasn't happened yet
+
+	HoldNoteResult *pResult = CreateHoldNoteResult( hn );
+	HoldNoteResult *pFieldResult = m_pNoteField->CreateHoldNoteResult( hn );
+
+	HoldNoteScore hns = pResult->hns;
+	if( hns != HNS_NONE )	// if this HoldNote already has a result
+		return hns;	// we don't need to update the logic for this one
+
+	const StyleInput StyleI( m_PlayerNumber, hn.iTrack );
+	const GameInput GameI = GAMESTATE->GetCurrentStyle()->StyleInputToGameInput( StyleI );
+
+	// if they got a bad score or haven't stepped on the corresponding tap yet
+	const TapNoteScore tns = GetTapNoteScore( hn.iTrack, hn.iStartRow );
+	const bool bSteppedOnTapNote = tns != TNS_NONE  &&  tns != TNS_MISS;	// did they step on the start of this hold?
+
+	float fLife = pResult->fLife;
+
+	// If the song beat is in the range of this hold:
+	if( hn.iStartRow <= iSongRow && iSongRow <= hn.iEndRow )
+	{
+		bool bIsHoldingButton = INPUTMAPPER->IsButtonDown( GameI );
+		
+		// TODO: Make the CPU miss sometimes.
+		if( GAMESTATE->m_PlayerController[m_PlayerNumber] != PC_HUMAN )
+			bIsHoldingButton = true;
+
+		// set hold flag so NoteField can do intelligent drawing
+		m_pNoteField->SetHoldFlags( hn, bIsHoldingButton && bSteppedOnTapNote, bSteppedOnTapNote );
+
+		if( bSteppedOnTapNote )
+		{
+			/* This hold note is not judged and we stepped on its head.  Update
+			 * iLastHeldRow. */
+			pFieldResult->iLastHeldRow = min( iSongRow, hn.iEndRow );
+			pResult->iLastHeldRow = min( iSongRow, hn.iEndRow );
+		}
+
+
+		if( bSteppedOnTapNote && bIsHoldingButton )
+		{
+			// Increase life
+			fLife = 1;
+
+			m_pNoteField->DidHoldNote( hn.iTrack );		// update the "electric ghost" effect
+		}
+		else
+		{
+			/* What is this conditional for?  It causes a problem: if a hold note
+			 * begins on a freeze, you can tap it and then release it for the
+			 * duration of the freeze; life doesn't count down until we're
+			 * past the first beat. */
+//				if( fSongBeat-hn.fStartBeat > GAMESTATE->m_fCurBPS * GetMaxStepDistanceSeconds() )
+//				{
+				// Decrease life
+				fLife -= fDeltaTime/ADJUSTED_WINDOW(OK);
+				fLife = max( fLife, 0 );	// clamp
+//				}
+		}
+	}
+
+	/* check for NG.  If the head was missed completely, don't count
+	 * an NG. */
+	if( bSteppedOnTapNote && fLife == 0 )	// the player has not pressed the button for a long time!
+		hns = HNS_NG;
+
+	// check for OK
+	if( iSongRow >= hn.iEndRow && bSteppedOnTapNote && fLife > 0 )	// if this HoldNote is in the past
+	{
+		fLife = 1;
+		hns = HNS_OK;
+		m_pNoteField->DidTapNote( StyleI.col, TNS_PERFECT, true );	// bright ghost flash
+	}
+
+	if( hns != HNS_NONE )
+	{
+		/* this note has been judged */
+		HandleHoldScore( hns, tns );
+#if !defined(WITHOUT_EXTRAS)
+		if( hns == HNS_NG  &&  WIFE->IsActive(m_PlayerNumber) )
+			WIFE->HoldDropped( m_PlayerNumber, hn.iTrack, hn.iStartRow, WIFE_SUBTYPE_HOLD );
+		if( ONLINE->IsRecording(m_PlayerNumber) )
+			ONLINE->LogHold( m_PlayerNumber, hn.iTrack, hn.iStartRow, hns == HNS_OK, GAMESTATE->m_fMusicSeconds );
+#endif
+		m_HoldJudgment[hn.iTrack].SetHoldJudgment( hns );
+
+		int ms_error = (hns == HNS_OK)? 0:MAX_PRO_TIMING_ERROR;
+
+		g_CurStageStats.iTotalError[m_PlayerNumber] += ms_error;
+		if( hns == HNS_NG ) /* don't show a 0 for an OK */
+			m_ProTimingDisplay.SetJudgment( ms_error, TNS_MISS );
+	}
+
+	pFieldResult->fLife = fLife;	// update the NoteField display
+	pFieldResult->hns = hns;
+
+	pResult->fLife = fLife;
+	pResult->hns = hns;
+	return hns;
 }
 
 void PlayerMinus::ApplyWaitingTransforms()

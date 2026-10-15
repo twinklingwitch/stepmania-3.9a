@@ -27,8 +27,12 @@ public:
 	virtual void Load( const NoteData* pNoteData, PlayerNumber pn, int iStartDrawingPixel, int iEndDrawingPixel, float fYReverseOffsetPixels );
 	virtual void Unload();
 
-	map<RowTrack,bool> m_HeldHoldNotes;	// true if button is being held down
-	map<RowTrack,bool> m_ActiveHoldNotes;	// true if hold has life > 0
+	/* Set by the Player every frame for the holds that are in progress; the rest
+	 * are neither held nor active. */
+	void ClearHoldFlags();
+	void SetHoldFlags( const HoldNote &hn, bool bHeld, bool bActive );
+	bool IsHoldHeld( const HoldNote &hn ) const;	// true if button is being held down
+	bool IsHoldActive( const HoldNote &hn ) const;	// true if hold has life > 0
 
 	float	m_fBeginMarker, m_fEndMarker;	// only used with MODE_EDIT
 
@@ -52,6 +56,25 @@ protected:
 	float GetWidth();
 
 	void RefreshBeatToNoteSkin();
+
+	void RebuildColumnHolds();
+	void FindHoldsInRange( int iCol, int iFirstRow, int iLastRow, vector<int> &out ) const;
+	Sprite *GetAttackSprite( const CString &sModifier );
+	void UnloadAttackSprites();
+
+	vector<RowTrack> m_HeldHoldNotes;
+	vector<RowTrack> m_ActiveHoldNotes;
+
+	/* The holds of each column by index into the hold list, ordered by start row, so
+	 * the ones on screen can be found without going through all of them.  Rebuilt
+	 * when the list changes. */
+	int m_iColumnHoldsRevision;
+	vector<int> m_vColumnHolds[MAX_NOTE_TRACKS];
+	vector<int> m_vColumnHoldsMaxEnd[MAX_NOTE_TRACKS];	// furthest end row of the holds up to and including this one
+	vector<int> m_vHoldsToDraw;
+
+	/* The graphics for attack notes, by modifier. */
+	map<CString, Sprite *> m_AttackSprites;
 
 	float	m_fPercentFadeToFail;	// -1 of not fading to fail
 

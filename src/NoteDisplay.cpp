@@ -979,11 +979,25 @@ void NoteDisplay::DrawActor( Actor* pActor, int iCol, float fBeat, float fPercen
 static void DrawRing( float fInner, float fOuter, const RageColor &c )
 {
 	const int subdivisions = 32;
+
+	/* The circle is the same every time; only work it out once. */
+	static float fCos[subdivisions+1], fSin[subdivisions+1];
+	static bool bInited = false;
+	if( !bInited )
+	{
+		for( int i = 0; i <= subdivisions; ++i )
+		{
+			const float fRotation = float(i) / subdivisions * 2*PI;
+			fCos[i] = cosf(fRotation);
+			fSin[i] = sinf(fRotation);
+		}
+		bInited = true;
+	}
+
 	RageSpriteVertex v[(subdivisions+1)*2];
 	for( int i = 0; i <= subdivisions; ++i )
 	{
-		const float fRotation = float(i) / subdivisions * 2*PI;
-		const float fX = cosf(fRotation), fY = -sinf(fRotation);
+		const float fX = fCos[i], fY = -fSin[i];
 		v[i*2+0].p = RageVector3( fX*fInner, fY*fInner, 0 );
 		v[i*2+1].p = RageVector3( fX*fOuter, fY*fOuter, 0 );
 		v[i*2+0].c = v[i*2+1].c = c;

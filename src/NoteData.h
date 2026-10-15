@@ -16,6 +16,8 @@ class NoteData
 	int m_iNumTracks;
 
 	vector<HoldNote>	m_HoldNotes;
+	int m_iHoldNotesRevision;
+	void HoldNotesChanged();
 
 	map<unsigned,Attack>	m_AttackMap;
 
@@ -95,6 +97,9 @@ public:
 	//
 	void AddHoldNote( HoldNote newNote );	// add note hold note merging overlapping HoldNotes and destroying TapNotes underneath
 	void RemoveHoldNote( int index );
+	/* Changes whenever the list of holds does, so an index built from it can tell
+	 * when it's out of date. */
+	int GetHoldNotesRevision() const { return m_iHoldNotesRevision; }
 	HoldNote &GetHoldNote( int index ) { ASSERT( index < (int) m_HoldNotes.size() ); return m_HoldNotes[index]; }
 	const HoldNote &GetHoldNote( int index ) const { ASSERT( index < (int) m_HoldNotes.size() ); return m_HoldNotes[index]; }
 

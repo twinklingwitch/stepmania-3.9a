@@ -10,9 +10,19 @@
 #include "RageLog.h"
 
 
+/* Each change to the hold list gets a number nobody else has, so that anything
+ * indexing the holds can tell when to look again, even after the data was copied
+ * over from another NoteData. */
+void NoteData::HoldNotesChanged()
+{
+	static int iHoldNotesRevisionCounter = 0;
+	m_iHoldNotesRevision = ++iHoldNotesRevisionCounter;
+}
+
 NoteData::NoteData()
 {
 	m_iNumTracks = 0;
+	HoldNotesChanged();
 	Init();
 }
 
@@ -50,7 +60,10 @@ void NoteData::SetNumTracks( int iNewNumTracks )
 	/* Remove all hold notes that are out of bounds. */
 	for( int h = m_HoldNotes.size()-1; h >= 0; --h )
 		if( m_HoldNotes[h].iTrack >= iNewNumTracks )
+		{
 			m_HoldNotes.erase( m_HoldNotes.begin()+h );
+			HoldNotesChanged();
+		}
 }
 
 
@@ -71,6 +84,7 @@ void NoteData::ClearAll()
 	for( int t=0; t<m_iNumTracks; t++ )
 		m_TapNotes[t].clear();
 	m_HoldNotes.clear();
+	HoldNotesChanged();
 }
 
 /* Copy a range from pFrom to this.  (Note that this does *not* overlay;
@@ -121,6 +135,7 @@ void NoteData::CopyAll( const NoteData* pFrom )
 	for( int c=0; c<m_iNumTracks; c++ )
 		m_TapNotes[c] = pFrom->m_TapNotes[c];
 	m_HoldNotes = pFrom->m_HoldNotes;
+	HoldNotesChanged();
 	m_AttackMap = pFrom->m_AttackMap;
 }
 
@@ -274,6 +289,7 @@ void NoteData::AddHoldNote( HoldNote add )
 	SetTapNote( add.iTrack, iAddStartIndex, TAP_ORIGINAL_HOLD_HEAD );		// Hold begin marker.  Don't draw this, but do grade it.
 
 	m_HoldNotes.push_back(add);
+	HoldNotesChanged();
 }
 
 void NoteData::AddHoldNoteNoMerge( const HoldNote &hn )
@@ -283,6 +299,7 @@ void NoteData::AddHoldNoteNoMerge( const HoldNote &hn )
 	// add a tap note at the start of this hold
 	SetTapNote( hn.iTrack, hn.iStartRow, TAP_ORIGINAL_HOLD_HEAD );
 	m_HoldNotes.push_back( hn );
+	HoldNotesChanged();
 }
 
 void NoteData::RemoveHoldNote( int iHoldIndex )
@@ -298,6 +315,7 @@ void NoteData::RemoveHoldNote( int iHoldIndex )
 
 	// remove from list
 	m_HoldNotes.erase(m_HoldNotes.begin()+iHoldIndex, m_HoldNotes.begin()+iHoldIndex+1);
+	HoldNotesChanged();
 }
 
 
@@ -699,6 +717,7 @@ void NoteData::ConvertHoldNotesTo2sAnd3s()
 		}
 	}
 	m_HoldNotes.clear();
+	HoldNotesChanged();
 }
 
 
@@ -772,6 +791,7 @@ void NoteData::ConvertHoldNotesTo4s()
 			SetTapNote(hn.iTrack, j, TAP_ORIGINAL_HOLD);
 	}
 	m_HoldNotes.clear();
+	HoldNotesChanged();
 }
 
 // -1 for iOriginalTracksToTakeFrom means no track

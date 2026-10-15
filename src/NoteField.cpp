@@ -30,6 +30,7 @@ NoteField::NoteField()
 
 	m_fPercentFadeToFail = -1;
 	LastDisplay = NULL;
+	m_iColumnHoldsRevision = -1;
 }
 
 NoteField::~NoteField()
@@ -44,6 +45,117 @@ void NoteField::Unload()
 		delete it->second;
 	m_NoteDisplays.clear();
 	LastDisplay = NULL;
+	UnloadAttackSprites();
+}
+
+void NoteField::UnloadAttackSprites()
+{
+	for( map<CString, Sprite *>::iterator it = m_AttackSprites.begin();
+		it != m_AttackSprites.end(); ++it )
+		delete it->second;
+	m_AttackSprites.clear();
+}
+
+/* Load the graphic for an attack the first time it's needed, and keep it. */
+Sprite *NoteField::GetAttackSprite( const CString &sModifier )
+{
+	map<CString, Sprite *>::iterator it = m_AttackSprites.find( sModifier );
+	if( it != m_AttackSprites.end() )
+		return it->second;
+
+	Sprite *pSprite = new Sprite;
+	pSprite->Load( THEME->GetPathToG("NoteField attack "+sModifier) );
+	m_AttackSprites[sModifier] = pSprite;
+	return pSprite;
+}
+
+void NoteField::ClearHoldFlags()
+{
+	m_HeldHoldNotes.clear();
+	m_ActiveHoldNotes.clear();
+}
+
+void NoteField::SetHoldFlags( const HoldNote &hn, bool bHeld, bool bActive )
+{
+	if( bHeld )
+		m_HeldHoldNotes.push_back( RowTrack(hn) );
+	if( bActive )
+		m_ActiveHoldNotes.push_back( RowTrack(hn) );
+}
+
+static bool HoldFlagged( const vector<RowTrack> &v, const HoldNote &hn )
+{
+	for( unsigned i=0; i < v.size(); i++ )
+		if( v[i].first == hn.iEndRow && v[i].second == hn.iTrack )
+			return true;
+	return false;
+}
+
+bool NoteField::IsHoldHeld( const HoldNote &hn ) const { return HoldFlagged( m_HeldHoldNotes, hn ); }
+bool NoteField::IsHoldActive( const HoldNote &hn ) const { return HoldFlagged( m_ActiveHoldNotes, hn ); }
+
+struct ColumnHoldStartsBefore
+{
+	const NoteData *m_pData;
+	ColumnHoldStartsBefore( const NoteData *pData ): m_pData(pData) { }
+	bool operator()( int a, int b ) const
+	{
+		const int iStartA = m_pData->GetHoldNote(a).iStartRow;
+		const int iStartB = m_pData->GetHoldNote(b).iStartRow;
+		if( iStartA != iStartB )
+			return iStartA < iStartB;
+		return a < b;
+	}
+};
+
+void NoteField::RebuildColumnHolds()
+{
+	m_iColumnHoldsRevision = GetHoldNotesRevision();
+
+	for( int c=0; c<MAX_NOTE_TRACKS; c++ )
+	{
+		m_vColumnHolds[c].clear();
+		m_vColumnHoldsMaxEnd[c].clear();
+	}
+
+	for( int i=0; i < GetNumHoldNotes(); i++ )
+	{
+		const int iTrack = GetHoldNote(i).iTrack;
+		if( iTrack >= 0 && iTrack < MAX_NOTE_TRACKS )
+			m_vColumnHolds[iTrack].push_back( i );
+	}
+
+	for( int c=0; c<MAX_NOTE_TRACKS; c++ )
+	{
+		sort( m_vColumnHolds[c].begin(), m_vColumnHolds[c].end(), ColumnHoldStartsBefore(this) );
+
+		int iMaxEnd = -1;
+		m_vColumnHoldsMaxEnd[c].reserve( m_vColumnHolds[c].size() );
+		for( unsigned k=0; k < m_vColumnHolds[c].size(); k++ )
+		{
+			iMaxEnd = max( iMaxEnd, GetHoldNote(m_vColumnHolds[c][k]).iEndRow );
+			m_vColumnHoldsMaxEnd[c].push_back( iMaxEnd );
+		}
+	}
+}
+
+/* Fill out with the holds of a column that touch [iFirstRow,iLastRow], in hold list
+ * order.  This may include a few that don't; the caller has to check each one. */
+void NoteField::FindHoldsInRange( int iCol, int iFirstRow, int iLastRow, vector<int> &out ) const
+{
+	out.clear();
+
+	const vector<int> &vHolds = m_vColumnHolds[iCol];
+	const vector<int> &vMaxEnd = m_vColumnHoldsMaxEnd[iCol];
+	const int iLow = min( iFirstRow, iLastRow );
+	const int iHigh = max( iFirstRow, iLastRow );
+
+	/* Every hold before this one ends before the range starts. */
+	unsigned k = lower_bound( vMaxEnd.begin(), vMaxEnd.end(), iLow ) - vMaxEnd.begin();
+	for( ; k < vHolds.size() && GetHoldNote(vHolds[k]).iStartRow <= iHigh; k++ )
+		out.push_back( vHolds[k] );
+
+	sort( out.begin(), out.end() );
 }
 
 void NoteField::CacheNoteSkin( CString skin )
@@ -84,8 +196,8 @@ void NoteField::Load( const NoteData* pNoteData, PlayerNumber pn, int iFirstPixe
 
 	NoteDataWithScoring::Init();
 
-	m_HeldHoldNotes.clear();
-	m_ActiveHoldNotes.clear();
+	ClearHoldFlags();
+	m_iColumnHoldsRevision = -1;
 
 	this->CopyAll( pNoteData );
 	ASSERT( GetNumTracks() == GAMESTATE->GetCurrentStyle()->m_iColsPerPlayer );
@@ -514,6 +626,14 @@ void NoteField::DrawPrimitives()
 
 	float fSelectedRangeGlow = SCALE( cosf(RageTimer::GetTimeSinceStart()*2), -1, 1, 0.1f, 0.3f );
 
+	if( m_iColumnHoldsRevision != GetHoldNotesRevision() )
+		RebuildColumnHolds();
+
+	/* The notes of every track, for looking across a row. */
+	const TapNote *apTrackRows[MAX_NOTE_TRACKS];
+	for( int t=0; t<MAX_NOTE_TRACKS; t++ )
+		apTrackRows[t] = (t < GetNumTracks() && GetNumRows() > 0)? GetTrackRows(t): NULL;
+
 	for( int c=0; c<GetNumTracks(); c++ )	// for each arrow column
 	{
 		g_NoteFieldMode[m_PlayerNumber].BeginDrawTrack(c);
@@ -521,16 +641,13 @@ void NoteField::DrawPrimitives()
 		//
 		// Draw all HoldNotes in this column (so that they appear under the tap notes)
 		//
-		int i;
-
 		NDMap::iterator CurDisplay = m_BeatToNoteDisplays.begin();
 		ASSERT( CurDisplay != m_BeatToNoteDisplays.end() );
 		NDMap::iterator NextDisplay = CurDisplay; ++NextDisplay;
-		for( i=0; i < GetNumHoldNotes(); i++ )
+		FindHoldsInRange( c, iFirstIndexToDraw, iLastIndexToDraw, m_vHoldsToDraw );
+		for( unsigned h=0; h < m_vHoldsToDraw.size(); h++ )
 		{
-			const HoldNote &hn = GetHoldNote(i);
-			if( hn.iTrack != c )	// this HoldNote doesn't belong to this column
-				continue;
+			const HoldNote &hn = GetHoldNote( m_vHoldsToDraw[h] );
 
 			// If no part of this HoldNote is on the screen, skip it
 			if( !hn.RangeOverlaps(iFirstIndexToDraw, iLastIndexToDraw) )
@@ -553,10 +670,10 @@ void NoteField::DrawPrimitives()
 				continue;	// skip
 			}
 
-			const bool bIsActive = m_ActiveHoldNotes[hn];
-			const bool bIsHoldingNote = m_HeldHoldNotes[hn];
+			const bool bIsActive = IsHoldActive(hn);
+			const bool bIsHoldingNote = IsHoldHeld(hn);
 			if( bIsActive )
-				SearchForSongBeat()->m_GhostArrowRow.SetHoldIsActive( hn.iTrack );
+				cur->m_GhostArrowRow.SetHoldIsActive( hn.iTrack );
 			
 			ASSERT_M( NoteRowToBeat(hn.iStartRow) > -2000, ssprintf("%i %i %i", hn.iStartRow, hn.iEndRow, hn.iTrack) );
 			SearchForBeat( CurDisplay, NextDisplay, NoteRowToBeat(hn.iStartRow) );
@@ -583,7 +700,7 @@ void NoteField::DrawPrimitives()
 		const TapNote *pTrackRows = iNumRows > 0? GetTrackRows(c): NULL;
 
 		// draw notes from furthest to closest
-		for( i=iLastRowToCheck; i>=iFirstRowToCheck; --i )	//	 for each row
+		for( int i=iLastRowToCheck; i>=iFirstRowToCheck; --i )	//	 for each row
 		{	
 			const TapNote &tn = pTrackRows[i];
 			if( tn.type == TapNote::empty )	// no note here
@@ -605,7 +722,7 @@ void NoteField::DrawPrimitives()
 			bool bHoldNoteBeginsOnThisBeat = false;
 			for( int c2=0; c2<GetNumTracks(); c2++ )
 			{
-				if( GetTapNote(c2, i).type == TapNote::hold_head)
+				if( apTrackRows[c2][i].type == TapNote::hold_head)
 				{
 					bHoldNoteBeginsOnThisBeat = true;
 					break;
@@ -629,12 +746,11 @@ void NoteField::DrawPrimitives()
 			if( bIsAttack )
 			{
 				const Attack& attack = GetAttackAt( c, i );
-				Sprite sprite;
-				sprite.Load( THEME->GetPathToG("NoteField attack "+attack.sModifier) );
+				Sprite *pSprite = GetAttackSprite( attack.sModifier );
 				float fBeat = NoteRowToBeat(i);
 				SearchForBeat( CurDisplay, NextDisplay, fBeat );
 				NoteDisplayCols *nd = CurDisplay->second;
-				nd->display[c].DrawActor( &sprite, c, fBeat, bIsInSelectionRange ? fSelectedRangeGlow : m_fPercentFadeToFail, 1, m_fYReverseOffsetPixels, false );
+				nd->display[c].DrawActor( pSprite, c, fBeat, bIsInSelectionRange ? fSelectedRangeGlow : m_fPercentFadeToFail, 1, m_fYReverseOffsetPixels, false );
 			}
 			else
 			{

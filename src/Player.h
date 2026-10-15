@@ -54,6 +54,9 @@ public:
 
 protected:
 	void UpdateTapNotesMissedOlderThan( float fMissIfOlderThanThisBeat );
+	void UpdateHoldNotes( int iSongRow, float fDeltaTime );
+	HoldNoteScore UpdateHoldNote( const HoldNote &hn, int iSongRow, float fDeltaTime );
+	void RebuildHoldIndex();
 	void OnRowCompletelyJudged( int iStepIndex );
 	void HandleTapRowScore( unsigned row );
 	void HandleHoldScore( HoldNoteScore holdScore, TapNoteScore tapScore );
@@ -98,6 +101,17 @@ protected:
 	int				m_iRowLastCrossed;
 	int				m_iMineRowLastCrossed;
 	bool			m_bStepFromMine;	// Step() is being called for a held mine, not a key press
+
+	/* Holds are only looked at once they have started and until they are judged,
+	 * so the per-frame work doesn't grow with the length of the chart.  These are
+	 * indexes into the hold list, and are rebuilt when the list changes. */
+	int				m_iHoldIndexRevision;		// the revision of the hold list this was built for
+	vector<int>		m_vHoldsByStart;			// all holds, in order of start row
+	unsigned		m_iNextHoldByStart;			// the first of those that hasn't been looked at yet
+	vector<int>		m_vActiveHolds;				// started and not judged yet, in hold list order
+	vector<int>		m_vHoldsDroppedPending;		// head missed and over, not yet charged to Wife
+	vector<int>		m_vHoldsDroppedNow;
+	int				m_iHoldPrunedEndRow;		// last row of the furthest hold dropped from m_vActiveHolds, or -1
 
 	RageSound		m_soundMine;
 	RageSound		m_soundAttackLaunch;
