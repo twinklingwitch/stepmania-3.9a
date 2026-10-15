@@ -89,6 +89,8 @@ protected:
 	Sprite				m_sprSelectionOverlay;
 
 	vector<WheelItemData> m_WheelItemDatas[NUM_SORT_ORDERS];
+	bool m_bItemDatasBuilt[NUM_SORT_ORDERS];
+	vector<WheelItemData> &GetItemDatas( SortOrder so );	// builds a sort the first time it is asked for
 	vector<WheelItemData *> m_CurWheelItemData;
 	
 	MusicWheelItem	m_MusicWheelItems[MAX_WHEEL_ITEMS];
