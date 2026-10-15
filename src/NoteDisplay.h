@@ -26,6 +26,7 @@ public:
 	void DrawHold( const HoldNote& hn, bool bIsBeingHeld, bool bIsActive, const HoldNoteResult &Result, float fPercentFadeToFail, bool bDrawGlowOnly, float fReverseOffsetPixels );
 
 protected:
+	void DrawMineUnderlay( int iCol, float fBeat, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels );
 	void SetActiveFrame( float fNoteBeat, Actor &actorToSet, float fAnimationLengthInBeats, bool bVivid, bool bNoteColor );
 	Actor *GetTapNoteActor( float fNoteBeat );
 	Actor *GetTapAdditionActor( float fNoteBeat );

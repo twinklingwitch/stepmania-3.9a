@@ -1579,6 +1579,11 @@ void RageDisplay_OGL::SetBlendMode( BlendMode mode )
 		 * masks always win the depth test when drawn at the same position. */
 		glDepthRange( 0.0, 0.95 );	// this bias is bigger than it needs to be to handle the coplanar case
 		break;
+	case BLEND_INVERT:
+		/* Expects white premultiplied by alpha: fades from the destination
+		 * to its inverse as alpha goes 0 -> 1. */
+		glBlendFunc( GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA );
+		break;
 	default:
 		ASSERT(0);
 	}

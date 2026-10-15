@@ -8,6 +8,7 @@
 #include "ArrowEffects.h"
 #include "RageLog.h"
 #include "RageDisplay.h"
+#include "RageMath.h"
 #include "NoteTypes.h"
 #include "NoteFieldPositioning.h"
 #include "ActorUtil.h"
@@ -975,12 +976,87 @@ void NoteDisplay::DrawActor( Actor* pActor, int iCol, float fBeat, float fPercen
 	}
 }
 
+static void DrawRing( float fInner, float fOuter, const RageColor &c )
+{
+	const int subdivisions = 32;
+	RageSpriteVertex v[(subdivisions+1)*2];
+	for( int i = 0; i <= subdivisions; ++i )
+	{
+		const float fRotation = float(i) / subdivisions * 2*PI;
+		const float fX = cosf(fRotation), fY = -sinf(fRotation);
+		v[i*2+0].p = RageVector3( fX*fInner, fY*fInner, 0 );
+		v[i*2+1].p = RageVector3( fX*fOuter, fY*fOuter, 0 );
+		v[i*2+0].c = v[i*2+1].c = c;
+	}
+	DISPLAY->DrawQuadStrip( v, ARRAYSIZE(v) );
+}
+
+/* A marker drawn by the engine under every mine, so a noteskin with a blank
+ * or transparent mine can't hide mines.  It's geometry, not a texture, so
+ * there's no file to edit away.  The middle inverts whatever is behind it,
+ * and a black and a white ring keep it visible over mid-grey, where the
+ * inverse looks the same.  It follows the same mods as the real mine
+ * (position, Mini, Hidden/Sudden/Stealth, Dark-style brightness). */
+void NoteDisplay::DrawMineUnderlay( int iCol, float fBeat, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels )
+{
+	const float fYOffset		= ArrowGetYOffset(	m_PlayerNumber, iCol, fBeat );
+	const float fYPos			= ArrowGetYPos(	m_PlayerNumber, iCol, fYOffset, fReverseOffsetPixels );
+	const float fXPos			= ArrowGetXPos(		m_PlayerNumber, iCol, fYOffset );
+	const float fZPos			= ArrowGetZPos(	   m_PlayerNumber, iCol, fYOffset );
+	const float fAlpha			= ArrowGetAlpha(	m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
+	const float fGlow			= ArrowGetGlow(		m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
+	const float fColorScale		= ArrowGetBrightness( m_PlayerNumber, fBeat ) * SCALE(fLife,0,1,0.2f,1);
+	const float fZoom			= ArrowGetZoom( m_PlayerNumber );
+
+	const float fFade = max( fAlpha, fGlow );
+	if( fFade <= 0 )
+		return;
+
+	/* Half the width of the stock mine's ~50px ring, so it stays hidden
+	 * under smaller custom mines too. */
+	const float fOuter = 12.5f, fMiddle = 10.5f, fInner = 8.5f;
+
+	DISPLAY->PushMatrix();
+	DISPLAY->Translate( fXPos, fYPos, fZPos );
+	DISPLAY->Scale( fZoom, fZoom, fZoom );
+
+	DISPLAY->ClearAllTextures();
+	DISPLAY->SetTextureModeModulate();
+	DISPLAY->SetZWrite( false );
+	DISPLAY->SetZTestMode( ZTEST_OFF );
+	DISPLAY->SetCullMode( CULL_NONE );
+
+	RageSpriteVertex center;
+	center.p = RageVector3( 0, 0, 0 );
+	if( fAlpha > 0 )
+	{
+		DISPLAY->SetBlendMode( BLEND_INVERT );
+		center.c = RageColor( fAlpha, fAlpha, fAlpha, fAlpha );
+		DISPLAY->DrawCircle( center, fInner );
+	}
+
+	/* Stealth fades the mine to a white glow before it vanishes; do the same. */
+	DISPLAY->SetBlendMode( BLEND_NORMAL );
+	const float fBlack = fGlow;
+	const float fWhite = fColorScale + (1-fColorScale)*fGlow;
+	DrawRing( fMiddle, fOuter, RageColor(fBlack,fBlack,fBlack,fFade) );
+	DrawRing( fInner, fMiddle, RageColor(fWhite,fWhite,fWhite,fFade) );
+	if( fGlow > 0 )
+	{
+		center.c = RageColor( 1, 1, 1, fGlow );
+		DISPLAY->DrawCircle( center, fInner );
+	}
+
+	DISPLAY->PopMatrix();
+}
+
 void NoteDisplay::DrawTap( int iCol, float fBeat, bool bOnSameRowAsHoldStart, bool bIsAddition, bool bIsMine, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels )
 {
 	Actor* pActor = NULL;
 	bool bUseLighting = false;
 	if( bIsMine )
 	{
+		DrawMineUnderlay( iCol, fBeat, fPercentFadeToFail, fLife, fReverseOffsetPixels );
 		pActor = GetTapMineActor( fBeat );
 		bUseLighting = cache->m_bTapMineUseLighting;
 	}
