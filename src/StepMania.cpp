@@ -3,6 +3,7 @@
 #include "StepMania.h"
 #if !defined(WITHOUT_EXTRAS)
 #include "ChartExport.h"
+#include "ChartMSD.h"
 #endif
 
 //
@@ -817,6 +818,9 @@ int main(int argc, char* argv[])
 	/* SONGMAN isn't deleted: the song library is only memory, and freeing it one
 	 * song at a time held up quitting with a big library.  The OS takes it back. */
 	SAFE_DELETE( BANNERCACHE );
+#if !defined(WITHOUT_EXTRAS)
+	ChartMSD::Shutdown();	/* its thread uses SONGINDEX */
+#endif
 	SAFE_DELETE( SONGINDEX );
 	SAFE_DELETE( SOUND ); /* uses GAMESTATE, PREFSMAN */
 	SAFE_DELETE( PREFSMAN );

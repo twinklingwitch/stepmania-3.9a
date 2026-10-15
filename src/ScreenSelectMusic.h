@@ -124,6 +124,7 @@ protected:
 	float				m_fInfoRate;
 	float				m_fInfoSettled;
 	bool				m_bInfoSlowPending;
+	bool				m_bInfoMSDPending;	// the MSD is being worked out
 
 	bool				m_bMadeChoice;
 	bool				m_bGoToOptions;

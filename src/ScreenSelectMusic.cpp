@@ -240,6 +240,7 @@ ScreenSelectMusic::ScreenSelectMusic( CString sClassName ) : ScreenWithMenuEleme
 	m_fInfoRate = -1;
 	m_fInfoSettled = 0;
 	m_bInfoSlowPending = false;
+	m_bInfoMSDPending = false;
 
 	if( SHOW_DIFFICULTY_LIST )
 	{
@@ -826,6 +827,7 @@ void ScreenSelectMusic::UpdateChartInfo( float fDeltaTime )
 		m_fInfoRate = fRate;
 		m_fInfoSettled = 0;
 		m_bInfoSlowPending = pSteps != NULL;
+		m_bInfoMSDPending = false;
 
 		SetInfo( INFO_RATE, "Rate " + ChartInfo::RateString(fRate) );
 		SetInfo( INFO_LENGTH, pSteps? ChartInfo::LengthString(pSong, fRate): CString() );
@@ -838,24 +840,35 @@ void ScreenSelectMusic::UpdateChartInfo( float fDeltaTime )
 		SetInfo( INFO_BEST, pSteps && !bWife && m_bShowInfo[INFO_BEST]? ChartInfo::BestScoreString(pn, pSong, pSteps, fRate, false): CString() );
 	}
 
-	if( !m_bInfoSlowPending  ||  m_fInfoSettled < INFO_SETTLE_SECONDS )
-		return;
-	m_bInfoSlowPending = false;
+	if( m_bInfoSlowPending  &&  m_fInfoSettled >= INFO_SETTLE_SECONDS )
+	{
+		m_bInfoSlowPending = false;
 #if !defined(WITHOUT_EXTRAS)
-	if( !bWife )
-		return;
+		if( !bWife )
+			return;
 
-	if( (m_bShowInfo[INFO_MSD] || m_bShowInfo[INFO_SKILLSETS])  &&  ChartMSD::IsSupported(pSteps) )
+		m_bInfoMSDPending = (m_bShowInfo[INFO_MSD] || m_bShowInfo[INFO_SKILLSETS])  &&  ChartMSD::IsSupported(pSteps);
+		if( m_bShowInfo[INFO_BEST] )
+			SetInfo( INFO_BEST, ChartInfo::BestScoreString(pn, pSong, pSteps, fRate, true) );
+#endif
+	}
+
+#if !defined(WITHOUT_EXTRAS)
+	/* Working out the MSD of a chart that hasn't been looked at yet takes
+	 * a while; it's done on a thread and shows up when it's ready. */
+	if( m_bInfoMSDPending )
 	{
 		float fMSD[MINACALC_NUM_SKILLSETS];
-		if( ChartMSD::GetMSDAtRate(pSong, pSteps, fRate, fMSD)  &&  fMSD[MINACALC_OVERALL] > 0 )
+		const int iRet = ChartMSD::PeekMSDAtRate( pSong, pSteps, fRate, fMSD );
+		if( iRet < 0 )
+			return;
+		m_bInfoMSDPending = false;
+		if( iRet > 0  &&  fMSD[MINACALC_OVERALL] > 0 )
 		{
 			SetInfo( INFO_MSD, ChartInfo::MSDString(fMSD) );
 			SetInfo( INFO_SKILLSETS, ChartInfo::SkillsetsString(fMSD) );
 		}
 	}
-	if( m_bShowInfo[INFO_BEST] )
-		SetInfo( INFO_BEST, ChartInfo::BestScoreString(pn, pSong, pSteps, fRate, true) );
 #endif
 }
 

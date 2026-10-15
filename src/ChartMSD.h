@@ -8,7 +8,8 @@
  * chart being played.
  *
  * Use from the main thread: it loads the chart's notes, which isn't thread
- * safe.  ChartMSD::Compute only needs the rows, so it can run anywhere. */
+ * safe.  ChartMSD::Compute only needs the rows, so it can run anywhere, and
+ * so can the caches. */
 
 #ifndef CHART_MSD_H
 #define CHART_MSD_H
@@ -57,6 +58,16 @@ namespace ChartMSD
 	 * tens of them, like GetMSD, so don't ask every frame. */
 	bool GetMSDAtRate( const Song *pSong, const Steps *pSteps, float fRate, float out[MINACALC_NUM_SKILLSETS] );
 
+	/* GetMSDAtRate for the music wheel, which can't wait for the calculator: if the
+	 * chart's MSD isn't known yet it is worked out on a thread, and this says -1
+	 * until it is (ask again later).  1 if out is filled, 0 if the chart can't
+	 * be rated.  The answer is kept just as GetMSDAtRate's is, and is the same. */
+	int PeekMSDAtRate( const Song *pSong, const Steps *pSteps, float fRate, float out[MINACALC_NUM_SKILLSETS] );
+
+	/* Waits for the thread PeekMSDAtRate started, if it did; call before the
+	 * song cache goes away. */
+	void Shutdown();
+
 	/* The SSRs of a score of fGoal (a Wife3 fraction) at fRate. */
 	bool GetSSR( const Song *pSong, const Steps *pSteps, float fRate, float fGoal, float out[MINACALC_NUM_SKILLSETS] );
 
@@ -64,7 +75,7 @@ namespace ChartMSD
 	 * own thread): LookupMSD is GetMSD without running the calculator, from
 	 * memory or the song cache, and StoreMSD keeps a table worked out elsewhere,
 	 * in memory and, if bSongCache, in the song cache, so GetMSD doesn't do it
-	 * again.  Both are for the main thread. */
+	 * again. */
 	bool LookupMSD( const CString &sChartKey, unsigned uRowsHash, ChartMSDTable &out );
 	void StoreMSD( const CString &sChartKey, unsigned uRowsHash, const ChartMSDTable &table, bool bSongCache );
 
