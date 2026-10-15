@@ -229,6 +229,7 @@ void ResetGame( bool ReturnToFirstScreen )
 static void GameLoop();
 
 #include "RageDisplay_OGL.h"
+#include "RageDisplay_GLCore.h"
 #include "RageDisplay_Null.h"
 
 struct VideoCardDefaults
@@ -246,7 +247,7 @@ struct VideoCardDefaults
 {
 	{
 		"OpenGL",
-		"opengl",
+		"glcore,opengl",
 		640,480,
 		16,16,16,
 		2048,
@@ -342,7 +343,18 @@ RageDisplay *CreateDisplay()
 	{
 		CString sRenderer = asRenderers[i];
 
-		if( sRenderer.CompareNoCase("opengl")==0 )
+		if( sRenderer.CompareNoCase("glcore")==0 )
+		{
+			error += "Initializing OpenGL (core profile)...\n";
+			try {
+				return new RageDisplay_GLCore( params );
+			} catch(const RageException &e) {
+				LOG->Info( "OpenGL core profile renderer unavailable: %s", e.what() );
+				error += CString(e.what()) + "\n";
+				continue;
+			};
+		}
+		else if( sRenderer.CompareNoCase("opengl")==0 )
 		{
 			error += "Initializing OpenGL...\n";
 			try {

@@ -507,6 +507,16 @@ unsigned RageDisplay::GetCameraMatrixGeneration() const
 		g_ViewStack.m_iGeneration + g_TextureStack.m_iGeneration;
 }
 
+unsigned RageDisplay::GetProjectionViewGeneration() const
+{
+	return g_iCenteringGeneration + g_ProjectionStack.m_iGeneration + g_ViewStack.m_iGeneration;
+}
+
+unsigned RageDisplay::GetTextureMatrixGeneration() const
+{
+	return g_TextureStack.m_iGeneration;
+}
+
 void RageDisplay::PushMatrix() 
 { 
 	g_WorldStack.Push();

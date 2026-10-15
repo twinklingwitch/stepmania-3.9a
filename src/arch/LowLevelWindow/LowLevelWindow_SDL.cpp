@@ -45,6 +45,7 @@ LowLevelWindow_SDL::LowLevelWindow_SDL()
 	m_iWindowBpp = 0;
 	m_iWindowedWidth = m_iWindowedHeight = 0;
 	m_iFramebufferWidth = m_iFramebufferHeight = 0;
+	m_bCoreProfile = false;
 
 	if( !SDL_InitSubSystem(SDL_INIT_VIDEO) )
 		RageException::Throw( "SDL_INIT_VIDEO failed: %s", mySDL_GetError().c_str() );
@@ -128,6 +129,9 @@ CString LowLevelWindow_SDL::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 	{
 		DestroyWindow();
 
+		/* These are global, and another renderer may have set them up differently. */
+		SDL_GL_ResetAttributes();
+
 		switch( p.bpp )
 		{
 		case 16:
@@ -144,13 +148,29 @@ CString LowLevelWindow_SDL::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, true);
 
+		if( m_bCoreProfile )
+		{
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #if defined(DARWIN)
-		/* We draw with the fixed function pipeline, which macOS only has in its
-		 * legacy (2.1) contexts.  That's what SDL gives by default, but be sure. */
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+			/* macOS gives 4.1 for any 3.2+ core request, and wants it forward compatible. */
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+#else
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 #endif
+		}
+		else
+		{
+#if defined(DARWIN)
+			/* The fixed function pipeline is only in macOS's legacy (2.1) contexts.
+			 * That's what SDL gives by default, but be sure. */
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+#endif
+		}
 
 		/* On Retina displays (and scaled Wayland outputs) draw at the display's
 		 * resolution rather than letting it scale up a low resolution picture.

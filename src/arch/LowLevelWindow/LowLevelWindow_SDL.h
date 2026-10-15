@@ -25,12 +25,15 @@ class LowLevelWindow_SDL: public LowLevelWindow
 	 * high density displays. */
 	int m_iFramebufferWidth, m_iFramebufferHeight;
 
+	bool m_bCoreProfile;
+
 	void DestroyWindow();
 
 public:
 	LowLevelWindow_SDL();
 	~LowLevelWindow_SDL();
 	void *GetProcAddress(CString s);
+	void SetCoreProfile( bool b ) { m_bCoreProfile = b; }
 	CString TryVideoMode( RageDisplay::VideoModeParams p, bool &bNewDeviceOut );
 	void SwapBuffers();
 	float GetRefreshRate() const;

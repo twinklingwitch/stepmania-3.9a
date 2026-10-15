@@ -232,6 +232,7 @@ rage = files(
   'RageBitmapTexture.cpp',
   'RageDisplay.cpp',
   'RageDisplay_OGL.cpp',
+  'RageDisplay_GLCore.cpp',
   'RageDisplay_Null.cpp',
   'RageException.cpp',
   'RageInput.cpp',

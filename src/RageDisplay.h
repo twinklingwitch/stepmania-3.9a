@@ -345,6 +345,10 @@ protected:
 	/* Changes whenever the centering, projection, view or texture matrix may
 	 * have changed (but not the world matrix). */
 	unsigned GetCameraMatrixGeneration() const;
+	/* The same, for the centering, projection and view matrices, and for the
+	 * texture matrix alone. */
+	unsigned GetProjectionViewGeneration() const;
+	unsigned GetTextureMatrixGeneration() const;
 };
 
 

@@ -14,6 +14,10 @@ public:
 
 	virtual void *GetProcAddress(CString s) = 0;
 
+	/* Ask for an OpenGL 3.3 core profile context (4.1 on macOS) instead of a
+	 * compatibility one, for windows created after this. */
+	virtual void SetCoreProfile( bool b ) { }
+
 	// Return "" if mode change was successful, otherwise an error message.
 	// bNewDeviceOut is set true if a new device was created and textures
 	// need to be reloaded.
