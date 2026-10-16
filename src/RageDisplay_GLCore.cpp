@@ -49,6 +49,7 @@
 #include "RageTypes.h"
 #include "RageSurface.h"
 #include "RageSurfaceUtils.h"
+#include "RageTimer.h"
 #include "GameConstantsAndTypes.h"
 #include "arch/arch.h"
 #include "arch/LowLevelWindow/LowLevelWindow.h"
@@ -502,6 +503,62 @@ namespace
 
 	/* The modelview matrix of the last draw; see SetLightDirectional. */
 	RageMatrix g_LastWorld, g_LastCenteringView;
+
+	/*
+	 * Statistics: with SM_GLCORE_STATS=1 in the environment, how many draw
+	 * calls and GL calls a frame takes, and what made each run go out, are
+	 * logged every few seconds.
+	 */
+	enum FlushReason
+	{
+		FLUSH_TEXTURE, FLUSH_WRAP, FLUSH_BLEND, FLUSH_DEPTH, FLUSH_RASTER,
+		FLUSH_PRIMITIVE, FLUSH_FULL, FLUSH_MODEL, FLUSH_TEXTURE_UPLOAD,
+		FLUSH_FRAME, FLUSH_OTHER,
+		FLUSH_UNIFORM,	// plus the uniform
+		NUM_FLUSH_REASONS = FLUSH_UNIFORM + NUM_UNIFORMS
+	};
+	const char *g_szFlushReasons[FLUSH_UNIFORM] =
+	{
+		"texture", "wrap", "blend", "depth", "raster",
+		"primitive", "full", "model", "upload",
+		"frame", "other",
+	};
+
+	struct Stats
+	{
+		int iFrames;
+		int iFlushes[NUM_FLUSH_REASONS];
+		int iDrawCalls, iBufferWrites, iUniformCalls, iTextureBinds, iStateCalls;
+	};
+	bool g_bStats = false;
+	Stats g_Stats;
+	RageTimer g_StatsTimer;
+}
+
+#define STAT( x ) if( g_bStats ) ++g_Stats.x
+
+static void LogStats()
+{
+	if( !g_bStats )
+		return;
+	++g_Stats.iFrames;
+	if( g_StatsTimer.PeekDeltaTime() < 5 )
+		return;
+	g_StatsTimer.Touch();
+
+	const Stats &s = g_Stats;
+	const float f = 1.0f / s.iFrames;
+	CString sReasons;
+	for( int i = 0; i < NUM_FLUSH_REASONS; ++i )
+	{
+		if( !s.iFlushes[i] )
+			continue;
+		const CString sName = i < FLUSH_UNIFORM? CString(g_szFlushReasons[i]): CString(g_szUniformNames[i-FLUSH_UNIFORM]);
+		sReasons += ssprintf( " %s %.1f", sName.c_str(), s.iFlushes[i]*f );
+	}
+	LOG->Info( "GLCore per frame (%i): %.1f draws, %.1f buffer writes, %.1f uniforms, %.1f binds, %.1f state; runs sent for:%s",
+		s.iFrames, s.iDrawCalls*f, s.iBufferWrites*f, s.iUniformCalls*f, s.iTextureBinds*f, s.iStateCalls*f, sReasons.c_str() );
+	memset( &g_Stats, 0, sizeof(g_Stats) );
 }
 
 /* See SetColorScale. */
@@ -509,7 +566,7 @@ static float g_fColorScale[3] = { 1, 1, 1 };
 static bool g_bDrawnThisFrame = false;	// what's drawn can't be scaled after the fact
 static bool g_bColorScaleInexact = false;	// drew something that doesn't scale linearly
 
-static void FlushQueue();
+static void FlushQueue( int iReason );
 
 /*
  * Applying state.  Each of these sends out the queue before changing anything
@@ -527,9 +584,10 @@ static void BindTextureToUnit( int iUnit, GLuint uTex )
 {
 	if( g_Applied.iBound[iUnit] == int64_t(uTex) )
 		return;
-	FlushQueue();
+	FlushQueue( FLUSH_TEXTURE );
 	SetActiveUnit( iUnit );
 	glBindTexture( GL_TEXTURE_2D, uTex );
+	STAT( iTextureBinds );
 	g_Applied.iBound[iUnit] = uTex;
 }
 
@@ -559,7 +617,8 @@ static void SetUniformFloats( int u, const float *f, int iCount )
 {
 	if( !UniformDiffers(u, f, iCount) )
 		return;
-	FlushQueue();
+	FlushQueue( FLUSH_UNIFORM+u );
+	STAT( iUniformCalls );
 	Uniform &un = g_Uniforms[u];
 	memcpy( un.f, f, iCount*sizeof(float) );
 	un.bValid = true;
@@ -580,7 +639,8 @@ static void SetUniformInt( int u, int i )
 	const float f = float(i);
 	if( un.bValid && un.f[0] == f )
 		return;
-	FlushQueue();
+	FlushQueue( FLUSH_UNIFORM+u );
+	STAT( iUniformCalls );
 	un.f[0] = f;
 	un.bValid = true;
 	gl.Uniform1i( un.iLocation, i );
@@ -593,7 +653,8 @@ static void ApplyBlendAndDepth()
 
 	if( a.iBlend != int(w.bBlend) )
 	{
-		FlushQueue();
+		FlushQueue( FLUSH_BLEND );
+		STAT( iStateCalls );
 		if( w.bBlend )
 			glEnable( GL_BLEND );
 		else
@@ -602,14 +663,16 @@ static void ApplyBlendAndDepth()
 	}
 	if( a.iBlendSrc != int(w.BlendSrc) || a.iBlendDst != int(w.BlendDst) )
 	{
-		FlushQueue();
+		FlushQueue( FLUSH_BLEND );
+		STAT( iStateCalls );
 		glBlendFunc( w.BlendSrc, w.BlendDst );
 		a.iBlendSrc = w.BlendSrc;
 		a.iBlendDst = w.BlendDst;
 	}
 	if( a.iDepthRange != w.iDepthRange )
 	{
-		FlushQueue();
+		FlushQueue( FLUSH_DEPTH );
+		STAT( iStateCalls );
 		if( w.iDepthRange )
 			glDepthRange( 0.0, 0.95 );
 		else
@@ -626,7 +689,8 @@ static void ApplyBlendAndDepth()
 	{
 		if( a.iDepthTest != 0 )
 		{
-			FlushQueue();
+			FlushQueue( FLUSH_DEPTH );
+			STAT( iStateCalls );
 			glDisable( GL_DEPTH_TEST );
 			a.iDepthTest = 0;
 		}
@@ -635,7 +699,8 @@ static void ApplyBlendAndDepth()
 	{
 		if( w.bClearDepthPending )
 		{
-			FlushQueue();
+			FlushQueue( FLUSH_DEPTH );
+			STAT( iStateCalls );
 			/* Clearing is affected by the depth mask. */
 			if( a.iDepthMask != 1 )
 			{
@@ -647,27 +712,31 @@ static void ApplyBlendAndDepth()
 		}
 		if( a.iDepthTest != 1 )
 		{
-			FlushQueue();
+			FlushQueue( FLUSH_DEPTH );
+			STAT( iStateCalls );
 			glEnable( GL_DEPTH_TEST );
 			a.iDepthTest = 1;
 		}
 	}
 	if( a.iDepthMask != int(w.bZWrite) )
 	{
-		FlushQueue();
+		FlushQueue( FLUSH_DEPTH );
+		STAT( iStateCalls );
 		glDepthMask( w.bZWrite );
 		a.iDepthMask = w.bZWrite;
 	}
 	if( a.iDepthFunc != int(w.DepthFunc) )
 	{
-		FlushQueue();
+		FlushQueue( FLUSH_DEPTH );
+		STAT( iStateCalls );
 		glDepthFunc( w.DepthFunc );
 		a.iDepthFunc = w.DepthFunc;
 	}
 
 	if( a.iCullFace != w.iCullFace )
 	{
-		FlushQueue();
+		FlushQueue( FLUSH_RASTER );
+		STAT( iStateCalls );
 		if( w.iCullFace == 0 )
 			glDisable( GL_CULL_FACE );
 		else
@@ -681,13 +750,15 @@ static void ApplyBlendAndDepth()
 
 	if( a.iPolygonMode != int(w.PolygonMode) )
 	{
-		FlushQueue();
+		FlushQueue( FLUSH_RASTER );
+		STAT( iStateCalls );
 		glPolygonMode( GL_FRONT_AND_BACK, w.PolygonMode );
 		a.iPolygonMode = w.PolygonMode;
 	}
 	if( a.fLineWidth != w.fLineWidth )
 	{
-		FlushQueue();
+		FlushQueue( FLUSH_RASTER );
+		STAT( iStateCalls );
 		glLineWidth( w.fLineWidth );
 		a.fLineWidth = w.fLineWidth;
 	}
@@ -703,7 +774,8 @@ static void ApplyTexture( int iUnit )
 	signed char &iApplied = WrapEntry( g_TexWrapApplied, uTex );
 	if( iWrap == -1 || iWrap == iApplied )
 		return;
-	FlushQueue();
+	FlushQueue( FLUSH_WRAP );
+	STAT( iStateCalls );
 	SetActiveUnit( iUnit );
 	const GLint mode = iWrap? GL_REPEAT: GLC_CLAMP_TO_EDGE;
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, mode );
@@ -744,10 +816,16 @@ static const float g_fIdentity[16] = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
 /*
  * The queue.
  */
-static void FlushQueue()
+static void FlushQueue( int iReason )
 {
 	if( g_iQueued == 0 )
 		return;
+	if( g_bStats )
+	{
+		++g_Stats.iFlushes[iReason];
+		++g_Stats.iDrawCalls;
+		++g_Stats.iBufferWrites;
+	}
 	const int iNum = g_iQueued;
 	g_iQueued = 0;
 
@@ -792,7 +870,7 @@ static void FlushQueue()
 static inline Vertex *QueueSpace( bool bQuads, int iCount )
 {
 	if( g_iQueued && (g_bQueueQuads != bQuads || g_iQueued + iCount > QUEUE_VERTICES) )
-		FlushQueue();
+		FlushQueue( g_bQueueQuads != bQuads? FLUSH_PRIMITIVE: FLUSH_FULL );
 	g_bQueueQuads = bQuads;
 	Vertex *v = &g_Queue[g_iQueued];
 	g_iQueued += iCount;
@@ -985,6 +1063,7 @@ public:
 			gl.BufferData( GLC_ARRAY_BUFFER, m_vNormal.size()*sizeof(float), m_vNormal.empty()? NULL: &m_vNormal[0], GLC_DYNAMIC_DRAW );
 			gl.BufferData( GLC_ELEMENT_ARRAY_BUFFER, m_vTriangles.size()*sizeof(uint16_t), m_vTriangles.empty()? NULL: &m_vTriangles[0], GLC_DYNAMIC_DRAW );
 			m_bDirty = false;
+			STAT( iBufferWrites );
 		}
 
 		/* Color and texture mode aren't arrays here; they come from the current
@@ -1180,6 +1259,8 @@ RageDisplay_GLCore::RageDisplay_GLCore( VideoModeParams p )
 
 	FixLilEndian();
 	InitWantedState();
+	g_bStats = getenv( "SM_GLCORE_STATS" ) != NULL;
+	memset( &g_Stats, 0, sizeof(g_Stats) );
 
 	g_pWind = MakeLowLevelWindow();
 	g_pWind->SetCoreProfile( true );
@@ -1207,7 +1288,7 @@ void RageDisplay_GLCore::Update( float fDeltaTime )
 
 CString RageDisplay_GLCore::TryVideoMode( VideoModeParams p, bool &bNewDeviceOut )
 {
-	FlushQueue();
+	FlushQueue( FLUSH_OTHER );
 
 	CString err = g_pWind->TryVideoMode( p, bNewDeviceOut );
 	if( err != "" )
@@ -1241,7 +1322,7 @@ void RageDisplay_GLCore::ResolutionChanged()
 
 void RageDisplay_GLCore::SetViewport( int shift_left, int shift_down )
 {
-	FlushQueue();
+	FlushQueue( FLUSH_OTHER );
 
 	/* left and down are on a 0..SCREEN_WIDTH, 0..SCREEN_HEIGHT scale.
 	 * Scale them to the actual viewport range, in framebuffer pixels. */
@@ -1262,7 +1343,7 @@ int RageDisplay_GLCore::GetMaxTextureSize() const
 
 bool RageDisplay_GLCore::BeginFrame()
 {
-	FlushQueue();
+	FlushQueue( FLUSH_FRAME );
 	glClearColor( 0,0,0,1 );
 	SetZWrite( true );
 	glClear( GL_COLOR_BUFFER_BIT );
@@ -1273,9 +1354,10 @@ bool RageDisplay_GLCore::BeginFrame()
 	return true;
 }
 
+
 void RageDisplay_GLCore::EndFrame()
 {
-	FlushQueue();
+	FlushQueue( FLUSH_FRAME );
 	g_fColorScale[0] = g_fColorScale[1] = g_fColorScale[2] = 1;
 
 	/* The frame isn't done until the GPU is, and we need to know how long that
@@ -1287,11 +1369,12 @@ void RageDisplay_GLCore::EndFrame()
 	g_pWind->SwapBuffers();
 	FrameSwapped();
 	ProcessStatsOnFlip();
+	LogStats();
 }
 
 RageSurface* RageDisplay_GLCore::CreateScreenshot()
 {
-	FlushQueue();
+	FlushQueue( FLUSH_OTHER );
 
 	int width, height;
 	g_pWind->GetFramebufferSize( width, height );
@@ -1367,7 +1450,7 @@ bool RageDisplay_GLCore::SetColorScale( float r, float g, float b )
 	{
 		/* The frame was empty when the scale was set, so everything in it was
 		 * drawn with the scale: wipe it, and the caller draws it again. */
-		FlushQueue();
+		FlushQueue( FLUSH_OTHER );
 		glClear( GL_COLOR_BUFFER_BIT );
 		g_Wanted.bClearDepthPending = true;
 		g_bDrawnThisFrame = false;
@@ -1801,8 +1884,9 @@ void RageDisplay_GLCore::DrawCompiledGeometryInternal( const RageCompiledGeometr
 {
 	/* Models keep their vertices in GL, so the world matrix goes to GL. */
 	PrepareDraw( true );
-	FlushQueue();
+	FlushQueue( FLUSH_MODEL );
 	p->Draw( iMeshIndex );
+	STAT( iDrawCalls );
 }
 
 RageCompiledGeometry* RageDisplay_GLCore::CreateCompiledGeometry()
@@ -1853,7 +1937,7 @@ unsigned RageDisplay_GLCore::CreateTexture(
 	RageSurface* img,
 	bool bGenerateMipMaps )
 {
-	FlushQueue();
+	FlushQueue( FLUSH_TEXTURE_UPLOAD );
 	ASSERT( pixfmt < NUM_PIX_FORMATS && pixfmt != FMT_PAL );
 	ASSERT( img->w == power_of_two(img->w) && img->h == power_of_two(img->h) );
 
@@ -1918,7 +2002,7 @@ void RageDisplay_GLCore::UpdateTexture(
 	int xoffset, int yoffset, int width, int height )
 {
 	/* The queue may still draw the old contents. */
-	FlushQueue();
+	FlushQueue( FLUSH_TEXTURE_UPLOAD );
 	BindTextureToUnit( 0, uTexHandle );
 	SetActiveUnit( 0 );
 
@@ -1937,7 +2021,7 @@ void RageDisplay_GLCore::UpdateTexture(
 
 void RageDisplay_GLCore::DeleteTexture( unsigned uTexHandle )
 {
-	FlushQueue();
+	FlushQueue( FLUSH_TEXTURE_UPLOAD );
 
 	GLuint uTex = uTexHandle;
 	glDeleteTextures( 1, &uTex );
