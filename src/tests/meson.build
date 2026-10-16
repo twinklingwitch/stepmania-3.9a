@@ -61,7 +61,8 @@ test_file_errors_objects = [stepmania.extract_objects(
   'MsdFile.cpp',
   'XmlFile.cpp',
   'CryptManager.cpp',
-  'CryptHelpers.cpp')]
+  'CryptHelpers.cpp',
+  'ProfileWriter.cpp')]
 
 test_timing_data_objects = [stepmania.extract_objects('TimingData.cpp')]
 
@@ -77,7 +78,8 @@ if extras
   test_chartkey_objects = [stepmania.extract_objects(
     'ChartKey.cpp',
     'CryptManager.cpp',
-    'CryptHelpers.cpp')]
+    'CryptHelpers.cpp',
+    'ProfileWriter.cpp')]
 
   test_minacalc_objects = [stepmania.extract_objects(
     'CalcRows.cpp',
