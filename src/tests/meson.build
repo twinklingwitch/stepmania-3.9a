@@ -111,6 +111,7 @@ tests = {
   'test_audio_readers': test_audio_readers_objects,
   'test_file_readers': [],
   'test_file_errors': test_file_errors_objects,
+  'test_file_write': [],
   'test_timing_data': test_timing_data_objects,
 }
 if extras
