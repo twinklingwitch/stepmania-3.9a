@@ -396,15 +396,20 @@ The game is started full screen by default.  Set `Windowed=1` in
 `VideoRenderers` in `Data/StepMania.ini` is the list of renderers to try, in
 order:
 
-- `sdlgpu`: SDL's GPU API, which is Metal on macOS and Vulkan on Linux and
-  Windows (with a Vulkan driver).  It draws the same pictures as `glcore`, but
-  the way current GPUs want to be told: each frame is recorded, its vertices
-  go to the GPU in one upload, and it's drawn in one render pass with
-  pipeline objects made ahead of time, so the driver has next to nothing to
-  work out per draw.  On macOS it skips Apple's OpenGL, which is a layer on
-  top of Metal.  Not in the default list yet; try it with
-  `VideoRenderers=sdlgpu,glcore,opengl`.  `SM_RENDER_STATS=1` in the
-  environment logs what each frame sends.
+- `sdlgpu`: SDL's GPU API, which is Direct3D 12 on Windows (Vulkan if there's
+  no Direct3D 12 with shader model 6), Metal on macOS and Vulkan on Linux and
+  the BSDs.  It draws the same pictures as `glcore`, but the way current GPUs
+  want to be told: each frame is recorded, its vertices go to the GPU in one
+  upload, and it's drawn in one render pass with pipeline objects made ahead
+  of time, so the driver has next to nothing to work out per draw.  On
+  Windows, Direct3D 12 presents through DXGI's flip model, with tearing when
+  vsync is off, which in a window costs less than GL's or Vulkan's usual copy.
+  On macOS a window takes Metal frames only so fast (about 650 a second on an
+  M5), so `glcore` is the one to use there.  Not in the default list yet; try
+  it with `VideoRenderers=sdlgpu,glcore,opengl`.  `SM_SDLGPU_DRIVER`
+  (`direct3d12`, `vulkan`, `metal`) picks SDL's driver, `SM_RENDER_STATS=1`
+  in the environment logs what each frame sends, and `SM_FRAME_STATS=1`
+  (any renderer) where each frame's time goes.
 - `glcore`: OpenGL 3.3 core profile (4.1 on macOS).  It draws what 3.9's
   renderer drew with one small shader program, sends vertices through buffer
   objects and draws runs of sprites that share their state in one draw call.
