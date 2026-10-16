@@ -876,6 +876,11 @@ static void SetActiveUnit( int iUnit )
 	g_Applied.iActiveUnit = iUnit;
 }
 
+/* A 1x1 white texture, bound to units the shader isn't sampling.  The shader
+ * has both samplers whether it uses them or not, and Apple's driver complains
+ * about one with nothing it can sample ("unloadable ... using zero texture"). */
+static GLuint g_uBlankTexture = 0;
+
 static void BindTextureToUnit( int iUnit, GLuint uTex )
 {
 	if( g_Applied.iBound[iUnit] == int64_t(uTex) )
@@ -1565,7 +1570,7 @@ static GLuint ApplyTexture( int iUnit )
 	const unsigned uHandle = g_Wanted.Unit[iUnit].Texture;
 	if( !(uHandle & ATLAS_HANDLE) )
 	{
-		BindTextureToUnit( iUnit, uHandle );
+		BindTextureToUnit( iUnit, uHandle? uHandle: g_uBlankTexture );
 		ApplyWrap( iUnit, WrapEntry(g_TexWrapWanted, uHandle), WrapEntry(g_TexWrapApplied, uHandle) );
 		return 0;
 	}
@@ -1573,7 +1578,7 @@ static GLuint ApplyTexture( int iUnit )
 	AtlasTexture *t = GetAtlasTexture( uHandle );
 	if( t == NULL )
 	{
-		BindTextureToUnit( iUnit, 0 );
+		BindTextureToUnit( iUnit, g_uBlankTexture );
 		return 0;
 	}
 	if( t->bInAtlas && iUnit == 0 )
@@ -1979,6 +1984,19 @@ static void InitContext()
 
 	/* The stream buffer and its vertex array. */
 	g_Applied.Invalidate();
+
+	/* Something to sample in both units from the start. */
+	const unsigned char white[4] = { 255, 255, 255, 255 };
+	glGenTextures( 1, &g_uBlankTexture );
+	for( int u = 0; u < 2; ++u )
+	{
+		SetActiveUnit( u );
+		glBindTexture( GLC_TEXTURE_2D_ARRAY, g_uBlankTexture );
+		g_Applied.iBound[u] = g_uBlankTexture;
+	}
+	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+	gl.TexImage3D( GLC_TEXTURE_2D_ARRAY, 0, GLC_RGBA8, 1, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white );
 	gl.GenVertexArrays( 1, &g_StreamVAO );
 	BindVAO( g_StreamVAO );
 	gl.GenBuffers( 1, &g_StreamBuffer );
@@ -2531,8 +2549,12 @@ bool RageDisplay_GLCore::PrepareDraw( bool bForceGPU )
 	GLuint uAtlas0 = 0;
 	if( iMode0 != TEXMODE_OFF )
 		uAtlas0 = ApplyTexture( 0 );
+	else if( g_Applied.iBound[0] <= 0 )
+		BindTextureToUnit( 0, g_uBlankTexture );	// the texture there was deleted
 	if( iMode1 != TEXMODE_OFF )
 		ApplyTexture( 1 );
+	else if( g_Applied.iBound[1] <= 0 )
+		BindTextureToUnit( 1, g_uBlankTexture );
 
 	/* Matrices. */
 	const unsigned iGen = GetProjectionViewGeneration();
