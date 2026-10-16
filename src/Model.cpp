@@ -729,7 +729,7 @@ void Model::HandleCommand( const ParsedCommand &command )
 	HandleParams;
 
 	const CString& sName = sParam(0);
-	if( sName=="play" )
+	if( CommandIs(sName,"play") )
 		PlayAnimation( sParam(1),fParam(2) );
 	else
 	{

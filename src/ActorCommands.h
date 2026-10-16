@@ -46,6 +46,15 @@ void ParseCommands( const CString &sCommands, vector<ParsedCommand> &vCommandsOu
 #define CheckHandledParams if( iMaxIndexAccessed != (int)command.vTokens.size()-1 ) { IncorrectActorParametersWarning( command, iMaxIndexAccessed ); }
 void IncorrectActorParametersWarning( const ParsedCommand& command, int iMaxIndexAccessed );
 
+/* sName == szName.  HandleCommand compares the name against a long list of
+ * them, and comparing with a string literal works out its length every time;
+ * this knows it, and most names differ in length. */
+template<int N>
+inline bool CommandIs( const CString &sName, const char (&szName)[N] )
+{
+	return sName.size() == N-1 && !memcmp( sName.data(), szName, N-1 );
+}
+
 template<class T>
 inline T GetParam( const ParsedCommand& command, int iIndex, int& iMaxIndexAccessedOut )
 {

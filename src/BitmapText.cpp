@@ -572,8 +572,8 @@ void BitmapText::HandleCommand( const ParsedCommand &command )
 
 	// Commands that go in the tweening queue:
 	// Commands that take effect immediately (ignoring the tweening queue):
-	if( sName=="wrapwidthpixels" )		SetWrapWidthPixels( iParam(1) );
-	else if( sName=="maxwidth" )		SetMaxWidth( fParam(1) );
+	if( CommandIs(sName,"wrapwidthpixels") )		SetWrapWidthPixels( iParam(1) );
+	else if( CommandIs(sName,"maxwidth") )		SetMaxWidth( fParam(1) );
 	else
 	{
 		Actor::HandleCommand( command );

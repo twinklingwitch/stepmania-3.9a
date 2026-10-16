@@ -941,20 +941,20 @@ void Sprite::HandleCommand( const ParsedCommand &command )
 
 	// Commands that go in the tweening queue:
 	// Commands that take effect immediately (ignoring the tweening queue):
-	if( sName=="customtexturerect" )	SetCustomTextureRect( RectF(fParam(1),fParam(2),fParam(3),fParam(4)) );
-	else if( sName=="texcoordvelocity" )	SetTexCoordVelocity( fParam(1),fParam(2) );
-	else if( sName=="scaletoclipped" )	ScaleToClipped( fParam(1),fParam(2) );
-	else if( sName=="stretchtexcoords" )	StretchTexCoords( fParam(1),fParam(2) );
+	if( CommandIs(sName,"customtexturerect") )	SetCustomTextureRect( RectF(fParam(1),fParam(2),fParam(3),fParam(4)) );
+	else if( CommandIs(sName,"texcoordvelocity") )	SetTexCoordVelocity( fParam(1),fParam(2) );
+	else if( CommandIs(sName,"scaletoclipped") )	ScaleToClipped( fParam(1),fParam(2) );
+	else if( CommandIs(sName,"stretchtexcoords") )	StretchTexCoords( fParam(1),fParam(2) );
 
 	/* Texture commands; these could be moved to RageTexture* (even though that's
 	 * not an Actor) if these are needed for other things that use textures.
 	 * We'd need to break the command helpers into a separate function; RageTexture
 	 * shouldn't depend on Actor. */
-	else if( sName=="position" )		GetTexture()->SetPosition( fParam(1) );
-	else if( sName=="loop" )			GetTexture()->SetLooping( bParam(1) );
-	else if( sName=="play" )			GetTexture()->Play();
-	else if( sName=="pause" )			GetTexture()->Pause();
-	else if( sName=="rate" )			GetTexture()->SetPlaybackRate( fParam(1) );
+	else if( CommandIs(sName,"position") )		GetTexture()->SetPosition( fParam(1) );
+	else if( CommandIs(sName,"loop") )			GetTexture()->SetLooping( bParam(1) );
+	else if( CommandIs(sName,"play") )			GetTexture()->Play();
+	else if( CommandIs(sName,"pause") )			GetTexture()->Pause();
+	else if( CommandIs(sName,"rate") )			GetTexture()->SetPlaybackRate( fParam(1) );
 	else
 	{
 		Actor::HandleCommand( command );
