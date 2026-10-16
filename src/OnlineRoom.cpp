@@ -40,6 +40,24 @@ static float Now()
 	return RageTimer::GetTimeSinceStart();
 }
 
+/* The first player who is playing, or PLAYER_INVALID.  GameState::GetFirstHumanPlayer
+ * asserts when there's none, which is how it is at the title screen and in the attract
+ * loop, where the room panel still works. */
+static PlayerNumber FirstHumanPlayer()
+{
+	FOREACH_PlayerNumber( p )
+		if( GAMESTATE->IsHumanPlayer(p) )
+			return p;
+	return PLAYER_INVALID;
+}
+
+/* Whether a person is playing a song on the top screen.  The attract loop's
+ * demonstration is a gameplay screen too, but nobody plays it. */
+static bool IsPlayingScreen( const Screen *pTop )
+{
+	return dynamic_cast<const ScreenGameplay *>( pTop ) != NULL && !GAMESTATE->m_bDemonstrationOrJukebox;
+}
+
 CString OnlineRoomChart::Describe() const
 {
 	if( !bSet )
@@ -406,7 +424,7 @@ void OnlineRoom::PickCurrent()
 		Notice( "Only the host picks the chart." );
 		return;
 	}
-	const PlayerNumber pn = GAMESTATE->GetFirstHumanPlayer();
+	const PlayerNumber pn = FirstHumanPlayer();
 	Song *pSong = GAMESTATE->m_pCurSong;
 	Steps *pSteps = pn == PLAYER_INVALID? NULL: GAMESTATE->m_pCurSteps[pn];
 	if( pSong == NULL || pSteps == NULL || GAMESTATE->IsCourseMode() )
@@ -536,7 +554,7 @@ void OnlineRoom::LocateChart()
 
 JsonValue OnlineRoom::ProgressBody( bool bDone, bool bQuit ) const
 {
-	const PlayerNumber pn = GAMESTATE->GetFirstHumanPlayer();
+	const PlayerNumber pn = FirstHumanPlayer();
 	JsonValue p = JsonValue::Object();
 	JsonValue j = JsonValue::Object();
 	if( pn != PLAYER_INVALID )
@@ -583,7 +601,7 @@ void OnlineRoom::UpdateRound()
 {
 	Screen *pTop = SCREENMAN->GetTopScreen();
 	ScreenSelectMusic *pSelect = dynamic_cast<ScreenSelectMusic *>( pTop );
-	const bool bGameplay = dynamic_cast<ScreenGameplay *>( pTop ) != NULL;
+	const bool bGameplay = IsPlayingScreen( pTop );
 
 	/* Put the wheel on a new chart once, and leave the player to look around. */
 	const CString sSelect = m_sLocatedKey + ssprintf( "@%.2f", m_Chart.fRate );
@@ -598,7 +616,7 @@ void OnlineRoom::UpdateRound()
 		if( m_iGameplayRound != m_iRound )
 			m_fLiveWife = m_fFinalWife = 0;
 		m_iGameplayRound = m_iRound;
-		const PlayerNumber pn = GAMESTATE->GetFirstHumanPlayer();
+		const PlayerNumber pn = FirstHumanPlayer();
 		if( pn != PLAYER_INVALID && WIFE->IsActive(pn) )
 		{
 			m_fLiveWife = WIFE->GetLivePercent( pn );
@@ -708,7 +726,7 @@ void OnlineRoom::Update( float fDeltaTime )
 	if( m_iPollRequest == 0 && Now() >= m_fNextPoll )
 	{
 		/* While we play, our progress is the poll. */
-		const bool bGameplay = dynamic_cast<ScreenGameplay *>( SCREENMAN->GetTopScreen() ) != NULL;
+		const bool bGameplay = IsPlayingScreen( SCREENMAN->GetTopScreen() );
 		if( IsInRound() && m_sState == "playing" && bGameplay && m_iDoneRound != m_iRound )
 		{
 			JsonValue v = ProgressBody( false, false );

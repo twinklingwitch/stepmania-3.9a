@@ -99,9 +99,12 @@ ChatPanel::Line ChatPanel::FormatLine( const OnlineChatLine &l, const CString &s
 	CString sTime;
 	if( l.tAt )
 	{
+		/* localtime gives NULL for a time it can't show (Windows' won't take one before
+		 * 1970 or after the year 3000), which the server may send. */
+		tm tmLocal;
 		char szTime[16];
-		strftime( szTime, sizeof(szTime), "%H:%M", localtime(&l.tAt) );
-		sTime = ssprintf( "[%s] ", szTime );
+		if( localtime_r(&l.tAt, &tmLocal) != NULL && strftime(szTime, sizeof(szTime), "%H:%M", &tmLocal) > 0 )
+			sTime = ssprintf( "[%s] ", szTime );
 	}
 
 	switch( l.kind )

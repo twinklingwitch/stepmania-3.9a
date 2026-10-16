@@ -46,6 +46,10 @@ GameState::GameState()
 	m_iCoins = 0;
 	m_timeGameStarted.SetZero();
 	m_bIsOnSystemMenu = false;
+	/* Read before the first Reset (ScreenSystemLayer's credits text, and EndGame, which
+	 * Reset starts with). */
+	m_bPlayersFinalized = false;
+	m_bDemonstrationOrJukebox = false;
 
 	ReloadCharacters();
 

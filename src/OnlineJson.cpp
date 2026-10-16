@@ -1,5 +1,6 @@
 #include "global.h"
 #include "OnlineJson.h"
+#include "OnlineRequest.h"
 #include "RageUtil.h"
 
 #include <float.h>
@@ -505,4 +506,22 @@ bool JsonValue::Parse( const CString &s, JsonValue &out, CString &sError )
 		return false;
 	}
 	return true;
+}
+
+/* "2026-10-12T04:05:06Z" -> seconds since 1970, or 0.  It's here, with the rest of
+ * reading what the server sends, so that the tests can reach it. */
+time_t OnlineParseTime( const CString &s )
+{
+	int y, mo, d, h, mi, sec;
+	if( sscanf(s.c_str(), "%d-%d-%dT%d:%d:%d", &y, &mo, &d, &h, &mi, &sec) != 6 )
+		return 0;
+	/* Days from 1970-01-01 to y-mo-d, for the proleptic Gregorian calendar. */
+	y -= mo <= 2;
+	const int era = (y >= 0? y: y - 399) / 400;
+	const int yoe = y - era * 400;
+	const int doy = (153 * (mo + (mo > 2? -3: 9)) + 2) / 5 + d - 1;
+	const int doe = yoe * 365 + yoe/4 - yoe/100 + doy;
+	/* Not long, which is 32 bits on Windows and wraps for any time past 2038. */
+	const long long days = era * 146097LL + doe - 719468LL;
+	return (time_t) (days * 86400LL + h * 3600LL + mi * 60LL + sec);
 }

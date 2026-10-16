@@ -22,6 +22,10 @@ ArchHooks *MakeArchHooks() { return new ARCH_HOOKS; }
  * bAccurate == false.
  */
 
+/* A reading older than the last by less than this is one that was taken before
+ * another thread's and delivered after it. */
+static const uint64_t MAX_STALE_READING_US = 1000000;
+
 uint64_t ArchHooks::FixupTimeIfBackwards( uint64_t usecs )
 {
 	static uint64_t last = 0;
@@ -29,8 +33,18 @@ uint64_t ArchHooks::FixupTimeIfBackwards( uint64_t usecs )
 
 	if( usecs < last )
 	{
+		/* Every thread that asks for the time comes through here (every lock of a
+		 * mutex does), and one that read the clock just before another and was then
+		 * held up before getting here finds the time "moved backwards" by as long as
+		 * it was held up.  Adding that to the offset would put every later time ahead
+		 * for good, a little more each time it happens.  A clock that really goes
+		 * back goes back by more than that. */
+		const uint64_t iBackwards = last - usecs;
+		if( iBackwards < MAX_STALE_READING_US )
+			return last + offset_us;
+
 		/* The time has moved backwards.  Increase the offset by the amount we moved. */
-		offset_us += last - usecs;
+		offset_us += iBackwards;
 	}
 
 	last = usecs;

@@ -8,6 +8,7 @@
 #include "OnlineHttp.h"
 #include "OnlineInputLog.h"
 #include "OnlineJson.h"
+#include "OnlineRequest.h"
 #include "test_misc.h"
 
 #include <stdlib.h>
@@ -156,6 +157,17 @@ int main( int argc, char *argv[] )
 
 		CString sZ;
 		Check( OnlineHttp::Gzip(CString(1000, 'a'), sZ) && sZ.size() < 100 && (unsigned char) sZ[0] == 0x1f && (unsigned char) sZ[1] == 0x8b, "gzip" );
+	}
+
+	{
+		/* The server's times, in 64-bit seconds: long is 32 bits on Windows. */
+		Check( OnlineParseTime("1970-01-01T00:00:00Z") == 0, "the epoch" );
+		Check( OnlineParseTime("2026-10-16T12:00:00Z") == 1792152000, "this year" );
+		Check( OnlineParseTime("2038-01-19T03:14:08Z") == 2147483648LL, "past 2038" );
+		Check( OnlineParseTime("2100-01-01T00:00:00Z") == 4102444800LL, "2100" );
+		Check( OnlineParseTime("1969-12-31T23:59:59Z") == -1, "just before the epoch" );
+		Check( OnlineParseTime("2026-10-16T12:00:00.250Z") == 1792152000, "fractions of a second are left off" );
+		Check( OnlineParseTime("soon") == 0, "not a time" );
 	}
 
 	if( g_iFailures )

@@ -34,6 +34,10 @@ private:
 	CString path; /* for Copy */
 
 	CString write_buf;
+
+	/* Set once a write has failed.  The data written after that goes nowhere useful, so
+	 * the file must not be taken for complete when it's closed. */
+	bool m_bWriteFailed;
 	
 	bool FinalFlush();
 
@@ -185,6 +189,7 @@ RageFileObjDirect::RageFileObjDirect( const CString &path_, int fd_, RageFile &p
 {
 	path = path_;
 	fd = fd_;
+	m_bWriteFailed = false;
 	ASSERT( fd != -1 );
 
 	if( parent.GetOpenMode() & RageFile::WRITE )
@@ -198,6 +203,10 @@ bool RageFileObjDirect::FinalFlush()
 
 	/* Flush the output buffer. */
 	if( Flush() == -1 )
+		return false;
+
+	/* An earlier write failed, and its data is gone: this isn't the whole file. */
+	if( m_bWriteFailed )
 		return false;
 
 	/* Only do the rest of the flushes if SLOW_FLUSH is enabled. */
@@ -298,17 +307,32 @@ int RageFileObjDirect::Read( void *buf, size_t bytes )
 	return ret;
 }
 
-/* write(), but retry a couple times on EINTR. */
+/* write() all of it, retrying a couple times on EINTR.  When the disk fills up (or a quota
+ * runs out), write() writes what fits and returns that, which is less than it was asked
+ * to; go on until the rest fails, instead of taking the part for the whole.  Returns the
+ * number of bytes written, which is count, or -1. */
 static int retried_write( int fd, const void *buf, size_t count )
 {
-        int tries = 3, ret;
-        do
-        {
-                ret = write( fd, buf, count );
-        }
-        while( ret == -1 && errno == EINTR && tries-- );
-
-        return ret;
+	int tries = 3;
+	size_t iDone = 0;
+	while( iDone < count )
+	{
+		const int ret = (int) write( fd, (const char *) buf + iDone, count - iDone );
+		if( ret == -1 )
+		{
+			if( errno == EINTR && tries-- )
+				continue;
+			return -1;
+		}
+		if( ret == 0 )
+		{
+			/* No progress, and no error to say why; don't spin. */
+			errno = ENOSPC;
+			return -1;
+		}
+		iDone += ret;
+	}
+	return (int) iDone;
 }
 
 
@@ -322,6 +346,7 @@ int RageFileObjDirect::Flush()
 	{
 		LOG->Warn("Error writing %s: %s", this->path.c_str(), strerror(errno) );
 		SetError( strerror(errno) );
+		m_bWriteFailed = true;
 	}
 
 	write_buf.erase();
@@ -346,6 +371,7 @@ int RageFileObjDirect::Write( const void *buf, size_t bytes )
 			{
 				LOG->Warn("Error writing %s: %s", this->path.c_str(), strerror(errno) );
 				SetError( strerror(errno) );
+				m_bWriteFailed = true;
 				return -1;
 			}
 			return bytes;
