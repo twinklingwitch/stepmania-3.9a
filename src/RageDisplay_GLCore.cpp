@@ -277,16 +277,16 @@ static void FixLilEndian()
  *   BLEND_NO_EFFECT is a color of 0 with an alpha of 0.  Nothing reads the
  *   destination alpha.
  *
- *   BLEND_INVERT (ONE_MINUS_DST_COLOR, ONE_MINUS_SRC_ALPHA) can't be done
- *   that way, since it multiplies the color by what's behind.  It's done
- *   with a second blend function, ONE_MINUS_DST_COLOR and SRC1_COLOR, with
- *   the second color the shader puts out (dual source blending) as the
- *   factor for what's behind: 1 - alpha.  Normal blending works with that
- *   one too: color c*a, factor 1 - a + c*a, makes c*a*(1 - dst) +
- *   dst*(1 - a + c*a) = c*a + dst*(1 - a).  So does no blending (c and c)
- *   and BLEND_NO_EFFECT (0 and 1).  Only additive blending needs the first
- *   one, so the blend function changes only between additive blending and
- *   BLEND_INVERT; the mines' markers invert, and are drawn with every mine.
+ *   BLEND_INVERT (ONE_MINUS_DST_COLOR, ONE_MINUS_SRC_ALPHA) multiplies the
+ *   color by what's behind, which that can't do.  It's ONE_MINUS_DST_COLOR
+ *   and SRC1_COLOR, with the second color the shader puts out (dual source
+ *   blending) being 1 - alpha.  The shader could do normal blending with
+ *   that function too (color c*a and factor 1 - a + c*a make
+ *   c*a*(1 - dst) + dst*(1 - a + c*a) = c*a + dst*(1 - a)), which would
+ *   keep the mines' inverting markers from sending out the runs around
+ *   them; but it rounds twice, and dual source blending is slower in
+ *   llvmpipe and on some GPUs (Intel's run the shader at half width), so
+ *   only what inverts uses it.
  * - The depth range.  BLEND_NO_EFFECT draws (masks) are mapped to 0-0.95 of
  *   the depth buffer and the rest to 0.05-1 (see SetBlendMode).  That was
  *   glDepthRange; the vertex shader moves the depth the same way, with which
@@ -457,23 +457,10 @@ static const char *g_szFragmentShader =
 "	int iBlend = vBlend & 7;\n"
 "	vec3 rgb8 = floor( clamp(rgb, 0.0, 1.0) * 255.0 + 0.5 ) * (1.0/255.0);\n"
 "	float a8 = floor( clamp(c.a, 0.0, 1.0) * 255.0 + 0.5 ) * (1.0/255.0);\n"
-"	FragFactor = vec4( 1.0 );\n"
-"	if( iBlend == 0 )\n"
-"	{\n"
-"		FragColor = vec4( rgb8 * a8, c.a );\n"
-"		FragFactor = vec4( 1.0 - a8 + rgb8 * a8, 1.0 );\n"
-"	}\n"
+"	FragFactor = vec4( vec3(1.0 - c.a), 1.0 );\n"
+"	if( iBlend == 0 ) FragColor = vec4( rgb8 * a8, c.a );\n"
 "	else if( iBlend == 1 ) FragColor = vec4( rgb8 * a8, 0.0 );\n"
-"	else if( iBlend == 2 )\n"
-"	{\n"
-"		FragColor = vec4( rgb, 1.0 );\n"
-"		FragFactor = vec4( rgb, 1.0 );\n"
-"	}\n"
-"	else if( iBlend == 4 )\n"
-"	{\n"
-"		FragColor = vec4( rgb, c.a );\n"
-"		FragFactor = vec4( vec3(1.0 - c.a), 1.0 );\n"
-"	}\n"
+"	else if( iBlend == 2 ) FragColor = vec4( rgb, 1.0 );\n"
 "	else if( iBlend == 5 ) FragColor = vec4( 0.0 );\n"
 "	else FragColor = vec4( rgb, c.a );\n"
 "}\n";
@@ -973,9 +960,8 @@ static void ApplyBlendAndDepth()
 	AppliedState &a = g_Applied;
 
 	/* Blending is always on for the blend modes the shader does itself, with
-	 * one of two blend functions (see the shaders).  Additive blending needs
-	 * the first, inverting the second, and the rest are fine with either, so
-	 * they keep whichever there is. */
+	 * one of two blend functions (see the shaders): the second for inverting,
+	 * the first for the rest. */
 	const int iBlendOut = GetBlendOut();
 	bool bBlend = true;
 	GLenum BlendSrc = GL_ONE, BlendDst = GL_ONE_MINUS_SRC_ALPHA;
@@ -985,8 +971,7 @@ static void ApplyBlendAndDepth()
 		BlendSrc = w.BlendSrc;
 		BlendDst = w.BlendDst;
 	}
-	else if( iBlendOut == BLENDOUT_INVERT ||
-		(iBlendOut != BLENDOUT_ADD && a.iBlend == 1 && a.iBlendSrc == GL_ONE_MINUS_DST_COLOR && a.iBlendDst == GLC_SRC1_COLOR) )
+	else if( iBlendOut == BLENDOUT_INVERT )
 	{
 		BlendSrc = GL_ONE_MINUS_DST_COLOR;
 		BlendDst = GLC_SRC1_COLOR;
