@@ -104,6 +104,7 @@
 #define GLC_COLOR_ATTACHMENT0			0x8CE0
 #define GLC_MAX_ARRAY_TEXTURE_LAYERS	0x88FF
 #define GLC_SRC1_COLOR					0x88F9
+#define GLC_CLIP_DISTANCE0				0x3000
 
 typedef char GLCchar;
 typedef ptrdiff_t GLCsizeiptr;
@@ -286,6 +287,12 @@ static void FixLilEndian()
  *   and BLEND_NO_EFFECT (0 and 1).  Only additive blending needs the first
  *   one, so the blend function changes only between additive blending and
  *   BLEND_INVERT; the mines' markers invert, and are drawn with every mine.
+ * - The depth range.  BLEND_NO_EFFECT draws (masks) are mapped to 0-0.95 of
+ *   the depth buffer and the rest to 0.05-1 (see SetBlendMode).  That was
+ *   glDepthRange; the vertex shader moves the depth the same way, with which
+ *   one it is coming with each vertex, so masks and what they mask don't
+ *   alternate between two GL states.  The clip distances keep clipping at the
+ *   near and far planes where it was, since moving the depth moves them.
  * - One directional light with GL's lighting equation, the default scene
  *   ambient, no GL_NORMALIZE and no color material, like we had it.
  * - Sphere map texture coordinate generation, per unit.
@@ -327,6 +334,7 @@ static const char *g_szVertexShader =
 "in vec4 aMode;\n"
 "in uint aAtlas;\n"
 "out vec4 vColor;\n"
+"out float gl_ClipDistance[2];\n"
 "out vec4 vTexCoord0;\n"
 "out vec4 vTexCoord1;\n"
 "flat out int vMode0;\n"
@@ -343,7 +351,21 @@ static const char *g_szVertexShader =
 "void main()\n"
 "{\n"
 "	vec4 eye = uModelView * aPosition;\n"
-"	gl_Position = uProjection * eye;\n"
+"	vec4 pos = uProjection * eye;\n"
+"	int iFlags = int( aMode.y + 0.5 );\n"
+"	if( (iFlags & 32) == 0 )\n"
+"	{\n"
+"		gl_ClipDistance[0] = pos.w + pos.z;\n"
+"		gl_ClipDistance[1] = pos.w - pos.z;\n"
+"		float fNear = (iFlags & 16) != 0? 0.0: 0.05;\n"
+"		pos.z = (2.0*fNear - 1.0) * pos.w + 0.95 * (pos.z + pos.w);\n"
+"	}\n"
+"	else\n"
+"	{\n"
+"		gl_ClipDistance[0] = 1.0;\n"
+"		gl_ClipDistance[1] = 1.0;\n"
+"	}\n"
+"	gl_Position = pos;\n"
 "	vec3 n = uNormalMatrix * aNormal;\n"
 "	if( uLighting != 0 )\n"
 "	{\n"
@@ -459,6 +481,10 @@ namespace
 	/* How the color goes out (see the shaders), and the alpha test. */
 	enum { BLENDOUT_NORMAL, BLENDOUT_ADD, BLENDOUT_OPAQUE, BLENDOUT_AS_IS, BLENDOUT_INVERT, BLENDOUT_NO_EFFECT, BLENDOUT_ALPHA_TEST = 8 };
 
+	/* Also in that byte: the depth range (see the shaders), and whether GL does
+	 * the depth range itself instead. */
+	enum { DEPTH_MASK_RANGE = 16, DEPTH_RANGE_IN_GL = 32 };
+
 	enum
 	{
 		U_PROJECTION, U_MODELVIEW, U_NORMALMATRIX, U_TEXMATRIX0, U_TEXMATRIX1,
@@ -500,7 +526,7 @@ namespace
 		float t[2];
 		GLubyte c[4];	// RGBA
 		GLushort n[3];	// half floats
-		GLubyte mode[2];	// unit 0's texture mode, then BLENDOUT_*
+		GLubyte mode[2];	// unit 0's texture mode, then BLENDOUT_* and DEPTH_*
 		GLuint atlas;	// where unit 0's texture is in the atlas, or 0
 	};
 	typedef char VertexSizeCheck[sizeof(Vertex) == 36? 1: -1];
@@ -726,7 +752,9 @@ static void Execute( const Command &c, GLint iBaseVertex )
 		break;
 	case CMD_BLENDFUNC:	glBlendFunc( c.a, c.b ); break;
 	case CMD_DEPTHRANGE:	// see SetBlendMode
-		if( c.a )
+		if( c.a == 2 )
+			glDepthRange( 0.0, 1.0 );	// the shader does it
+		else if( c.a )
 			glDepthRange( 0.0, 0.95 );
 		else
 			glDepthRange( 0.05, 1.0 );
@@ -915,6 +943,7 @@ static void SetUniformInt( int u, int i )
 
 /* How the shader puts out the color for the blend mode we want. */
 static bool g_bShaderBlending = true;
+static bool g_bShaderDepthRange = true;
 static int GetBlendOut()
 {
 	const WantedState &w = g_Wanted;
@@ -975,12 +1004,13 @@ static void ApplyBlendAndDepth()
 		a.iBlendSrc = BlendSrc;
 		a.iBlendDst = BlendDst;
 	}
-	if( a.iDepthRange != w.iDepthRange )
+	const int iDepthRange = g_bShaderDepthRange? 2: w.iDepthRange;
+	if( a.iDepthRange != iDepthRange )
 	{
 		FlushQueue( FLUSH_DEPTH );
 		STAT( iStateCalls );
-		Issue( CMD_DEPTHRANGE, w.iDepthRange );
-		a.iDepthRange = w.iDepthRange;
+		Issue( CMD_DEPTHRANGE, iDepthRange );
+		a.iDepthRange = iDepthRange;
 	}
 
 	/*
@@ -1945,6 +1975,8 @@ static void InitContext()
 		RageException::ThrowNonfatal( "Linking the shaders failed: %s", szLog );
 	}
 	gl.UseProgram( g_Program );
+	glEnable( GLC_CLIP_DISTANCE0 );
+	glEnable( GLC_CLIP_DISTANCE0+1 );
 
 	for( int u = 0; u < NUM_UNIFORMS; ++u )
 	{
@@ -2580,7 +2612,14 @@ bool RageDisplay_GLCore::PrepareDraw( bool bForceGPU )
 	g_Draw.pTexMatrix0 = &w.Unit[0].TexMatrix;
 	g_Draw.iMode0 = GLubyte( iMode0 );
 	g_Draw.uAtlas0 = uAtlas0;
-	g_Draw.iBlendOut = GLubyte( GetBlendOut() | (w.bAlphaTest? BLENDOUT_ALPHA_TEST: 0) );
+	int iFlags = GetBlendOut();
+	if( w.bAlphaTest )
+		iFlags |= BLENDOUT_ALPHA_TEST;
+	if( !g_bShaderDepthRange )
+		iFlags |= DEPTH_RANGE_IN_GL;
+	else if( w.iDepthRange )
+		iFlags |= DEPTH_MASK_RANGE;
+	g_Draw.iBlendOut = GLubyte( iFlags );
 	return bOnCPU;
 }
 
