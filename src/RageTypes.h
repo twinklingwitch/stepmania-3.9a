@@ -5,6 +5,10 @@
 #ifndef RAGETYPES_H
 #define RAGETYPES_H
 
+#if defined(__x86_64__)
+#include <xmmintrin.h>	// for FTOC
+#endif
+
 enum GlowMode { GLOW_BRIGHTEN, GLOW_WHITEN };
 enum BlendMode { BLEND_NORMAL, BLEND_ADD, BLEND_NO_EFFECT, BLEND_INVERT, BLEND_INVALID };
 enum CullMode { CULL_BACK, CULL_FRONT, CULL_NONE };
@@ -173,13 +177,19 @@ inline unsigned char FTOC(float a)
          * round) positive values.  The highest value that should be converted to 1 is
          * roughly (1/256 - 0.00001); if we don't truncate, values up to (1/256 + 0.5)
          * will be converted to 1, which is wrong. */
+#if defined(__x86_64__)
+        /* This is what lrintf does on x86-64, without calling it: it's called for
+         * every vertex color, and GCC won't inline it. */
+        int ret = (int) _mm_cvtss_si64( _mm_set_ss(a*256.f - 0.5f) );
+#else
         int ret = lrintf(a*256.f - 0.5f);
+#endif
 
         /* Benchmarking shows that clamping here, as integers, is much faster than clamping
          * before the conversion, as floats. */
-        if( ret<0 ) return 0;
-        else if( ret>255 ) return 255;
-        else return (unsigned char) ret;
+        ret = ret < 0? 0: ret;
+        ret = ret > 255? 255: ret;
+        return (unsigned char) ret;
 }
 
 /* Color type used only in vertex lists.  OpenGL expects colors in

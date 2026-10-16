@@ -370,6 +370,11 @@ void Sprite::DrawDiffuseQuad( const RageSpriteVertex v[4] )
 	DISPLAY->SetBlending( true );
 }
 
+static inline bool SameColor( const RageColor &a, const RageColor &b )
+{
+	return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+}
+
 void Sprite::DrawTexture( const TweenState *state )
 {
 	// bail if cropped all the way 
@@ -496,10 +501,19 @@ void Sprite::DrawTexture( const TweenState *state )
 		//////////////////////
 		// render the diffuse pass
 		//////////////////////
-		v[0].c = state->diffuse[0];	// top left
-		v[1].c = state->diffuse[2];	// bottom left
-		v[2].c = state->diffuse[3];	// bottom right
-		v[3].c = state->diffuse[1];	// top right
+		if( SameColor(state->diffuse[0], state->diffuse[1]) && SameColor(state->diffuse[0], state->diffuse[2]) && SameColor(state->diffuse[0], state->diffuse[3]) )
+		{
+			/* Usually all the same; convert it once. */
+			v[0].c = state->diffuse[0];
+			v[1].c = v[2].c = v[3].c = v[0].c;
+		}
+		else
+		{
+			v[0].c = state->diffuse[0];	// top left
+			v[1].c = state->diffuse[2];	// bottom left
+			v[2].c = state->diffuse[3];	// bottom right
+			v[3].c = state->diffuse[1];	// top right
+		}
 		DrawDiffuseQuad( v );
 	}
 
