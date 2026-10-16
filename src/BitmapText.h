@@ -55,9 +55,19 @@ protected:
 
 	vector<RageSpriteVertex> verts;
 	vector<RageTexture *> tex;
+	/* The glyphs where the texture changes (starting with 0), so drawing can
+	 * draw each run of glyphs on one texture at once without comparing them. */
+	vector<int> m_iTextureRunStarts;
 	
+	/* The shadow is drawn from its own copy of the vertices, so the colors of
+	 * neither have to be written again every frame unless they change. */
+	vector<RageSpriteVertex> m_ShadowVerts;
+	bool m_bShadowColorsSet, m_bDiffuseColorsSet;
+	RageVColor m_ShadowColor, m_DiffuseColors[4];
+
 	void BuildChars();
-	void DrawChars();
+	void DrawChars( vector<RageSpriteVertex> &v );
+	bool IsFading() const;
 	void UpdateBaseZoom();
 };
 

@@ -59,6 +59,7 @@ BitmapText::BitmapText()
 	m_pFont = NULL;
 
 	m_bRainbow = false;
+	m_bShadowColorsSet = m_bDiffuseColorsSet = false;
 
 	m_iWrapWidthPixels = -1;
 	m_fMaxWidth = 0;
@@ -123,7 +124,10 @@ void BitmapText::BuildChars()
 
 	verts.clear();
 	tex.clear();
-	
+	m_iTextureRunStarts.clear();
+	m_ShadowVerts.clear();
+	m_bShadowColorsSet = m_bDiffuseColorsSet = false;
+
 	if(m_wTextLines.empty()) return;
 
 	m_size.y = float(m_pFont->GetHeight() * m_wTextLines.size());
@@ -187,9 +191,16 @@ void BitmapText::BuildChars()
 		/* The amount of padding a line needs: */
 		iY += Padding;
 	}
+
+	for( i=0; i<tex.size(); i++ )
+		if( i == 0 || tex[i] != tex[i-1] )
+			m_iTextureRunStarts.push_back( i );
+
+	m_ShadowVerts = verts;
+	m_bShadowColorsSet = m_bDiffuseColorsSet = false;
 }
 
-void BitmapText::DrawChars()
+void BitmapText::DrawChars( vector<RageSpriteVertex> &v )
 {
 	// bail if cropped all the way 
     if( m_pTempState->crop.left + m_pTempState->crop.right >= 1  || 
@@ -252,10 +263,10 @@ void BitmapText::DrawChars()
 				fPercent = clamp( fPercent, 0.0f, 1.0f );
 				fPercent *= LeftColor.a;
 
-				verts[i+0].c.a = (unsigned char)( verts[i+0].c.a * fPercent ); // top left
-				verts[i+1].c.a = (unsigned char)( verts[i+1].c.a * fPercent ); // bottom left
-				verts[i+2].c.a = (unsigned char)( verts[i+2].c.a * fPercent ); // bottom right
-				verts[i+3].c.a = (unsigned char)( verts[i+3].c.a * fPercent ); // top right
+				v[i+0].c.a = (unsigned char)( v[i+0].c.a * fPercent ); // top left
+				v[i+1].c.a = (unsigned char)( v[i+1].c.a * fPercent ); // bottom left
+				v[i+2].c.a = (unsigned char)( v[i+2].c.a * fPercent ); // bottom right
+				v[i+3].c.a = (unsigned char)( v[i+3].c.a * fPercent ); // top right
 			}
 
 			if( FadeSize.right > 0.001f )
@@ -264,26 +275,26 @@ void BitmapText::DrawChars()
 				fPercent = clamp( fPercent, 0.0f, 1.0f );
 				fPercent *= RightColor.a;
 
-				verts[i+0].c.a = (unsigned char)( verts[i+0].c.a * fPercent ); // top left
-				verts[i+1].c.a = (unsigned char)( verts[i+1].c.a * fPercent ); // bottom left
-				verts[i+2].c.a = (unsigned char)( verts[i+2].c.a * fPercent ); // bottom right
-				verts[i+3].c.a = (unsigned char)( verts[i+3].c.a * fPercent ); // top right
+				v[i+0].c.a = (unsigned char)( v[i+0].c.a * fPercent ); // top left
+				v[i+1].c.a = (unsigned char)( v[i+1].c.a * fPercent ); // bottom left
+				v[i+2].c.a = (unsigned char)( v[i+2].c.a * fPercent ); // bottom right
+				v[i+3].c.a = (unsigned char)( v[i+3].c.a * fPercent ); // top right
 			}
 		}
 	}
 
-	for( int start = iStartGlyph; start < iEndGlyph; )
+	/* Draw each run of glyphs on the same texture, from the one iStartGlyph is in. */
+	const int iNumRuns = m_iTextureRunStarts.size();
+	int iRun = iStartGlyph < iEndGlyph? int( upper_bound( m_iTextureRunStarts.begin(), m_iTextureRunStarts.end(), iStartGlyph ) - m_iTextureRunStarts.begin() ) - 1: -1;
+	for( ; iRun >= 0 && iRun < iNumRuns && m_iTextureRunStarts[iRun] < iEndGlyph; ++iRun )
 	{
-		int end = start;
-		while( end < iEndGlyph && tex[end] == tex[start] )
-			end++;
+		const int start = max( m_iTextureRunStarts[iRun], iStartGlyph );
+		const int end = min( iRun+1 < iNumRuns? m_iTextureRunStarts[iRun+1]: iNumGlyphs, iEndGlyph );
 		DISPLAY->ClearAllTextures();
 		DISPLAY->SetTexture( 0, tex[start] );
-		RageSpriteVertex &start_vertex = verts[start*4];
+		RageSpriteVertex &start_vertex = v[start*4];
 		int iNumVertsToDraw = (end-start)*4;
 		DISPLAY->DrawQuads( &start_vertex, iNumVertsToDraw );
-		
-		start = end;
 	}
 }
 
@@ -433,6 +444,18 @@ bool BitmapText::EarlyAbortDraw()
 	return m_wTextLines.empty();
 }
 
+static inline bool SameVColor( const RageVColor &a, const RageVColor &b )
+{
+	return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+}
+
+/* DrawChars fades by changing the alpha of the vertices. */
+bool BitmapText::IsFading() const
+{
+	return m_pTempState->fade.top > 0 || m_pTempState->fade.bottom > 0 ||
+		m_pTempState->fade.left > 0 || m_pTempState->fade.right > 0;
+}
+
 // draw text at x, y using colorTop blended down to colorBottom, with size multiplied by scale
 void BitmapText::DrawPrimitives()
 {
@@ -454,9 +477,16 @@ void BitmapText::DrawPrimitives()
 			/* Convert the color once, not once per vertex. */
 			const RageVColor dim = RageColor(0,0,0,0.5f*m_pTempState->diffuse[0].a);	// semi-transparent black
 
-			for( unsigned i=0; i<verts.size(); i++ )
-				verts[i].c = dim;
-			DrawChars();
+			if( !m_bShadowColorsSet || !SameVColor(m_ShadowColor, dim) )
+			{
+				for( unsigned i=0; i<m_ShadowVerts.size(); i++ )
+					m_ShadowVerts[i].c = dim;
+				m_ShadowColor = dim;
+				m_bShadowColorsSet = true;
+			}
+			DrawChars( m_ShadowVerts );
+			if( IsFading() )
+				m_bShadowColorsSet = false;	/* the fade changed them */
 
 			DISPLAY->PopMatrix();
 		}
@@ -475,6 +505,7 @@ void BitmapText::DrawPrimitives()
 
 				color_index = (color_index+1)%NUM_RAINBOW_COLORS;
 			}
+			m_bDiffuseColorsSet = false;
 		}
 		else
 		{
@@ -482,16 +513,27 @@ void BitmapText::DrawPrimitives()
 			const RageVColor bottomLeft = m_pTempState->diffuse[2];
 			const RageVColor bottomRight = m_pTempState->diffuse[3];
 			const RageVColor topRight = m_pTempState->diffuse[1];
-			for( unsigned i=0; i<verts.size(); i+=4 )
+			if( !m_bDiffuseColorsSet || !SameVColor(m_DiffuseColors[0], topLeft) || !SameVColor(m_DiffuseColors[1], bottomLeft) ||
+				!SameVColor(m_DiffuseColors[2], bottomRight) || !SameVColor(m_DiffuseColors[3], topRight) )
 			{
-				verts[i+0].c = topLeft;
-				verts[i+1].c = bottomLeft;
-				verts[i+2].c = bottomRight;
-				verts[i+3].c = topRight;
+				for( unsigned i=0; i<verts.size(); i+=4 )
+				{
+					verts[i+0].c = topLeft;
+					verts[i+1].c = bottomLeft;
+					verts[i+2].c = bottomRight;
+					verts[i+3].c = topRight;
+				}
+				m_DiffuseColors[0] = topLeft;
+				m_DiffuseColors[1] = bottomLeft;
+				m_DiffuseColors[2] = bottomRight;
+				m_DiffuseColors[3] = topRight;
+				m_bDiffuseColorsSet = true;
 			}
 		}
 
-		DrawChars();
+		DrawChars( verts );
+		if( IsFading() )
+			m_bDiffuseColorsSet = false;
 	}
 
 	/* render the glow pass */
@@ -502,7 +544,8 @@ void BitmapText::DrawPrimitives()
 		const RageVColor glow = m_pTempState->glow;
 		for( unsigned i=0; i<verts.size(); i++ )
 			verts[i].c = glow;
-		DrawChars();
+		m_bDiffuseColorsSet = false;
+		DrawChars( verts );
 	}
 }
 
