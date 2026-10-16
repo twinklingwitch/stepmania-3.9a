@@ -333,9 +333,24 @@ void RageDisplay::SetDefaultRenderStates()
 //
 // Matrix stuff
 //
+/* The part of vector<RageMatrix> the stack uses, in place: pushing and popping
+ * are done for every actor drawn.  Push asserts that it never gets deeper than
+ * this. */
+class MatrixArray
+{
+	RageMatrix m_Matrices[100];
+	int m_iSize;
+public:
+	MatrixArray(): m_iSize(0) { }
+	void push_back( const RageMatrix &m ) { m_Matrices[m_iSize] = m; ++m_iSize; }
+	void pop_back() { --m_iSize; }
+	RageMatrix &back() { return m_Matrices[m_iSize-1]; }
+	unsigned size() const { return m_iSize; }
+};
+
 class MatrixStack
 {
-	vector<RageMatrix> stack;
+	MatrixArray stack;
 public:
 	/* Incremented whenever the top of the stack changes. */
 	unsigned m_iGeneration;
