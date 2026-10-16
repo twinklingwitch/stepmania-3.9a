@@ -364,7 +364,9 @@ void Actor::Update( float fDeltaTime )
 		break;
 	}
 
-	UpdateTweening( fDeltaTime );
+	/* Most actors aren't tweening; don't make a call to find that out. */
+	if( !m_TweenStates.empty() )
+		UpdateTweening( fDeltaTime );
 
 	if( m_bFirstUpdate )
 		m_bFirstUpdate = false;
