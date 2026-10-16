@@ -731,7 +731,12 @@ float Sprite::GetAnimationLengthSeconds() const
 
 void Sprite::SetSecondsIntoAnimation( float fSeconds )
 {
-	SetState( 0 );	// rewind to the first state
+	/* This is done for every note drawn; rewinding to the first state only
+	 * needs SetState's checks if there isn't one. */
+	if( !m_States.empty() )
+		m_iCurState = 0;
+	else
+		SetState( 0 );	// rewind to the first state
 	m_fSecsIntoState = fSeconds;
 	UpdateAnimationState();
 }

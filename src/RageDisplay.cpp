@@ -288,16 +288,27 @@ void RageDisplay::DrawCircleInternal( const RageSpriteVertex &p, float radius )
 		bInited = true;
 	}
 
+	/* Mine markers draw a few of these for every mine; keep the offsets for
+	 * the last radius. */
+	static float fLastRadius = -1, fX[subdivisions+1], fY[subdivisions+1];
+	if( radius != fLastRadius )
+	{
+		for( int i = 0; i < subdivisions+1; ++i )
+		{
+			fX[i] = fCos[i] * radius;
+			fY[i] = -fSin[i] * radius;
+		}
+		fLastRadius = radius;
+	}
+
 	RageSpriteVertex v[subdivisions+2];
 	v[0] = p;
 
 	for(int i = 0; i < subdivisions+1; ++i)
 	{
-		const float fX = fCos[i] * radius;
-		const float fY = -fSin[i] * radius;
 		v[1+i] = v[0];
-		v[1+i].p.x += fX;
-		v[1+i].p.y += fY;
+		v[1+i].p.x += fX[i];
+		v[1+i].p.y += fY[i];
 	}
 
 	this->DrawFan( v, subdivisions+2 );
