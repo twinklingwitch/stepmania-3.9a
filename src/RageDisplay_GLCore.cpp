@@ -95,6 +95,10 @@
 #define GLC_MAX_TEXTURE_MAX_ANISOTROPY	0x84FF
 #define GLC_ALIASED_LINE_WIDTH_RANGE	0x846E
 #define GLC_HALF_FLOAT					0x140B
+#define GLC_TEXTURE_2D_ARRAY			0x8C1A
+#define GLC_READ_FRAMEBUFFER			0x8CA8
+#define GLC_COLOR_ATTACHMENT0			0x8CE0
+#define GLC_MAX_ARRAY_TEXTURE_LAYERS	0x88FF
 
 typedef char GLCchar;
 typedef ptrdiff_t GLCsizeiptr;
@@ -117,6 +121,14 @@ typedef ptrdiff_t GLCintptr;
 	F( void, EnableVertexAttribArray, (GLuint) ) \
 	F( void, VertexAttribPointer, (GLuint, GLint, GLenum, GLboolean, GLsizei, const void *) ) \
 	F( void, VertexAttrib4f, (GLuint, GLfloat, GLfloat, GLfloat, GLfloat) ) \
+	F( void, VertexAttribIPointer, (GLuint, GLint, GLenum, GLsizei, const void *) ) \
+	F( void, VertexAttribI4ui, (GLuint, GLuint, GLuint, GLuint, GLuint) ) \
+	F( void, TexImage3D, (GLenum, GLint, GLint, GLsizei, GLsizei, GLsizei, GLint, GLenum, GLenum, const void *) ) \
+	F( void, TexSubImage3D, (GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLenum, const void *) ) \
+	F( void, CopyTexSubImage3D, (GLenum, GLint, GLint, GLint, GLint, GLint, GLint, GLsizei, GLsizei) ) \
+	F( void, GenFramebuffers, (GLsizei, GLuint *) ) \
+	F( void, BindFramebuffer, (GLenum, GLuint) ) \
+	F( void, FramebufferTextureLayer, (GLenum, GLenum, GLuint, GLint, GLint) ) \
 	F( GLuint, CreateShader, (GLenum) ) \
 	F( void, ShaderSource, (GLuint, GLsizei, const GLCchar * const *, const GLint *) ) \
 	F( void, CompileShader, (GLuint) ) \
@@ -265,6 +277,13 @@ static void FixLilEndian()
  * - Sphere map texture coordinate generation, per unit.
  * - Texture matrices, per unit.  Unit 1 has no texture coordinates of its own,
  *   so it gets GL's default (0,0,0,1), as it did.
+ * - The atlas (see below): unit 0's texture may be a rectangle in a layer of
+ *   the atlas, which comes with each vertex.  Its texture coordinates are
+ *   clamped to the rectangle half a texel in from its edges, which samples
+ *   the same texels with the same weights that GL_CLAMP_TO_EDGE does.  All
+ *   textures are arrays (the rest have one layer), so that unit 0 is sampled
+ *   the same way either way; software renderers run both sides of a branch,
+ *   and a second sampler for the atlas made every pixel cost two lookups.
  */
 static const char *g_szVertexShader =
 "#version 330 core\n"
@@ -291,11 +310,14 @@ static const char *g_szVertexShader =
 "in vec4 aTexCoord;\n"
 "in vec4 aColor;\n"
 "in vec4 aMode;\n"
+"in uint aAtlas;\n"
 "out vec4 vColor;\n"
 "out vec4 vTexCoord0;\n"
 "out vec4 vTexCoord1;\n"
 "flat out int vMode0;\n"
 "flat out int vBlend;\n"
+"flat out vec4 vAtlasRect;\n"
+"flat out float vAtlasLayer;\n"
 "vec4 SphereMap( vec3 u, vec3 n, vec4 tc )\n"
 "{\n"
 "	vec3 r = u - 2.0*n*dot(n, u);\n"
@@ -341,12 +363,15 @@ static const char *g_szVertexShader =
 "	vTexCoord1 = uTexMatrix1 * tc1;\n"
 "	vMode0 = int( aMode.x + 0.5 );\n"
 "	vBlend = int( aMode.y + 0.5 );\n"
+"	vAtlasRect = vec4( float(aAtlas & 127u) * 16.0, float((aAtlas >> 7) & 127u) * 16.0,\n"
+"		float(1u << ((aAtlas >> 22) & 15u)), float(1u << ((aAtlas >> 26) & 15u)) );\n"
+"	vAtlasLayer = aAtlas == 0u? -1.0: float( (aAtlas >> 14) & 255u );\n"
 "}\n";
 
 static const char *g_szFragmentShader =
 "#version 330 core\n"
-"uniform sampler2D uTexture0;\n"
-"uniform sampler2D uTexture1;\n"
+"uniform sampler2DArray uTexture0;\n"
+"uniform sampler2DArray uTexture1;\n"
 "uniform int uTex1Mode;\n"
 "uniform vec3 uColorScale;\n"
 "in vec4 vColor;\n"
@@ -354,6 +379,8 @@ static const char *g_szFragmentShader =
 "in vec4 vTexCoord1;\n"
 "flat in int vMode0;\n"
 "flat in int vBlend;\n"
+"flat in vec4 vAtlasRect;\n"
+"flat in float vAtlasLayer;\n"
 "out vec4 FragColor;\n"
 "vec4 Combine( int iMode, vec4 prev, vec4 tex )\n"
 "{\n"
@@ -362,11 +389,21 @@ static const char *g_szFragmentShader =
 "	if( iMode == 3 ) return vec4( vColor.rgb, vColor.a * tex.a );\n"
 "	return prev;\n"
 "}\n"
+"vec4 Texture0()\n"
+"{\n"
+"	vec2 tc = vTexCoord0.xy / vTexCoord0.w;\n"
+"	if( vAtlasLayer >= 0.0 )\n"
+"	{\n"
+"		vec2 size = vAtlasRect.zw;\n"
+"		tc = ( clamp(tc * size, vec2(0.5), size - 0.5) + vAtlasRect.xy ) * (1.0/2048.0);\n"
+"	}\n"
+"	return texture( uTexture0, vec3(tc, max(vAtlasLayer, 0.0)) );\n"
+"}\n"
 "void main()\n"
 "{\n"
 "	vec4 c = vColor;\n"
-"	if( vMode0 != 0 ) c = Combine( vMode0, c, textureProj(uTexture0, vTexCoord0) );\n"
-"	if( uTex1Mode != 0 ) c = Combine( uTex1Mode, c, textureProj(uTexture1, vTexCoord1) );\n"
+"	if( vMode0 != 0 ) c = Combine( vMode0, c, Texture0() );\n"
+"	if( uTex1Mode != 0 ) c = Combine( uTex1Mode, c, texture(uTexture1, vec3(vTexCoord1.xy / vTexCoord1.w, 0.0)) );\n"
 "	if( (vBlend & 4) != 0 && c.a <= 0.01 ) discard;\n"
 "	vec3 rgb = c.rgb * uColorScale;\n"
 "	int iBlend = vBlend & 3;\n"
@@ -382,7 +419,7 @@ static const char *g_szFragmentShader =
 
 namespace
 {
-	enum { ATTR_POSITION, ATTR_NORMAL, ATTR_TEXCOORD, ATTR_COLOR, ATTR_MODE };
+	enum { ATTR_POSITION, ATTR_NORMAL, ATTR_TEXCOORD, ATTR_COLOR, ATTR_MODE, ATTR_ATLAS };
 	enum { TEXMODE_OFF, TEXMODE_MODULATE, TEXMODE_ADD, TEXMODE_GLOW };
 
 	/* How the color goes out (see the shaders), and the alpha test. */
@@ -430,8 +467,9 @@ namespace
 		GLubyte c[4];	// RGBA
 		GLushort n[3];	// half floats
 		GLubyte mode[2];	// unit 0's texture mode, then BLENDOUT_*
+		GLuint atlas;	// where unit 0's texture is in the atlas, or 0
 	};
-	typedef char VertexSizeCheck[sizeof(Vertex) == 32? 1: -1];
+	typedef char VertexSizeCheck[sizeof(Vertex) == 36? 1: -1];
 
 	/* The queue.  Indices into it fit in 16 bits. */
 	enum { QUEUE_VERTICES = 8192 };
@@ -525,6 +563,7 @@ namespace
 		const RageMatrix *pTexMatrix0;
 		GLubyte iMode0;
 		GLubyte iBlendOut;
+		GLuint uAtlas0;
 	};
 	DrawContext g_Draw;
 
@@ -613,7 +652,7 @@ static void BindTextureToUnit( int iUnit, GLuint uTex )
 		return;
 	FlushQueue( FLUSH_TEXTURE );
 	SetActiveUnit( iUnit );
-	glBindTexture( GL_TEXTURE_2D, uTex );
+	glBindTexture( GLC_TEXTURE_2D_ARRAY, uTex );
 	STAT( iTextureBinds );
 	g_Applied.iBound[iUnit] = uTex;
 }
@@ -812,23 +851,442 @@ static void ApplyBlendAndDepth()
 	}
 }
 
-/* Bind a unit's texture and give it the wrap mode it's supposed to have. */
-static void ApplyTexture( int iUnit )
+/* Give the texture bound to the active unit the filtering and wrapping all our
+ * textures start with. */
+static void SetTextureParameters( bool bMipMaps )
 {
-	const GLuint uTex = g_Wanted.Unit[iUnit].Texture;
-	BindTextureToUnit( iUnit, uTex );
+	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	GLint minFilter = GL_LINEAR;
+	if( bMipMaps )
+		minFilter = g_pWind->GetVideoModeParams().bTrilinearFiltering? GL_LINEAR_MIPMAP_LINEAR: GL_LINEAR_MIPMAP_NEAREST;
+	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, minFilter );
 
-	const signed char iWrap = WrapEntry( g_TexWrapWanted, uTex );
-	signed char &iApplied = WrapEntry( g_TexWrapApplied, uTex );
+	if( g_pWind->GetVideoModeParams().bAnisotropicFiltering && g_bAnisotropic )
+	{
+		GLfloat fLargest;
+		glGetFloatv( GLC_MAX_TEXTURE_MAX_ANISOTROPY, &fLargest );
+		glTexParameterf( GLC_TEXTURE_2D_ARRAY, GLC_TEXTURE_MAX_ANISOTROPY, fLargest );
+	}
+
+	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GLC_CLAMP_TO_EDGE );
+	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GLC_CLAMP_TO_EDGE );
+}
+
+/*
+ * The atlas.
+ *
+ * Most of what's drawn uses small textures, and changing the texture was what
+ * sent out most runs: a note, a mine, the next note, a font page.  Small
+ * textures without mipmaps go into one big texture instead, an array of
+ * 2048x2048 layers, and where each one is comes with its vertices, so going
+ * from one to another changes nothing in GL.  The rest (big or mipmapped
+ * textures) are textures of their own, as before, and so is a texture from the
+ * atlas once it's drawn repeating or on unit 1: it's copied out to one, since
+ * the shader only does clamping.  Going between the atlas and one of those is
+ * still a texture change.
+ *
+ * The atlas is RGBA8.  GL converts the 16-bit formats on the way in, exactly
+ * for 4-bit channels and to the nearest value for 5-bit ones.  Formats that
+ * would change by being put in it (the source isn't the texture's format, or
+ * its alpha would stop being ignored) aren't.  Anisotropic filtering samples
+ * past a texture's edges, so with it on, nothing goes in the atlas.
+ *
+ * Textures in the atlas have handles with ATLAS_HANDLE set, which aren't GL
+ * names.  A layer is split in halves, again and again, down to the size of each
+ * texture (they're all powers of two).
+ */
+namespace
+{
+	const int ATLAS_SIZE = 2048;	// also in the fragment shader
+	const int ATLAS_CELL = 16;	// textures are placed on this grid, and take at least one cell
+	const int ATLAS_MAX_LAYERS = 8;
+	const int ATLAS_MAX_AREA = 512*512;
+	const int ATLAS_UNIT = 2;	// the atlas is also bound here, to change it without touching unit 0
+	const unsigned ATLAS_HANDLE = 0x80000000;
+
+	struct AtlasNode
+	{
+		int x, y, w, h;
+		int iParent;
+		int iChild;	// the children are iChild and iChild+1; -1 for a leaf
+		bool bUsed;
+	};
+	struct AtlasLayer
+	{
+		vector<AtlasNode> Nodes;	// 0 is the whole layer
+		vector<int> FreePairs;	// children no longer in use, to reuse
+	};
+	vector<AtlasLayer> g_AtlasLayers;
+	GLuint g_AtlasTexture = 0;
+	GLuint g_AtlasFramebuffer = 0;	// to copy out of the atlas
+	bool g_bAtlas = false;	// whether we use it at all
+
+	struct AtlasTexture
+	{
+		bool bUsed;
+		bool bInAtlas;	// false once it's been copied out
+		int iLayer, iNode;
+		int w, h;
+		GLuint uAtlasBits;	// what goes in Vertex::atlas
+		GLuint uStandalone;	// its own texture, once it's out of the atlas
+		signed char iWrapWanted, iWrapApplied;
+	};
+	vector<AtlasTexture> g_AtlasTextures;	// by handle, less ATLAS_HANDLE
+	vector<unsigned> g_FreeAtlasTextures;
+}
+
+static AtlasTexture *GetAtlasTexture( unsigned uHandle )
+{
+	if( !(uHandle & ATLAS_HANDLE) )
+		return NULL;
+	uHandle &= ~ATLAS_HANDLE;
+	if( uHandle >= g_AtlasTextures.size() || !g_AtlasTextures[uHandle].bUsed )
+		return NULL;
+	return &g_AtlasTextures[uHandle];
+}
+
+/* The free leaf under node i that's exactly w x h, or failing that (if !bExact)
+ * the smallest that w x h fits in; -1 if there's none. */
+static int FindAtlasNode( const AtlasLayer &l, int i, int w, int h, bool bExact )
+{
+	const AtlasNode &n = l.Nodes[i];
+	if( n.w < w || n.h < h )
+		return -1;
+	if( n.iChild == -1 )
+	{
+		if( n.bUsed )
+			return -1;
+		if( bExact && (n.w != w || n.h != h) )
+			return -1;
+		return i;
+	}
+	const int a = FindAtlasNode( l, n.iChild, w, h, bExact );
+	if( bExact && a != -1 )
+		return a;
+	const int b = FindAtlasNode( l, n.iChild+1, w, h, bExact );
+	if( a == -1 )
+		return b;
+	if( b == -1 )
+		return a;
+	return l.Nodes[a].w*l.Nodes[a].h <= l.Nodes[b].w*l.Nodes[b].h? a: b;
+}
+
+/* Split free leaf i until a piece of it is w x h, and return that piece. */
+static int SplitAtlasNode( AtlasLayer &l, int i, int w, int h )
+{
+	while( l.Nodes[i].w != w || l.Nodes[i].h != h )
+	{
+		int c;
+		if( !l.FreePairs.empty() )
+		{
+			c = l.FreePairs.back();
+			l.FreePairs.pop_back();
+		}
+		else
+		{
+			c = l.Nodes.size();
+			l.Nodes.resize( c+2 );
+		}
+
+		/* Halve the side with more room to spare. */
+		const AtlasNode n = l.Nodes[i];
+		const bool bHalveWidth = n.h == h || (n.w != w && n.w/w >= n.h/h);
+		AtlasNode a = n;
+		a.iParent = i;
+		a.iChild = -1;
+		a.bUsed = false;
+		AtlasNode b = a;
+		if( bHalveWidth )
+		{
+			a.w = b.w = n.w/2;
+			b.x += a.w;
+		}
+		else
+		{
+			a.h = b.h = n.h/2;
+			b.y += a.h;
+		}
+		l.Nodes[c] = a;
+		l.Nodes[c+1] = b;
+		l.Nodes[i].iChild = c;
+		i = c;
+	}
+	return i;
+}
+
+static void FreeAtlasNode( AtlasLayer &l, int i )
+{
+	l.Nodes[i].bUsed = false;
+
+	/* Join free halves back together. */
+	while( l.Nodes[i].iParent != -1 )
+	{
+		const int iParent = l.Nodes[i].iParent;
+		const int c = l.Nodes[iParent].iChild;
+		const AtlasNode &a = l.Nodes[c], &b = l.Nodes[c+1];
+		if( a.bUsed || b.bUsed || a.iChild != -1 || b.iChild != -1 )
+			break;
+		l.FreePairs.push_back( c );
+		l.Nodes[iParent].iChild = -1;
+		i = iParent;
+	}
+}
+
+static void BindAtlas()
+{
+	SetActiveUnit( ATLAS_UNIT );
+	glBindTexture( GLC_TEXTURE_2D_ARRAY, g_AtlasTexture );
+}
+
+/* Add a layer to the atlas.  A texture array can't grow, so this makes a new
+ * one and copies the old layers into it. */
+static bool GrowAtlas()
+{
+	const int iOld = g_AtlasLayers.size();
+	if( iOld == ATLAS_MAX_LAYERS )
+		return false;
+
+	/* Runs that are waiting draw from the old one. */
+	FlushQueue( FLUSH_TEXTURE_UPLOAD );
+
+	GLuint uNew;
+	glGenTextures( 1, &uNew );
+	SetActiveUnit( ATLAS_UNIT );
+	glBindTexture( GLC_TEXTURE_2D_ARRAY, uNew );
+	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GLC_CLAMP_TO_EDGE );
+	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GLC_CLAMP_TO_EDGE );
+	FlushGLErrors();
+	gl.TexImage3D( GLC_TEXTURE_2D_ARRAY, 0, GLC_RGBA8, ATLAS_SIZE, ATLAS_SIZE, iOld+1, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL );
+	const GLenum error = glGetError();
+	if( error != GL_NO_ERROR )
+	{
+		LOG->Warn( "Making a texture atlas of %i layers failed: error 0x%x", iOld+1, error );
+		glDeleteTextures( 1, &uNew );
+		BindAtlas();
+		return false;
+	}
+
+	if( iOld )
+	{
+		gl.BindFramebuffer( GLC_READ_FRAMEBUFFER, g_AtlasFramebuffer );
+		for( int i = 0; i < iOld; ++i )
+		{
+			gl.FramebufferTextureLayer( GLC_READ_FRAMEBUFFER, GLC_COLOR_ATTACHMENT0, g_AtlasTexture, 0, i );
+			gl.CopyTexSubImage3D( GLC_TEXTURE_2D_ARRAY, 0, 0, 0, i, 0, 0, ATLAS_SIZE, ATLAS_SIZE );
+		}
+		gl.FramebufferTextureLayer( GLC_READ_FRAMEBUFFER, GLC_COLOR_ATTACHMENT0, 0, 0, 0 );
+		gl.BindFramebuffer( GLC_READ_FRAMEBUFFER, 0 );
+		glDeleteTextures( 1, &g_AtlasTexture );
+		for( int i = 0; i < MAX_TEXTURE_UNITS; ++i )
+			if( g_Applied.iBound[i] == int64_t(g_AtlasTexture) )
+				g_Applied.iBound[i] = 0;
+	}
+	g_AtlasTexture = uNew;
+
+	AtlasLayer l;
+	AtlasNode root = { 0, 0, ATLAS_SIZE, ATLAS_SIZE, -1, -1, false };
+	l.Nodes.push_back( root );
+	g_AtlasLayers.push_back( l );
+	LOG->Trace( "Texture atlas: %i layers", iOld+1 );
+	return true;
+}
+
+static bool AtlasTakes( RageDisplay::PixelFormat pixfmt, int w, int h )
+{
+	if( !g_bAtlas || w*h > ATLAS_MAX_AREA || w > ATLAS_SIZE/2 || h > ATLAS_SIZE/2 )
+		return false;
+	if( g_pWind->GetVideoModeParams().bAnisotropicFiltering && g_bAnisotropic )
+		return false;
+	switch( pixfmt )
+	{
+	case RageDisplay::FMT_RGBA8:
+	case RageDisplay::FMT_RGBA4:
+	case RageDisplay::FMT_RGB5A1:
+	case RageDisplay::FMT_RGB8:
+	case RageDisplay::FMT_BGR8:
+	case RageDisplay::FMT_A1BGR5:
+		return true;
+	default:	// FMT_RGB5 keeps alpha in its pixels, which the texture ignores
+		return false;
+	}
+}
+
+static void UploadToAtlas( const AtlasTexture &t, RageSurface *img, RageDisplay::PixelFormat pixfmt,
+	int xoffset, int yoffset, int width, int height )
+{
+	const AtlasNode &n = g_AtlasLayers[t.iLayer].Nodes[t.iNode];
+	SetActiveUnit( ATLAS_UNIT );
+	glPixelStorei( GL_UNPACK_ROW_LENGTH, img->pitch / img->format->BytesPerPixel );
+	gl.TexSubImage3D( GLC_TEXTURE_2D_ARRAY, 0, n.x + xoffset, n.y + yoffset, t.iLayer, width, height, 1,
+		GL_PIXFMT[pixfmt].format, GL_PIXFMT[pixfmt].type, img->pixels );
+	glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
+}
+
+/* Put img in the atlas, and return its handle, or 0 if there's no room. */
+static unsigned AddToAtlas( RageSurface *img, RageDisplay::PixelFormat pixfmt )
+{
+	const int w = max( img->w, ATLAS_CELL ), h = max( img->h, ATLAS_CELL );
+
+	/* A hole that fits exactly, or else the smallest one it fits in. */
+	int iLayer = -1, iNode = -1;
+	for( unsigned i = 0; iNode == -1 && i < g_AtlasLayers.size(); ++i )
+	{
+		iNode = FindAtlasNode( g_AtlasLayers[i], 0, w, h, true );
+		iLayer = i;
+	}
+	if( iNode == -1 )
+	{
+		int iBest = 0;
+		for( unsigned i = 0; i < g_AtlasLayers.size(); ++i )
+		{
+			const int n = FindAtlasNode( g_AtlasLayers[i], 0, w, h, false );
+			if( n == -1 )
+				continue;
+			const int iArea = g_AtlasLayers[i].Nodes[n].w * g_AtlasLayers[i].Nodes[n].h;
+			if( iNode == -1 || iArea < iBest )
+			{
+				iNode = n;
+				iLayer = i;
+				iBest = iArea;
+			}
+		}
+	}
+	if( iNode == -1 )
+	{
+		if( !GrowAtlas() )
+			return 0;
+		iLayer = g_AtlasLayers.size()-1;
+		iNode = 0;
+	}
+
+	AtlasLayer &l = g_AtlasLayers[iLayer];
+	iNode = SplitAtlasNode( l, iNode, w, h );
+	l.Nodes[iNode].bUsed = true;
+
+	unsigned uIndex;
+	if( !g_FreeAtlasTextures.empty() )
+	{
+		uIndex = g_FreeAtlasTextures.back();
+		g_FreeAtlasTextures.pop_back();
+	}
+	else
+	{
+		uIndex = g_AtlasTextures.size();
+		g_AtlasTextures.resize( uIndex+1 );
+	}
+
+	int iLog2W = 0, iLog2H = 0;
+	while( (1 << iLog2W) < img->w ) ++iLog2W;
+	while( (1 << iLog2H) < img->h ) ++iLog2H;
+
+	const AtlasNode &n = l.Nodes[iNode];
+	AtlasTexture &t = g_AtlasTextures[uIndex];
+	memset( &t, 0, sizeof(t) );
+	t.bUsed = true;
+	t.bInAtlas = true;
+	t.iLayer = iLayer;
+	t.iNode = iNode;
+	t.w = img->w;
+	t.h = img->h;
+	t.uAtlasBits = 0x80000000 | (n.x/ATLAS_CELL) | ((n.y/ATLAS_CELL) << 7) | (iLayer << 14) | (iLog2W << 22) | (iLog2H << 26);
+	t.uStandalone = 0;
+	t.iWrapWanted = 0;
+	t.iWrapApplied = 0;
+
+	/* Nothing waiting to be drawn uses this part of the atlas (see DeleteTexture),
+	 * so this doesn't need to send out the queue. */
+	UploadToAtlas( t, img, pixfmt, 0, 0, img->w, img->h );
+	return ATLAS_HANDLE | uIndex;
+}
+
+static void CopyOutOfAtlas( AtlasTexture &t )
+{
+	/* What's waiting may draw from where it is now, which may be reused. */
+	FlushQueue( FLUSH_TEXTURE );
+
+	/* Make it on the atlas's unit, so units 0 and 1 keep what they have. */
+	GLuint uTex;
+	glGenTextures( 1, &uTex );
+	SetActiveUnit( ATLAS_UNIT );
+	glBindTexture( GLC_TEXTURE_2D_ARRAY, uTex );
+	SetTextureParameters( false );
+	gl.TexImage3D( GLC_TEXTURE_2D_ARRAY, 0, GLC_RGBA8, t.w, t.h, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL );
+
+	AtlasLayer &l = g_AtlasLayers[t.iLayer];
+	const AtlasNode &n = l.Nodes[t.iNode];
+	gl.BindFramebuffer( GLC_READ_FRAMEBUFFER, g_AtlasFramebuffer );
+	gl.FramebufferTextureLayer( GLC_READ_FRAMEBUFFER, GLC_COLOR_ATTACHMENT0, g_AtlasTexture, 0, t.iLayer );
+	gl.CopyTexSubImage3D( GLC_TEXTURE_2D_ARRAY, 0, 0, 0, 0, n.x, n.y, t.w, t.h );
+	gl.FramebufferTextureLayer( GLC_READ_FRAMEBUFFER, GLC_COLOR_ATTACHMENT0, 0, 0, 0 );
+	gl.BindFramebuffer( GLC_READ_FRAMEBUFFER, 0 );
+	glBindTexture( GLC_TEXTURE_2D_ARRAY, g_AtlasTexture );
+
+	FreeAtlasNode( l, t.iNode );
+	t.bInAtlas = false;
+	t.uStandalone = uTex;
+	t.iWrapApplied = 0;
+}
+
+static void ResetAtlas()
+{
+	g_AtlasLayers.clear();
+	g_AtlasTextures.clear();
+	g_FreeAtlasTextures.clear();
+	g_AtlasTexture = 0;
+
+	GLint iMaxSize = 0, iMaxLayers = 0;
+	glGetIntegerv( GL_MAX_TEXTURE_SIZE, &iMaxSize );
+	glGetIntegerv( GLC_MAX_ARRAY_TEXTURE_LAYERS, &iMaxLayers );
+	g_bAtlas = iMaxSize >= ATLAS_SIZE && iMaxLayers >= ATLAS_MAX_LAYERS;
+	gl.GenFramebuffers( 1, &g_AtlasFramebuffer );
+}
+
+/* Apply the wrap mode wanted for the texture bound to a unit. */
+static void ApplyWrap( int iUnit, signed char iWrap, signed char &iApplied )
+{
 	if( iWrap == -1 || iWrap == iApplied )
 		return;
 	FlushQueue( FLUSH_WRAP );
 	STAT( iStateCalls );
 	SetActiveUnit( iUnit );
 	const GLint mode = iWrap? GL_REPEAT: GLC_CLAMP_TO_EDGE;
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, mode );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, mode );
+	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, mode );
+	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, mode );
 	iApplied = iWrap;
+}
+
+/* Get a unit's texture ready to draw with.  If it's in the atlas, nothing is
+ * bound, and where it is in the atlas is returned; otherwise 0. */
+static GLuint ApplyTexture( int iUnit )
+{
+	const unsigned uHandle = g_Wanted.Unit[iUnit].Texture;
+	if( !(uHandle & ATLAS_HANDLE) )
+	{
+		BindTextureToUnit( iUnit, uHandle );
+		ApplyWrap( iUnit, WrapEntry(g_TexWrapWanted, uHandle), WrapEntry(g_TexWrapApplied, uHandle) );
+		return 0;
+	}
+
+	AtlasTexture *t = GetAtlasTexture( uHandle );
+	if( t == NULL )
+	{
+		BindTextureToUnit( iUnit, 0 );
+		return 0;
+	}
+	if( t->bInAtlas )
+	{
+		if( iUnit == 0 && t->iWrapWanted != 1 )
+		{
+			BindTextureToUnit( 0, g_AtlasTexture );
+			return t->uAtlasBits;
+		}
+		CopyOutOfAtlas( *t );
+	}
+	BindTextureToUnit( iUnit, t->uStandalone );
+	ApplyWrap( iUnit, t->iWrapWanted, t->iWrapApplied );
+	return 0;
 }
 
 /* GL's normal matrix: the inverse transpose of the modelview's upper 3x3, which
@@ -960,6 +1418,7 @@ struct VertexFiller
 		}
 		mode = g_Draw.iMode0;
 		blend = g_Draw.iBlendOut;
+		atlas = g_Draw.uAtlas0;
 	}
 
 	void Fill( Vertex &out, const RageSpriteVertex &in ) const
@@ -1003,11 +1462,13 @@ struct VertexFiller
 
 		out.mode[0] = mode;
 		out.mode[1] = blend;
+		out.atlas = atlas;
 	}
 
 	bool bOnCPU, bTexMatrix;
 	RageMatrix world, tex;
 	GLubyte mode, blend;
+	GLuint atlas;
 };
 
 /*
@@ -1120,6 +1581,7 @@ public:
 		const RageColor &c = g_Wanted.ConstColor;
 		gl.VertexAttrib4f( ATTR_COLOR, c.r, c.g, c.b, c.a );
 		gl.VertexAttrib4f( ATTR_MODE, g_Draw.iMode0, g_Draw.iBlendOut, 0, 0 );
+		gl.VertexAttribI4ui( ATTR_ATLAS, g_Draw.uAtlas0, 0, 0, 0 );
 
 		glDrawElements( GL_TRIANGLES, meshInfo.iTriangleCount*3, GL_UNSIGNED_SHORT,
 			(const void *) (meshInfo.iTriangleStart*3*sizeof(uint16_t)) );
@@ -1195,6 +1657,7 @@ static void InitContext()
 	gl.BindAttribLocation( g_Program, ATTR_TEXCOORD, "aTexCoord" );
 	gl.BindAttribLocation( g_Program, ATTR_COLOR, "aColor" );
 	gl.BindAttribLocation( g_Program, ATTR_MODE, "aMode" );
+	gl.BindAttribLocation( g_Program, ATTR_ATLAS, "aAtlas" );
 	gl.BindFragDataLocation( g_Program, 0, "FragColor" );
 	gl.LinkProgram( g_Program );
 	gl.DeleteShader( vs );
@@ -1233,7 +1696,8 @@ static void InitContext()
 	gl.VertexAttribPointer( ATTR_TEXCOORD, 2, GL_FLOAT, GL_FALSE, stride, (const void *) offsetof(Vertex, t) );
 	gl.VertexAttribPointer( ATTR_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, (const void *) offsetof(Vertex, c) );
 	gl.VertexAttribPointer( ATTR_MODE, 2, GL_UNSIGNED_BYTE, GL_FALSE, stride, (const void *) offsetof(Vertex, mode) );
-	for( int i = ATTR_POSITION; i <= ATTR_MODE; ++i )
+	gl.VertexAttribIPointer( ATTR_ATLAS, 1, GL_UNSIGNED_INT, stride, (const void *) offsetof(Vertex, atlas) );
+	for( int i = ATTR_POSITION; i <= ATTR_ATLAS; ++i )
 		gl.EnableVertexAttribArray( i );
 
 	/* Quad q is vertices 4q..4q+3; split it along the 1-3 diagonal, like the
@@ -1252,6 +1716,7 @@ static void InitContext()
 
 	g_TexWrapApplied.clear();
 	g_TexWrapWanted.clear();
+	ResetAtlas();
 	g_iQueued = 0;
 	++g_iContextGeneration;
 }
@@ -1627,7 +2092,9 @@ void RageDisplay_GLCore::SetTextureWrapping( bool b )
 {
 	/* This is the wrap mode of the texture on the active unit. */
 	const WantedState::TexUnit &unit = g_Wanted.Unit[g_Wanted.iActiveUnit];
-	if( unit.Texture )
+	if( AtlasTexture *t = GetAtlasTexture(unit.Texture) )
+		t->iWrapWanted = b;
+	else if( unit.Texture && !(unit.Texture & ATLAS_HANDLE) )
 		WrapEntry( g_TexWrapWanted, unit.Texture ) = b;
 }
 
@@ -1753,8 +2220,9 @@ bool RageDisplay_GLCore::PrepareDraw( bool bForceGPU )
 	const bool bOnCPU = !bForceGPU && !w.bLighting && !bSphere0 && !bSphere1 && bAffine;
 
 	ApplyBlendAndDepth();
+	GLuint uAtlas0 = 0;
 	if( iMode0 != TEXMODE_OFF )
-		ApplyTexture( 0 );
+		uAtlas0 = ApplyTexture( 0 );
 	if( iMode1 != TEXMODE_OFF )
 		ApplyTexture( 1 );
 
@@ -1826,6 +2294,7 @@ bool RageDisplay_GLCore::PrepareDraw( bool bForceGPU )
 	g_Draw.pWorld = pWorld;
 	g_Draw.pTexMatrix0 = &w.Unit[0].TexMatrix;
 	g_Draw.iMode0 = GLubyte( iMode0 );
+	g_Draw.uAtlas0 = uAtlas0;
 	g_Draw.iBlendOut = GLubyte( GetBlendOut() | (w.bAlphaTest? BLENDOUT_ALPHA_TEST: 0) );
 	return bOnCPU;
 }
@@ -1981,17 +2450,9 @@ bool RageDisplay_GLCore::SupportsTextureFormat( PixelFormat pixfmt, bool realtim
 	return pixfmt != FMT_PAL;
 }
 
-unsigned RageDisplay_GLCore::CreateTexture(
-	PixelFormat pixfmt,
-	RageSurface* img,
-	bool bGenerateMipMaps )
+static GLuint CreateOwnTexture( RageDisplay::PixelFormat pixfmt, RageDisplay::PixelFormat imgpixfmt, RageSurface *img, bool bGenerateMipMaps )
 {
 	FlushQueue( FLUSH_TEXTURE_UPLOAD );
-	ASSERT( pixfmt < NUM_PIX_FORMATS && pixfmt != FMT_PAL );
-	ASSERT( img->w == power_of_two(img->w) && img->h == power_of_two(img->h) );
-
-	bool bFreeImg;
-	PixelFormat imgpixfmt = GetImgPixelFormat( img, bFreeImg, img->w, img->h );
 
 	const GLenum glTexFormat = GL_PIXFMT[pixfmt].internalfmt;
 	const GLenum glImageFormat = GL_PIXFMT[imgpixfmt].format;
@@ -2004,40 +2465,44 @@ unsigned RageDisplay_GLCore::CreateTexture(
 	/* Load it on unit 0. */
 	BindTextureToUnit( 0, uTexHandle );
 	SetActiveUnit( 0 );
-
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-	GLint minFilter = GL_LINEAR;
-	if( bGenerateMipMaps )
-		minFilter = g_pWind->GetVideoModeParams().bTrilinearFiltering? GL_LINEAR_MIPMAP_LINEAR: GL_LINEAR_MIPMAP_NEAREST;
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter );
-
-	if( g_pWind->GetVideoModeParams().bAnisotropicFiltering && g_bAnisotropic )
-	{
-		GLfloat fLargest;
-		glGetFloatv( GLC_MAX_TEXTURE_MAX_ANISOTROPY, &fLargest );
-		glTexParameterf( GL_TEXTURE_2D, GLC_TEXTURE_MAX_ANISOTROPY, fLargest );
-	}
-
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GLC_CLAMP_TO_EDGE );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GLC_CLAMP_TO_EDGE );
+	SetTextureParameters( bGenerateMipMaps );
 	WrapEntry( g_TexWrapApplied, uTexHandle ) = 0;
 	WrapEntry( g_TexWrapWanted, uTexHandle ) = 0;
 
 	glPixelStorei( GL_UNPACK_ROW_LENGTH, img->pitch / img->format->BytesPerPixel );
 
 	FlushGLErrors();
-	glTexImage2D( GL_TEXTURE_2D, 0, glTexFormat, img->w, img->h, 0, glImageFormat, glImageType, img->pixels );
+	gl.TexImage3D( GLC_TEXTURE_2D_ARRAY, 0, glTexFormat, img->w, img->h, 1, 0, glImageFormat, glImageType, img->pixels );
 	GLenum error = glGetError();
 	if( error != GL_NO_ERROR )
 	{
 		/* The texture is left empty; that's better than not playing at all. */
-		LOG->Warn( "glTexImage2D(format 0x%x, %ix%i, format 0x%x, type 0x%x, pixfmt %i, imgpixfmt %i): error 0x%x",
+		LOG->Warn( "glTexImage3D(format 0x%x, %ix%i, format 0x%x, type 0x%x, pixfmt %i, imgpixfmt %i): error 0x%x",
 			glTexFormat, img->w, img->h, glImageFormat, glImageType, pixfmt, imgpixfmt, error );
 	}
 	if( bGenerateMipMaps )
-		gl.GenerateMipmap( GL_TEXTURE_2D );
+		gl.GenerateMipmap( GLC_TEXTURE_2D_ARRAY );
 
 	glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
+	return uTexHandle;
+}
+
+unsigned RageDisplay_GLCore::CreateTexture(
+	PixelFormat pixfmt,
+	RageSurface* img,
+	bool bGenerateMipMaps )
+{
+	ASSERT( pixfmt < NUM_PIX_FORMATS && pixfmt != FMT_PAL );
+	ASSERT( img->w == power_of_two(img->w) && img->h == power_of_two(img->h) );
+
+	bool bFreeImg;
+	PixelFormat imgpixfmt = GetImgPixelFormat( img, bFreeImg, img->w, img->h );
+
+	unsigned uTexHandle = 0;
+	if( !bGenerateMipMaps && imgpixfmt == pixfmt && AtlasTakes(pixfmt, img->w, img->h) )
+		uTexHandle = AddToAtlas( img, pixfmt );
+	if( uTexHandle == 0 )
+		uTexHandle = CreateOwnTexture( pixfmt, imgpixfmt, img, bGenerateMipMaps );
 	glFlush();
 
 	if( bFreeImg )
@@ -2052,39 +2517,65 @@ void RageDisplay_GLCore::UpdateTexture(
 {
 	/* The queue may still draw the old contents. */
 	FlushQueue( FLUSH_TEXTURE_UPLOAD );
-	BindTextureToUnit( 0, uTexHandle );
-	SetActiveUnit( 0 );
 
 	bool bFreeImg;
 	PixelFormat pixfmt = GetImgPixelFormat( img, bFreeImg, width, height );
 
-	glPixelStorei( GL_UNPACK_ROW_LENGTH, img->pitch / img->format->BytesPerPixel );
-	glTexSubImage2D( GL_TEXTURE_2D, 0, xoffset, yoffset, width, height,
-		GL_PIXFMT[pixfmt].format, GL_PIXFMT[pixfmt].type, img->pixels );
-	glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
+	AtlasTexture *t = GetAtlasTexture( uTexHandle );
+	if( t && t->bInAtlas )
+		UploadToAtlas( *t, img, pixfmt, xoffset, yoffset, width, height );
+	else
+	{
+		BindTextureToUnit( 0, t? t->uStandalone: uTexHandle );
+		SetActiveUnit( 0 );
+		glPixelStorei( GL_UNPACK_ROW_LENGTH, img->pitch / img->format->BytesPerPixel );
+		gl.TexSubImage3D( GLC_TEXTURE_2D_ARRAY, 0, xoffset, yoffset, 0, width, height, 1,
+			GL_PIXFMT[pixfmt].format, GL_PIXFMT[pixfmt].type, img->pixels );
+		glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
+	}
 	glFlush();
 
 	if( bFreeImg )
 		delete img;
 }
 
-void RageDisplay_GLCore::DeleteTexture( unsigned uTexHandle )
+static void DeleteOwnTexture( GLuint uTex )
 {
-	FlushQueue( FLUSH_TEXTURE_UPLOAD );
-
-	GLuint uTex = uTexHandle;
 	glDeleteTextures( 1, &uTex );
 
 	/* Units it was bound to are now bound to nothing, and the name may be reused. */
 	for( int i = 0; i < MAX_TEXTURE_UNITS; ++i )
-	{
-		if( g_Applied.iBound[i] == int64_t(uTexHandle) )
+		if( g_Applied.iBound[i] == int64_t(uTex) )
 			g_Applied.iBound[i] = 0;
+	WrapEntry( g_TexWrapApplied, uTex ) = -1;
+	WrapEntry( g_TexWrapWanted, uTex ) = -1;
+}
+
+void RageDisplay_GLCore::DeleteTexture( unsigned uTexHandle )
+{
+	/* Also keeps a part of the atlas that's freed from being reused while
+	 * something waiting to be drawn still uses it. */
+	FlushQueue( FLUSH_TEXTURE_UPLOAD );
+
+	if( uTexHandle & ATLAS_HANDLE )
+	{
+		AtlasTexture *t = GetAtlasTexture( uTexHandle );
+		if( t )
+		{
+			if( t->bInAtlas )
+				FreeAtlasNode( g_AtlasLayers[t->iLayer], t->iNode );
+			if( t->uStandalone )
+				DeleteOwnTexture( t->uStandalone );
+			t->bUsed = false;
+			g_FreeAtlasTextures.push_back( uTexHandle & ~ATLAS_HANDLE );
+		}
+	}
+	else
+		DeleteOwnTexture( uTexHandle );
+
+	for( int i = 0; i < MAX_TEXTURE_UNITS; ++i )
 		if( g_Wanted.Unit[i].Texture == uTexHandle )
 			g_Wanted.Unit[i].Texture = 0;
-	}
-	WrapEntry( g_TexWrapApplied, uTexHandle ) = -1;
-	WrapEntry( g_TexWrapWanted, uTexHandle ) = -1;
 }
 
 /*
