@@ -446,7 +446,7 @@ void GameSoundManager::Update( float fDeltaTime )
 	if( !g_Playing->m_Music->IsPlaying() )
 	{
 		/* There's no song playing.  Fake it. */
-		CHECKPOINT_M( ssprintf("%f, delta %f", GAMESTATE->m_fMusicSeconds, fDeltaTime) );
+		CHECKPOINT;
 		GAMESTATE->UpdateSongPosition( GAMESTATE->m_fMusicSeconds + fDeltaTime, g_Playing->m_Timing );
 		return;
 	}
@@ -465,7 +465,7 @@ void GameSoundManager::Update( float fDeltaTime )
 		{
 			/* We're still waiting for the new sound to start playing, so keep using the
 			 * old timing data and fake the time. */
-			CHECKPOINT_M( ssprintf("%f, delta %f", GAMESTATE->m_fMusicSeconds, fDeltaTime) );
+			CHECKPOINT;
 			GAMESTATE->UpdateSongPosition( GAMESTATE->m_fMusicSeconds + fDeltaTime * g_Playing->m_fFakeRate, g_Playing->m_Timing );
 			return;
 		}
@@ -493,7 +493,7 @@ void GameSoundManager::Update( float fDeltaTime )
 		sLastFile = ThisFile;
 	}
 
-	CHECKPOINT_M( ssprintf("%f", fSeconds) );
+	CHECKPOINT;
 	GAMESTATE->UpdateSongPosition( fSeconds+fAdjust, g_Playing->m_Timing, tm+fAdjust );
 }
 

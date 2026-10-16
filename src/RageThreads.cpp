@@ -48,12 +48,17 @@ struct ThreadSlot
 	#define CHECKPOINT_COUNT 5
 	struct ThreadCheckpoint
 	{
-		const char *File, *Message;
+		const char *File;
 		int Line;
+		/* The message is often a temporary, so keep a copy. */
+		char MessageBuf[1024];
+		/* Formatted when it's asked for, not every time a checkpoint is set. */
+		bool bFormatted;
 		char FormattedBuf[1024];
 
 		ThreadCheckpoint() { Set( NULL, 0, NULL ); }
 		void Set(const char *File_, int Line_, const char *Message_=NULL);
+		void Format();
 		const char *GetFormattedCheckpoint();
 	};
 	ThreadCheckpoint Checkpoints[CHECKPOINT_COUNT];
@@ -79,10 +84,19 @@ void ThreadSlot::ThreadCheckpoint::Set(const char *File_, int Line_, const char 
 {
 	File=File_;
 	Line=Line_;
-	Message=Message_;
+	bFormatted = false;
 
-	/* This is the same as sprintf "        %s:%i %s", but checkpoints are set
-	 * several times a frame, and sprintf is slow at it. */
+	char *p = MessageBuf;
+	char * const pEnd = MessageBuf + sizeof(MessageBuf) - 1;
+	for( const char *s = Message_? Message_:""; *s && p < pEnd; )
+		*p++ = *s++;
+	*p = 0;
+}
+
+/* This is the same as sprintf "        %s:%i %s", but it may be done under crash
+ * conditions, so don't use sprintf. */
+void ThreadSlot::ThreadCheckpoint::Format()
+{
 	char *p = FormattedBuf;
 	char * const pEnd = FormattedBuf + sizeof(FormattedBuf) - 1;
 	for( int i = 0; i < 8; ++i )
@@ -106,15 +120,19 @@ void ThreadSlot::ThreadCheckpoint::Set(const char *File_, int Line_, const char 
 
 	if( p < pEnd )
 		*p++ = ' ';
-	for( const char *s = Message? Message:""; *s && p < pEnd; )
+	for( const char *s = MessageBuf; *s && p < pEnd; )
 		*p++ = *s++;
 	*p = 0;
+	bFormatted = true;
 }
 
 const char *ThreadSlot::ThreadCheckpoint::GetFormattedCheckpoint()
 {
 	if( File == NULL )
 		return NULL;
+
+	if( !bFormatted )
+		Format();
 
 	/* Make sure it's terminated: */
 	FormattedBuf [ sizeof(FormattedBuf)-1 ] = 0;
@@ -381,7 +399,7 @@ void Checkpoints::SetCheckpoint( const char *file, int line, const char *message
 	slot->Checkpoints[slot->CurCheckpoint].Set( file, line, message );
 
 	if( g_LogCheckpoints )
-		LOG->Trace( "%s", slot->Checkpoints[slot->CurCheckpoint].FormattedBuf );
+		LOG->Trace( "%s", slot->Checkpoints[slot->CurCheckpoint].GetFormattedCheckpoint() );
 
 	++slot->CurCheckpoint;
 	slot->NumCheckpoints = max( slot->NumCheckpoints, slot->CurCheckpoint );
