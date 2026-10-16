@@ -24,7 +24,10 @@ NoteFieldMode::NoteFieldMode()
 
 void NoteFieldMode::BeginDrawTrack(int tn)
 {
-	DISPLAY->CameraPushMatrix();
+	/* The camera only changes here with a field of view; anything drawn inside
+	 * that changes it puts it back. */
+	if( m_fFov )
+		DISPLAY->CameraPushMatrix();
 
 	/* It's useful to be able to use Actors like this, functioning only
 	 * for a transformation.  However, this is a big waste of matrix
@@ -51,7 +54,8 @@ void NoteFieldMode::EndDrawTrack(int tn)
 		m_CenterTrack[tn].EndDraw();
 	m_Center.EndDraw();
 
-	DISPLAY->CameraPopMatrix();
+	if( m_fFov )
+		DISPLAY->CameraPopMatrix();
 }
 
 template <class T>
