@@ -77,9 +77,11 @@ void RageDisplay::ProcessStatsOnFlip()
 
 	if( g_LastCheckTimer.PeekDeltaTime() >= 1.0f )	// update stats every 1 sec.
 	{
-		g_LastCheckTimer.GetDeltaTime();
+		/* The check lands on a frame, so a little more than a second has passed;
+		 * count per second of it, or 1000 FPS shows as 999. */
+		const float fSeconds = g_LastCheckTimer.GetDeltaTime();
 		g_iNumChecksSinceLastReset++;
-		g_iFPS = g_iFramesRenderedSinceLastCheck;
+		g_iFPS = max( 1, int(g_iFramesRenderedSinceLastCheck / fSeconds + 0.5f) );
 		g_iCFPS = g_iFramesRenderedSinceLastReset / g_iNumChecksSinceLastReset;
 		g_iVPF = g_iVertsRenderedSinceLastCheck / g_iFPS;
 		g_iFramesRenderedSinceLastCheck = g_iVertsRenderedSinceLastCheck = 0;

@@ -1171,20 +1171,47 @@ static void CheckSkips( float fDeltaTime )
 /* Don't start frames faster than MaxFPS, so without vsync we don't spin the CPU
  * and GPU for frames nobody can see.  Sleep for most of the wait, since the
  * scheduler may wake us late, and spin for the rest.  How much to leave for
- * spinning follows how late we've been woken. */
-static void LimitFrameRate( const RageTimer &FrameStart )
+ * spinning follows how late we've been woken.
+ *
+ * Frames are due on a fixed schedule, one frame time after the last one was
+ * due, not one frame time after it really started.  Timing each frame from its
+ * own start added every late wakeup and the rest of the loop to every frame, so
+ * a 1000 FPS limit ran at 970-980; this way a frame that starts late is followed
+ * by a shorter one, and the average is MaxFPS. */
+static void LimitFrameRate()
 {
+	/* In microseconds; a double, so 1/MaxFPS doesn't get rounded every frame. */
+	static double fDue = -1;
+
 	/* With late-render pacing, we're already waiting for the refresh. */
 	if( PREFSMAN->m_iMaxFPS <= 0 || DISPLAY->IsPacing() )
+	{
+		fDue = -1;
 		return;
+	}
 
 	static float fSpinTime = 0.0002f;
-	const float fFrameTime = 1.0f / PREFSMAN->m_iMaxFPS;
+	const double fFrameTime = 1000000.0 / PREFSMAN->m_iMaxFPS;
 
-	const float fLeft = fFrameTime - FrameStart.Ago();
-	if( fLeft > fSpinTime )
+	const double fNow = double( ArchHooks::GetMicrosecondsSinceStart(true) );
+	if( fDue < 0 )
+		fDue = fNow;
+	fDue += fFrameTime;
+
+	const double fLeft = fDue - fNow;
+
+	/* More than a frame behind (a load, a hitch, or a machine that can't draw
+	 * this fast): start the schedule over from here instead of rushing frames
+	 * out to catch up. */
+	if( fLeft < -fFrameTime )
 	{
-		const float fSleepTime = fLeft - fSpinTime;
+		fDue = fNow;
+		return;
+	}
+
+	if( fLeft / 1000000 > fSpinTime )
+	{
+		const float fSleepTime = float(fLeft / 1000000) - fSpinTime;
 		const RageTimer SleepStart;
 		usleep( int(fSleepTime * 1000000) );
 
@@ -1192,7 +1219,7 @@ static void LimitFrameRate( const RageTimer &FrameStart )
 		fSpinTime = clamp( max(fLate*1.5f + 0.0001f, fSpinTime*0.99f), 0.0002f, 0.0005f );
 	}
 
-	while( FrameStart.Ago() < fFrameTime )
+	while( double(ArchHooks::GetMicrosecondsSinceStart(true)) < fDue )
 		sched_yield();
 }
 
@@ -1259,7 +1286,7 @@ static void GameLoop()
 		 */
 		SCREENMAN->Draw();
 
-		LimitFrameRate( timer );
+		LimitFrameRate();
 
 		/* If we don't have focus, give up lots of CPU. */
 		if( !g_bHasFocus )
