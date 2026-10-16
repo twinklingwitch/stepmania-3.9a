@@ -280,7 +280,8 @@ static void FixLilEndian()
  * - The atlas (see below): unit 0's texture may be a rectangle in a layer of
  *   the atlas, which comes with each vertex.  Its texture coordinates are
  *   clamped to the rectangle half a texel in from its edges, which samples
- *   the same texels with the same weights that GL_CLAMP_TO_EDGE does.  All
+ *   the same texels with the same weights that GL_CLAMP_TO_EDGE does, or
+ *   wrapped around for repeating textures (see TileInAtlas).  All
  *   textures are arrays (the rest have one layer), so that unit 0 is sampled
  *   the same way either way; software renderers run both sides of a branch,
  *   and a second sampler for the atlas made every pixel cost two lookups.
@@ -318,6 +319,7 @@ static const char *g_szVertexShader =
 "flat out int vBlend;\n"
 "flat out vec4 vAtlasRect;\n"
 "flat out float vAtlasLayer;\n"
+"flat out float vAtlasRepeat;\n"
 "vec4 SphereMap( vec3 u, vec3 n, vec4 tc )\n"
 "{\n"
 "	vec3 r = u - 2.0*n*dot(n, u);\n"
@@ -366,6 +368,7 @@ static const char *g_szVertexShader =
 "	vAtlasRect = vec4( float(aAtlas & 127u) * 16.0, float((aAtlas >> 7) & 127u) * 16.0,\n"
 "		float(1u << ((aAtlas >> 22) & 15u)), float(1u << ((aAtlas >> 26) & 15u)) );\n"
 "	vAtlasLayer = aAtlas == 0u? -1.0: float( (aAtlas >> 14) & 255u );\n"
+"	vAtlasRepeat = float( (aAtlas >> 30) & 1u );\n"
 "}\n";
 
 static const char *g_szFragmentShader =
@@ -381,6 +384,7 @@ static const char *g_szFragmentShader =
 "flat in int vBlend;\n"
 "flat in vec4 vAtlasRect;\n"
 "flat in float vAtlasLayer;\n"
+"flat in float vAtlasRepeat;\n"
 "out vec4 FragColor;\n"
 "vec4 Combine( int iMode, vec4 prev, vec4 tex )\n"
 "{\n"
@@ -395,7 +399,9 @@ static const char *g_szFragmentShader =
 "	if( vAtlasLayer >= 0.0 )\n"
 "	{\n"
 "		vec2 size = vAtlasRect.zw;\n"
-"		tc = ( clamp(tc * size, vec2(0.5), size - 0.5) + vAtlasRect.xy ) * (1.0/2048.0);\n"
+"		vec2 x = tc * size;\n"
+"		x = vAtlasRepeat != 0.0? mod(x - 0.5, size) + 0.5: clamp(x, vec2(0.5), size - 0.5);\n"
+"		tc = ( x + vAtlasRect.xy ) * (1.0/2048.0);\n"
 "	}\n"
 "	return texture( uTexture0, vec3(tc, max(vAtlasLayer, 0.0)) );\n"
 "}\n"
@@ -881,9 +887,9 @@ static void SetTextureParameters( bool bMipMaps )
  * 2048x2048 layers, and where each one is comes with its vertices, so going
  * from one to another changes nothing in GL.  The rest (big or mipmapped
  * textures) are textures of their own, as before, and so is a texture from the
- * atlas once it's drawn repeating or on unit 1: it's copied out to one, since
- * the shader only does clamping.  Going between the atlas and one of those is
- * still a texture change.
+ * atlas once it's drawn on unit 1, or drawn repeating when there's no room to
+ * make it repeat in the atlas: it's copied out to one.  Going between the
+ * atlas and one of those is still a texture change.
  *
  * The atlas is RGBA8.  GL converts the 16-bit formats on the way in, exactly
  * for 4-bit channels and to the nearest value for 5-bit ones.  Formats that
@@ -903,6 +909,7 @@ namespace
 	const int ATLAS_MAX_AREA = 512*512;
 	const int ATLAS_UNIT = 2;	// the atlas is also bound here, to change it without touching unit 0
 	const unsigned ATLAS_HANDLE = 0x80000000;
+	const GLuint ATLAS_BITS_IN_ATLAS = 0x80000000, ATLAS_BITS_REPEAT = 0x40000000;
 
 	struct AtlasNode
 	{
@@ -925,6 +932,7 @@ namespace
 	{
 		bool bUsed;
 		bool bInAtlas;	// false once it's been copied out
+		bool bTiled;	// four copies of it, in a square, so it can repeat
 		int iLayer, iNode;
 		int w, h;
 		GLuint uAtlasBits;	// what goes in Vertex::atlas
@@ -1119,15 +1127,21 @@ static void UploadToAtlas( const AtlasTexture &t, RageSurface *img, RageDisplay:
 	const AtlasNode &n = g_AtlasLayers[t.iLayer].Nodes[t.iNode];
 	SetActiveUnit( ATLAS_UNIT );
 	glPixelStorei( GL_UNPACK_ROW_LENGTH, img->pitch / img->format->BytesPerPixel );
-	gl.TexSubImage3D( GLC_TEXTURE_2D_ARRAY, 0, n.x + xoffset, n.y + yoffset, t.iLayer, width, height, 1,
-		GL_PIXFMT[pixfmt].format, GL_PIXFMT[pixfmt].type, img->pixels );
+	const int iTiles = t.bTiled? 4: 1;
+	for( int i = 0; i < iTiles; ++i )
+	{
+		const int x = n.x + xoffset + (i&1)*t.w, y = n.y + yoffset + (i/2)*t.h;
+		gl.TexSubImage3D( GLC_TEXTURE_2D_ARRAY, 0, x, y, t.iLayer, width, height, 1,
+			GL_PIXFMT[pixfmt].format, GL_PIXFMT[pixfmt].type, img->pixels );
+	}
 	glPixelStorei( GL_UNPACK_ROW_LENGTH, 0 );
 }
 
-/* Put img in the atlas, and return its handle, or 0 if there's no room. */
-static unsigned AddToAtlas( RageSurface *img, RageDisplay::PixelFormat pixfmt )
+/* Find room for w x h in the atlas. */
+static bool AllocateFromAtlas( int w, int h, int &iLayerOut, int &iNodeOut )
 {
-	const int w = max( img->w, ATLAS_CELL ), h = max( img->h, ATLAS_CELL );
+	w = max( w, ATLAS_CELL );
+	h = max( h, ATLAS_CELL );
 
 	/* A hole that fits exactly, or else the smallest one it fits in. */
 	int iLayer = -1, iNode = -1;
@@ -1156,7 +1170,7 @@ static unsigned AddToAtlas( RageSurface *img, RageDisplay::PixelFormat pixfmt )
 	if( iNode == -1 )
 	{
 		if( !GrowAtlas() )
-			return 0;
+			return false;
 		iLayer = g_AtlasLayers.size()-1;
 		iNode = 0;
 	}
@@ -1164,6 +1178,27 @@ static unsigned AddToAtlas( RageSurface *img, RageDisplay::PixelFormat pixfmt )
 	AtlasLayer &l = g_AtlasLayers[iLayer];
 	iNode = SplitAtlasNode( l, iNode, w, h );
 	l.Nodes[iNode].bUsed = true;
+	iLayerOut = iLayer;
+	iNodeOut = iNode;
+	return true;
+}
+
+/* What goes in Vertex::atlas for a texture at the top left of a node. */
+static GLuint GetAtlasBits( const AtlasTexture &t )
+{
+	int iLog2W = 0, iLog2H = 0;
+	while( (1 << iLog2W) < t.w ) ++iLog2W;
+	while( (1 << iLog2H) < t.h ) ++iLog2H;
+	const AtlasNode &n = g_AtlasLayers[t.iLayer].Nodes[t.iNode];
+	return ATLAS_BITS_IN_ATLAS | (n.x/ATLAS_CELL) | ((n.y/ATLAS_CELL) << 7) | (t.iLayer << 14) | (iLog2W << 22) | (iLog2H << 26);
+}
+
+/* Put img in the atlas, and return its handle, or 0 if there's no room. */
+static unsigned AddToAtlas( RageSurface *img, RageDisplay::PixelFormat pixfmt )
+{
+	int iLayer, iNode;
+	if( !AllocateFromAtlas(img->w, img->h, iLayer, iNode) )
+		return 0;
 
 	unsigned uIndex;
 	if( !g_FreeAtlasTextures.empty() )
@@ -1177,11 +1212,6 @@ static unsigned AddToAtlas( RageSurface *img, RageDisplay::PixelFormat pixfmt )
 		g_AtlasTextures.resize( uIndex+1 );
 	}
 
-	int iLog2W = 0, iLog2H = 0;
-	while( (1 << iLog2W) < img->w ) ++iLog2W;
-	while( (1 << iLog2H) < img->h ) ++iLog2H;
-
-	const AtlasNode &n = l.Nodes[iNode];
 	AtlasTexture &t = g_AtlasTextures[uIndex];
 	memset( &t, 0, sizeof(t) );
 	t.bUsed = true;
@@ -1190,7 +1220,8 @@ static unsigned AddToAtlas( RageSurface *img, RageDisplay::PixelFormat pixfmt )
 	t.iNode = iNode;
 	t.w = img->w;
 	t.h = img->h;
-	t.uAtlasBits = 0x80000000 | (n.x/ATLAS_CELL) | ((n.y/ATLAS_CELL) << 7) | (iLayer << 14) | (iLog2W << 22) | (iLog2H << 26);
+	t.bTiled = false;
+	t.uAtlasBits = GetAtlasBits( t );
 	t.uStandalone = 0;
 	t.iWrapWanted = 0;
 	t.iWrapApplied = 0;
@@ -1227,6 +1258,50 @@ static void CopyOutOfAtlas( AtlasTexture &t )
 	t.bInAtlas = false;
 	t.uStandalone = uTex;
 	t.iWrapApplied = 0;
+}
+
+/*
+ * Make the texture able to repeat in the atlas.  GL_REPEAT with linear
+ * filtering samples texels i and i+1, wrapped around, with the weights the
+ * position past texel centers gives.  With four copies of the texture in a
+ * square, the shader can wrap the position into the first copy (plus half a
+ * texel), and texel i+1 past the right or bottom edge is the next copy's first
+ * one, which is the same.  Returns false if there's no room.
+ */
+static bool TileInAtlas( AtlasTexture &t )
+{
+	if( t.w*t.h > ATLAS_MAX_AREA/4 )
+		return false;
+
+	/* What's waiting may draw from where it is now, which may be reused. */
+	FlushQueue( FLUSH_TEXTURE );
+
+	int iLayer, iNode;
+	if( !AllocateFromAtlas(t.w*2, t.h*2, iLayer, iNode) )
+		return false;
+
+	/* GL can't copy from part of a texture to another part of it, so copy it
+	 * out to a texture of its own first, and then into place four times. */
+	CopyOutOfAtlas( t );
+	const GLuint uTemp = t.uStandalone;
+
+	const AtlasNode &n = g_AtlasLayers[iLayer].Nodes[iNode];
+	SetActiveUnit( ATLAS_UNIT );
+	gl.BindFramebuffer( GLC_READ_FRAMEBUFFER, g_AtlasFramebuffer );
+	gl.FramebufferTextureLayer( GLC_READ_FRAMEBUFFER, GLC_COLOR_ATTACHMENT0, uTemp, 0, 0 );
+	for( int i = 0; i < 4; ++i )
+		gl.CopyTexSubImage3D( GLC_TEXTURE_2D_ARRAY, 0, n.x + (i&1)*t.w, n.y + (i/2)*t.h, iLayer, 0, 0, t.w, t.h );
+	gl.FramebufferTextureLayer( GLC_READ_FRAMEBUFFER, GLC_COLOR_ATTACHMENT0, 0, 0, 0 );
+	gl.BindFramebuffer( GLC_READ_FRAMEBUFFER, 0 );
+	glDeleteTextures( 1, &uTemp );
+
+	t.bInAtlas = true;
+	t.bTiled = true;
+	t.iLayer = iLayer;
+	t.iNode = iNode;
+	t.uStandalone = 0;
+	t.uAtlasBits = GetAtlasBits( t );
+	return true;
 }
 
 static void ResetAtlas()
@@ -1275,15 +1350,17 @@ static GLuint ApplyTexture( int iUnit )
 		BindTextureToUnit( iUnit, 0 );
 		return 0;
 	}
-	if( t->bInAtlas )
+	if( t->bInAtlas && iUnit == 0 )
 	{
-		if( iUnit == 0 && t->iWrapWanted != 1 )
+		const bool bRepeat = t->iWrapWanted == 1;
+		if( !bRepeat || t->bTiled || TileInAtlas(*t) )
 		{
 			BindTextureToUnit( 0, g_AtlasTexture );
-			return t->uAtlasBits;
+			return t->uAtlasBits | (bRepeat? ATLAS_BITS_REPEAT: 0);
 		}
-		CopyOutOfAtlas( *t );
 	}
+	if( t->bInAtlas )
+		CopyOutOfAtlas( *t );
 	BindTextureToUnit( iUnit, t->uStandalone );
 	ApplyWrap( iUnit, t->iWrapWanted, t->iWrapApplied );
 	return 0;
