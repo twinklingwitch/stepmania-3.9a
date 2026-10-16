@@ -540,8 +540,29 @@ RageColor scale( float x, float l1, float h1, const RageColor &a, const RageColo
 
 bool Sprite::EarlyAbortDraw()
 {
-	return m_pTexture == NULL && !m_bDrawIfTextureNull;
-//	return false;
+	if( m_pTexture == NULL && !m_bDrawIfTextureNull )
+		return true;
+
+	/* If drawing would set up the renderer and then not draw anything, because
+	 * the sprite is transparent and not glowing (the hold glow pass, and things
+	 * faded out), skip moving it into place: just leave the renderer as
+	 * DrawTexture would have.  Effects change the colors while drawing, and
+	 * fading draws in pieces, so don't bother with those. */
+	const TweenState &ts = m_current;
+	if( m_Effect != no_effect ||
+		ts.fade.top > 0 || ts.fade.bottom > 0 || ts.fade.left > 0 || ts.fade.right > 0 ||
+		ts.diffuse[0].a > 0 || ts.diffuse[1].a > 0 || ts.diffuse[2].a > 0 || ts.diffuse[3].a > 0 ||
+		ts.glow.a > 0.0001f )
+		return false;
+
+	/* Fully cropped, DrawTexture returns before touching anything. */
+	if( ts.crop.left + ts.crop.right >= 1 || ts.crop.top + ts.crop.bottom >= 1 )
+		return true;
+
+	DISPLAY->ClearAllTextures();
+	DISPLAY->SetTexture( 0, m_pTexture );
+	Actor::SetRenderStates();
+	return true;
 }
 
 void Sprite::DrawPrimitives()
