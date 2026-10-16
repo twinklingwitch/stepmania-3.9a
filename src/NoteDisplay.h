@@ -21,12 +21,13 @@ public:
 
 	static void Update( float fDeltaTime );
 
-	void DrawActor( Actor* pActor, int iCol, float fBeat, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels, bool bUseLighting );
-	void DrawTap( int iCol, float fBeat, bool bOnSameRowAsHoldStart, bool bIsAddition, bool bIsMine, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels );
+	/* pYOffset, if given, is ArrowGetYOffset for the note, if the caller has it already. */
+	void DrawActor( Actor* pActor, int iCol, float fBeat, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels, bool bUseLighting, const float *pYOffset = NULL );
+	void DrawTap( int iCol, float fBeat, bool bOnSameRowAsHoldStart, bool bIsAddition, bool bIsMine, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels, const float *pYOffset = NULL );
 	void DrawHold( const HoldNote& hn, bool bIsBeingHeld, bool bIsActive, const HoldNoteResult &Result, float fPercentFadeToFail, bool bDrawGlowOnly, float fReverseOffsetPixels );
 
 protected:
-	void DrawMineUnderlay( int iCol, float fBeat, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels );
+	void DrawMineUnderlay( int iCol, float fBeat, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels, const float *pYOffset = NULL );
 	void SetActiveFrame( float fNoteBeat, Actor &actorToSet, float fAnimationLengthInBeats, bool bVivid, bool bNoteColor );
 	Actor *GetTapNoteActor( float fNoteBeat );
 	Actor *GetTapAdditionActor( float fNoteBeat );

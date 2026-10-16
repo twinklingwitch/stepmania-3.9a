@@ -48,11 +48,24 @@ float ArrowGetAlpha( PlayerNumber pn, int iCol, float fYPos, float fPercentFadeT
 float ArrowGetGlow( PlayerNumber pn, int iCol, float fYPos, float fPercentFadeToFail, float fYReverseOffsetPixels );
 
 
+/* Both of the above, working out how visible the arrow is once. */
+void ArrowGetAlphaAndGlow( PlayerNumber pn, int iCol, float fYPos, float fPercentFadeToFail, float fYReverseOffsetPixels, float &fAlphaOut, float &fGlowOut );
+
+/* False if ArrowGetXPos, ArrowGetZPos, ArrowGetAlpha and ArrowGetGlow give the
+ * same result everywhere in a column (no effect or appearance mod that changes
+ * them along it is on), so they only need working out once for a whole hold. */
+bool ArrowEffectsVaryAlongColumn( PlayerNumber pn );
+
 //	Depends on fYOffset.
 float ArrowGetBrightness( PlayerNumber pn, float fNoteBeat );
 
 // This is the zoom of the individual tracks, not of the whole Player.
 float ArrowGetZoom( PlayerNumber pn );
+
+/* Call around drawing a note field: in between, the player options can't change,
+ * so what depends only on them and the column is only worked out once. */
+void ArrowEffectsBeginDrawingField( PlayerNumber pn, float fYReverseOffsetPixels );
+void ArrowEffectsEndDrawingField( PlayerNumber pn );
 
 #endif
 

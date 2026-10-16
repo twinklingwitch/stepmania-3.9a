@@ -551,6 +551,8 @@ void NoteField::DrawPrimitives()
 	/* This should be filled in on the first update. */
 	ASSERT( !m_BeatToNoteDisplays.empty() );
 
+	ArrowEffectsBeginDrawingField( m_PlayerNumber, m_fYReverseOffsetPixels );
+
 	NoteDisplayCols *cur = SearchForSongBeat();
 	cur->m_ReceptorArrowRow.Draw();
 
@@ -800,7 +802,10 @@ void NoteField::DrawPrimitives()
 			}
 			else
 			{
-				nd->display[c].DrawTap( c, NoteRowToBeat(i), bHoldNoteBeginsOnThisBeat, bIsAddition, bIsMine, bIsInSelectionRange ? fSelectedRangeGlow : m_fPercentFadeToFail, 1, m_fYReverseOffsetPixels );
+				/* ArrowGetYOffset doesn't depend on the column, and only has a side
+				 * effect (moving Expand along) with Expand on. */
+				const bool bReuseYOffset = !(current_po.m_fAccels[PlayerOptions::ACCEL_EXPAND] > 0);
+				nd->display[c].DrawTap( c, NoteRowToBeat(i), bHoldNoteBeginsOnThisBeat, bIsAddition, bIsMine, bIsInSelectionRange ? fSelectedRangeGlow : m_fPercentFadeToFail, 1, m_fYReverseOffsetPixels, bReuseYOffset? &fYOffset: NULL );
 			}
 		}
 
@@ -809,6 +814,8 @@ void NoteField::DrawPrimitives()
 	}
 
 	cur->m_GhostArrowRow.Draw();
+
+	ArrowEffectsEndDrawingField( m_PlayerNumber );
 }
 
 void NoteField::FadeToFail()

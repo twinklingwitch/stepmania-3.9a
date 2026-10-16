@@ -107,7 +107,53 @@ float ArrowGetYOffset( PlayerNumber pn, int iCol, float fNoteBeat )
 }
 
 
+/* While a note field is drawn, nothing changes the player options, so the parts
+ * of these that only depend on them and the column are worked out once for the
+ * whole field instead of for every note. */
+struct FieldDrawCache
+{
+	bool bActive;
+	float fYReverseOffsetPixels;
+	int iNumCols;
+	float fReverseShift[MAX_COLS_PER_PLAYER], fReverseScale[MAX_COLS_PER_PLAYER];
+	float fZoom;
+	FieldDrawCache(): bActive(false) { }
+};
+static FieldDrawCache g_FieldDrawCache[NUM_PLAYERS];
+
+static void ArrowGetReverseShiftAndScaleUncached( PlayerNumber pn, int iCol, float fYReverseOffsetPixels, float &fShiftOut, float &fScaleOut );
+static float ArrowGetZoomUncached( PlayerNumber pn );
+
+void ArrowEffectsBeginDrawingField( PlayerNumber pn, float fYReverseOffsetPixels )
+{
+	FieldDrawCache &c = g_FieldDrawCache[pn];
+	c.fYReverseOffsetPixels = fYReverseOffsetPixels;
+	c.iNumCols = min( GAMESTATE->GetCurrentStyle()->m_iColsPerPlayer, MAX_COLS_PER_PLAYER );
+	for( int i = 0; i < c.iNumCols; ++i )
+		ArrowGetReverseShiftAndScaleUncached( pn, i, fYReverseOffsetPixels, c.fReverseShift[i], c.fReverseScale[i] );
+	c.fZoom = ArrowGetZoomUncached( pn );
+	c.bActive = true;
+}
+
+void ArrowEffectsEndDrawingField( PlayerNumber pn )
+{
+	g_FieldDrawCache[pn].bActive = false;
+}
+
 static void ArrowGetReverseShiftAndScale( PlayerNumber pn, int iCol, float fYReverseOffsetPixels, float &fShiftOut, float &fScaleOut )
+{
+	const FieldDrawCache &c = g_FieldDrawCache[pn];
+	if( c.bActive && iCol >= 0 && iCol < c.iNumCols && fYReverseOffsetPixels == c.fYReverseOffsetPixels )
+	{
+		fShiftOut = c.fReverseShift[iCol];
+		fScaleOut = c.fReverseScale[iCol];
+		return;
+	}
+
+	ArrowGetReverseShiftAndScaleUncached( pn, iCol, fYReverseOffsetPixels, fShiftOut, fScaleOut );
+}
+
+static void ArrowGetReverseShiftAndScaleUncached( PlayerNumber pn, int iCol, float fYReverseOffsetPixels, float &fShiftOut, float &fScaleOut )
 {
 	/* XXX: Hack: we need to scale the reverse shift by the zoom. */
 	float fMiniPercent = GAMESTATE->m_CurrentPlayerOptions[pn].m_fEffects[PlayerOptions::EFFECT_MINI];
@@ -389,6 +435,40 @@ float ArrowGetGlow( PlayerNumber pn, int iCol, float fYOffset, float fPercentFad
 	return SCALE( fDistFromHalf, 0, 0.5f, 1.3f, 0 );
 }
 
+void ArrowGetAlphaAndGlow( PlayerNumber pn, int iCol, float fYOffset, float fPercentFadeToFail, float fYReverseOffsetPixels, float &fAlphaOut, float &fGlowOut )
+{
+	float fPercentVisible = ArrowGetPercentVisible(pn,iCol,fYOffset,fYReverseOffsetPixels);
+
+	if( fPercentFadeToFail != -1 )
+		fPercentVisible = 1 - fPercentFadeToFail;
+
+	fAlphaOut = (fPercentVisible>0.5f) ? 1.0f : 0.0f;
+
+	const float fDistFromHalf = fabsf( fPercentVisible - 0.5f );
+	fGlowOut = SCALE( fDistFromHalf, 0, 0.5f, 1.3f, 0 );
+}
+
+bool ArrowEffectsVaryAlongColumn( PlayerNumber pn )
+{
+	const PlayerOptions &po = GAMESTATE->m_CurrentPlayerOptions[pn];
+	const float* fEffects = po.m_fEffects;
+	const float* fAppearances = po.m_fAppearances;
+
+	/* ArrowGetXPos and ArrowGetZPos: */
+	if( fEffects[PlayerOptions::EFFECT_TORNADO] > 0 || fEffects[PlayerOptions::EFFECT_DRUNK] > 0 ||
+		fEffects[PlayerOptions::EFFECT_FLIP] > 0 || fEffects[PlayerOptions::EFFECT_BEAT] > 0 ||
+		fEffects[PlayerOptions::EFFECT_BUMPY] > 0 )
+		return true;
+
+	/* ArrowGetPercentVisible: */
+	if( fAppearances[PlayerOptions::APPEARANCE_HIDDEN] > 0 || fAppearances[PlayerOptions::APPEARANCE_SUDDEN] > 0 ||
+		fAppearances[PlayerOptions::APPEARANCE_STEALTH] > 0 || fAppearances[PlayerOptions::APPEARANCE_BLINK] > 0 ||
+		fAppearances[PlayerOptions::APPEARANCE_RANDOMVANISH] > 0 )
+		return true;
+
+	return false;
+}
+
 float ArrowGetBrightness( PlayerNumber pn, float fNoteBeat )
 {
 	if( GAMESTATE->m_bEditing )
@@ -424,6 +504,13 @@ bool ArrowsNeedZBuffer( PlayerNumber pn )
 }
 
 float ArrowGetZoom( PlayerNumber pn )
+{
+	if( g_FieldDrawCache[pn].bActive )
+		return g_FieldDrawCache[pn].fZoom;
+	return ArrowGetZoomUncached( pn );
+}
+
+static float ArrowGetZoomUncached( PlayerNumber pn )
 {
 	// FIXME: Move the zoom values into Style
 	if( GAMESTATE->m_pCurStyle->m_bNeedsZoomOutWith2Players &&

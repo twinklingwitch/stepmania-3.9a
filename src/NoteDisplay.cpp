@@ -361,7 +361,18 @@ void NoteDisplay::SetActiveFrame( float fNoteBeat, Actor &actorToSet, float fAni
 {
 
 	float fSongBeat = GAMESTATE->m_fSongBeat;
-	float fPercentIntoAnimation = fmodf(fSongBeat,fAnimationLengthInBeats) / fAnimationLengthInBeats;
+
+	/* This part is the same for every note drawn in a frame. */
+	static float s_fSongBeat = 0, s_fAnimationLengthInBeats = 0, s_fPercentIntoAnimation = 0;
+	static bool s_bValid = false;
+	if( !s_bValid || fSongBeat != s_fSongBeat || fAnimationLengthInBeats != s_fAnimationLengthInBeats )
+	{
+		s_fSongBeat = fSongBeat;
+		s_fAnimationLengthInBeats = fAnimationLengthInBeats;
+		s_fPercentIntoAnimation = fmodf(fSongBeat,fAnimationLengthInBeats) / fAnimationLengthInBeats;
+		s_bValid = true;
+	}
+	float fPercentIntoAnimation = s_fPercentIntoAnimation;
 	float fNoteBeatFraction = fmodf( fNoteBeat, 1.0f );
 
 	if( bVivid )
@@ -594,6 +605,10 @@ void NoteDisplay::DrawHoldTopCap( const HoldNote& hn, const bool bIsBeingHeld, f
 		fColorScale = 1;
 
 	bool bAllAreTransparent = true;
+	const bool bVary = ArrowEffectsVaryAlongColumn( m_PlayerNumber );
+	bool bHaveConstants = false;
+	float fX = 0, fZ = 0, fAlpha = 0;
+	RageVColor color;
 	bool bLast = false;
 	// don't draw any part of the head that is after the middle of the tail
 	float fY = fYCapTop;
@@ -606,17 +621,25 @@ void NoteDisplay::DrawHoldTopCap( const HoldNote& hn, const bool bIsBeingHeld, f
 			bLast = true;
 		}
 
-		const float fYOffset				= ArrowGetYOffsetFromYPos( m_PlayerNumber, iCol, fY, m_fYReverseOffsetPixels );
-		const float fZ						= ArrowGetZPos(	m_PlayerNumber, iCol, fYOffset );
-		const float fX						= ArrowGetXPos( m_PlayerNumber, iCol, fYOffset );
+		if( bVary || !bHaveConstants )
+		{
+			const float fYOffset = ArrowGetYOffsetFromYPos( m_PlayerNumber, iCol, fY, m_fYReverseOffsetPixels );
+			fZ = ArrowGetZPos( m_PlayerNumber, iCol, fYOffset );
+			fX = ArrowGetXPos( m_PlayerNumber, iCol, fYOffset );
+			fAlpha = ArrowGetAlphaOrGlow( bGlow, m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
+			color = RageColor( fColorScale, fColorScale, fColorScale, fAlpha );
+			bHaveConstants = true;
+
+			/* If it's the same all the way along and can't be seen, nothing is drawn. */
+			if( !bVary && fAlpha <= 0 )
+				break;
+		}
 		const float fXLeft					= fX - fFrameWidth/2;
 		const float fXRight					= fX + fFrameWidth/2;
 		const float fTopDistFromHeadTop		= fY - fYCapTop;
 		const float fTexCoordTop			= SCALE( fTopDistFromHeadTop,    0, fFrameHeight, pRect->top, pRect->bottom );
 		const float fTexCoordLeft			= pRect->left;
 		const float fTexCoordRight			= pRect->right;
-		const float	fAlpha					= ArrowGetAlphaOrGlow( bGlow, m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
-		const RageColor color				= RageColor(fColorScale,fColorScale,fColorScale,fAlpha);
 
 		if( fAlpha > 0 )
 			bAllAreTransparent = false;
@@ -667,6 +690,10 @@ void NoteDisplay::DrawHoldBody( const HoldNote& hn, const bool bIsBeingHeld, flo
 
 	// top to bottom
 	bool bAllAreTransparent = true;
+	const bool bVary = ArrowEffectsVaryAlongColumn( m_PlayerNumber );
+	bool bHaveConstants = false;
+	float fX = 0, fZ = 0, fAlpha = 0;
+	RageVColor color;
 	bool bLast = false;
 	for( float fY = fYBodyTop; !bLast; fY += fYStep )
 	{
@@ -676,9 +703,19 @@ void NoteDisplay::DrawHoldBody( const HoldNote& hn, const bool bIsBeingHeld, flo
 			bLast = true;
 		}
 
-		const float fYOffset			= ArrowGetYOffsetFromYPos( m_PlayerNumber, iCol, fY, m_fYReverseOffsetPixels );
-		const float fZ					= ArrowGetZPos(	m_PlayerNumber, iCol, fYOffset );
-		const float fX					= ArrowGetXPos( m_PlayerNumber, iCol, fYOffset );
+		if( bVary || !bHaveConstants )
+		{
+			const float fYOffset = ArrowGetYOffsetFromYPos( m_PlayerNumber, iCol, fY, m_fYReverseOffsetPixels );
+			fZ = ArrowGetZPos( m_PlayerNumber, iCol, fYOffset );
+			fX = ArrowGetXPos( m_PlayerNumber, iCol, fYOffset );
+			fAlpha = ArrowGetAlphaOrGlow( bGlow, m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
+			color = RageColor( fColorScale, fColorScale, fColorScale, fAlpha );
+			bHaveConstants = true;
+
+			/* If it's the same all the way along and can't be seen, nothing is drawn. */
+			if( !bVary && fAlpha <= 0 )
+				break;
+		}
 		const float fXLeft				= fX - fFrameWidth/2;
 		const float fXRight				= fX + fFrameWidth/2;
 		const float fDistFromBodyBottom	= fYBodyBottom - fY;
@@ -686,8 +723,6 @@ void NoteDisplay::DrawHoldBody( const HoldNote& hn, const bool bIsBeingHeld, flo
 		const float fTexCoordTop		= SCALE( bAnchorToBottom ? fDistFromBodyTop : fDistFromBodyBottom,    0, fFrameHeight, pRect->bottom, pRect->top );
 		const float fTexCoordLeft		= pRect->left;
 		const float fTexCoordRight		= pRect->right;
-		const float	fAlpha				= ArrowGetAlphaOrGlow( bGlow, m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
-		const RageColor color			= RageColor(fColorScale,fColorScale,fColorScale,fAlpha);
 
 		if( fAlpha > 0 )
 			bAllAreTransparent = false;
@@ -734,6 +769,10 @@ void NoteDisplay::DrawHoldBottomCap( const HoldNote& hn, const bool bIsBeingHeld
 		fColorScale = 1;
 
 	bool bAllAreTransparent = true;
+	const bool bVary = ArrowEffectsVaryAlongColumn( m_PlayerNumber );
+	bool bHaveConstants = false;
+	float fX = 0, fZ = 0, fAlpha = 0;
+	RageVColor color;
 	bool bLast = false;
 	// don't draw any part of the tail that is before the middle of the head
 	float fY=max( fYCapTop, fYHead );
@@ -745,17 +784,25 @@ void NoteDisplay::DrawHoldBottomCap( const HoldNote& hn, const bool bIsBeingHeld
 			bLast = true;
 		}
 
-		const float fYOffset				= ArrowGetYOffsetFromYPos( m_PlayerNumber, iCol, fY, m_fYReverseOffsetPixels );
-		const float fZ						= ArrowGetZPos(	m_PlayerNumber, iCol, fYOffset );
-		const float fX						= ArrowGetXPos( m_PlayerNumber, iCol, fYOffset );
+		if( bVary || !bHaveConstants )
+		{
+			const float fYOffset = ArrowGetYOffsetFromYPos( m_PlayerNumber, iCol, fY, m_fYReverseOffsetPixels );
+			fZ = ArrowGetZPos( m_PlayerNumber, iCol, fYOffset );
+			fX = ArrowGetXPos( m_PlayerNumber, iCol, fYOffset );
+			fAlpha = ArrowGetAlphaOrGlow( bGlow, m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
+			color = RageColor( fColorScale, fColorScale, fColorScale, fAlpha );
+			bHaveConstants = true;
+
+			/* If it's the same all the way along and can't be seen, nothing is drawn. */
+			if( !bVary && fAlpha <= 0 )
+				break;
+		}
 		const float fXLeft					= fX - fFrameWidth/2;
 		const float fXRight					= fX + fFrameWidth/2;
 		const float fTopDistFromTail		= fY - fYCapTop;
 		const float fTexCoordTop			= SCALE( fTopDistFromTail,    0, fFrameHeight, pRect->top, pRect->bottom );
 		const float fTexCoordLeft			= pRect->left;
 		const float fTexCoordRight			= pRect->right;
-		const float	fAlpha					= ArrowGetAlphaOrGlow( bGlow, m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
-		const RageColor color				= RageColor(fColorScale,fColorScale,fColorScale,fAlpha);
 
 		if( fAlpha > 0 )
 			bAllAreTransparent = false;
@@ -783,8 +830,8 @@ void NoteDisplay::DrawHoldTail( const HoldNote& hn, bool bIsBeingHeld, float fYT
 	const float fYOffset		= ArrowGetYOffsetFromYPos( m_PlayerNumber, iCol, fY, m_fYReverseOffsetPixels );
 	const float fX				= ArrowGetXPos( m_PlayerNumber, iCol, fYOffset );
 	const float fZ				= ArrowGetZPos(	m_PlayerNumber, iCol, fYOffset );
-	const float	fAlpha			= ArrowGetAlpha( m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
-	const float	fGlow			= ArrowGetGlow( m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
+	float fAlpha, fGlow;
+	ArrowGetAlphaAndGlow( m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels, fAlpha, fGlow );
 	const RageColor colorDiffuse= RageColor(fColorScale,fColorScale,fColorScale,fAlpha);
 	const RageColor colorGlow	= RageColor(1,1,1,fGlow);
 
@@ -836,8 +883,8 @@ void NoteDisplay::DrawHoldHead( const HoldNote& hn, bool bIsBeingHeld, float fYH
 	const float fYOffset		= ArrowGetYOffsetFromYPos( m_PlayerNumber, iCol, fY, m_fYReverseOffsetPixels );
 	const float fX				= ArrowGetXPos( m_PlayerNumber, iCol, fYOffset );
 	const float fZ				= ArrowGetZPos(	m_PlayerNumber, iCol, fYOffset );
-	const float	fAlpha			= ArrowGetAlpha( m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
-	const float	fGlow			= ArrowGetGlow( m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
+	float fAlpha, fGlow;
+	ArrowGetAlphaAndGlow( m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels, fAlpha, fGlow );
 	const RageColor colorDiffuse= RageColor(fColorScale,fColorScale,fColorScale,fAlpha);
 	const RageColor colorGlow	= RageColor(1,1,1,fGlow);
 
@@ -935,15 +982,15 @@ void NoteDisplay::DrawHold( const HoldNote& hn, bool bIsBeingHeld, bool bIsActiv
 		DrawHold( hn, bIsBeingHeld, bIsActive, Result, fPercentFadeToFail, true, fReverseOffsetPixels );
 }
 
-void NoteDisplay::DrawActor( Actor* pActor, int iCol, float fBeat, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels, bool bUseLighting )
+void NoteDisplay::DrawActor( Actor* pActor, int iCol, float fBeat, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels, bool bUseLighting, const float *pYOffset )
 {
-	const float fYOffset		= ArrowGetYOffset(	m_PlayerNumber, iCol, fBeat );
+	const float fYOffset		= pYOffset? *pYOffset: ArrowGetYOffset( m_PlayerNumber, iCol, fBeat );
 	const float fYPos			= ArrowGetYPos(	m_PlayerNumber, iCol, fYOffset, fReverseOffsetPixels );
 	const float fRotation		= ArrowGetRotation(	m_PlayerNumber, fBeat );
 	const float fXPos			= ArrowGetXPos(		m_PlayerNumber, iCol, fYOffset );
 	const float fZPos			= ArrowGetZPos(	   m_PlayerNumber, iCol, fYOffset );
-	const float fAlpha			= ArrowGetAlpha(	m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
-	const float fGlow			= ArrowGetGlow(		m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
+	float fAlpha, fGlow;
+	ArrowGetAlphaAndGlow( m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels, fAlpha, fGlow );
 	const float fColorScale		= ArrowGetBrightness( m_PlayerNumber, fBeat ) * SCALE(fLife,0,1,0.2f,1);
 	const float fZoom			= ArrowGetZoom( m_PlayerNumber );
 	RageColor diffuse = RageColor(fColorScale,fColorScale,fColorScale,fAlpha);
@@ -976,33 +1023,49 @@ void NoteDisplay::DrawActor( Actor* pActor, int iCol, float fBeat, float fPercen
 	}
 }
 
+/* The rings are always the same two shapes, so keep each one's vertices and
+ * only fill in the color. */
+struct MineRing
+{
+	enum { SUBDIVISIONS = 32 };
+	float m_fInner, m_fOuter;
+	RageSpriteVertex m_v[(SUBDIVISIONS+1)*2];
+
+	MineRing(): m_fInner(-1), m_fOuter(-1) { }
+	void Build( float fInner, float fOuter )
+	{
+		m_fInner = fInner;
+		m_fOuter = fOuter;
+		for( int i = 0; i <= SUBDIVISIONS; ++i )
+		{
+			const float fRotation = float(i) / SUBDIVISIONS * 2*PI;
+			const float fX = cosf(fRotation), fY = -sinf(fRotation);
+			m_v[i*2+0].p = RageVector3( fX*fInner, fY*fInner, 0 );
+			m_v[i*2+1].p = RageVector3( fX*fOuter, fY*fOuter, 0 );
+		}
+	}
+};
+
 static void DrawRing( float fInner, float fOuter, const RageColor &c )
 {
-	const int subdivisions = 32;
-
-	/* The circle is the same every time; only work it out once. */
-	static float fCos[subdivisions+1], fSin[subdivisions+1];
-	static bool bInited = false;
-	if( !bInited )
+	static MineRing rings[2];
+	MineRing *pRing = NULL;
+	for( unsigned i = 0; pRing == NULL && i < ARRAYSIZE(rings); ++i )
+		if( rings[i].m_fInner == fInner && rings[i].m_fOuter == fOuter )
+			pRing = &rings[i];
+	if( pRing == NULL )
 	{
-		for( int i = 0; i <= subdivisions; ++i )
-		{
-			const float fRotation = float(i) / subdivisions * 2*PI;
-			fCos[i] = cosf(fRotation);
-			fSin[i] = sinf(fRotation);
-		}
-		bInited = true;
+		/* Replace the one that wasn't just used. */
+		static unsigned iNext = 0;
+		pRing = &rings[iNext];
+		iNext = (iNext+1) % ARRAYSIZE(rings);
+		pRing->Build( fInner, fOuter );
 	}
 
-	RageSpriteVertex v[(subdivisions+1)*2];
-	for( int i = 0; i <= subdivisions; ++i )
-	{
-		const float fX = fCos[i], fY = -fSin[i];
-		v[i*2+0].p = RageVector3( fX*fInner, fY*fInner, 0 );
-		v[i*2+1].p = RageVector3( fX*fOuter, fY*fOuter, 0 );
-		v[i*2+0].c = v[i*2+1].c = c;
-	}
-	DISPLAY->DrawQuadStrip( v, ARRAYSIZE(v) );
+	const RageVColor vc = c;
+	for( unsigned i = 0; i < ARRAYSIZE(pRing->m_v); ++i )
+		pRing->m_v[i].c = vc;
+	DISPLAY->DrawQuadStrip( pRing->m_v, ARRAYSIZE(pRing->m_v) );
 }
 
 /* A marker drawn by the engine under every mine, so a noteskin with a blank
@@ -1011,14 +1074,14 @@ static void DrawRing( float fInner, float fOuter, const RageColor &c )
  * and a black and a white ring keep it visible over mid-grey, where the
  * inverse looks the same.  It follows the same mods as the real mine
  * (position, Mini, Hidden/Sudden/Stealth, Dark-style brightness). */
-void NoteDisplay::DrawMineUnderlay( int iCol, float fBeat, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels )
+void NoteDisplay::DrawMineUnderlay( int iCol, float fBeat, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels, const float *pYOffset )
 {
-	const float fYOffset		= ArrowGetYOffset(	m_PlayerNumber, iCol, fBeat );
+	const float fYOffset		= pYOffset? *pYOffset: ArrowGetYOffset( m_PlayerNumber, iCol, fBeat );
 	const float fYPos			= ArrowGetYPos(	m_PlayerNumber, iCol, fYOffset, fReverseOffsetPixels );
 	const float fXPos			= ArrowGetXPos(		m_PlayerNumber, iCol, fYOffset );
 	const float fZPos			= ArrowGetZPos(	   m_PlayerNumber, iCol, fYOffset );
-	const float fAlpha			= ArrowGetAlpha(	m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
-	const float fGlow			= ArrowGetGlow(		m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels );
+	float fAlpha, fGlow;
+	ArrowGetAlphaAndGlow( m_PlayerNumber, iCol, fYOffset, fPercentFadeToFail, m_fYReverseOffsetPixels, fAlpha, fGlow );
 	const float fColorScale		= ArrowGetBrightness( m_PlayerNumber, fBeat ) * SCALE(fLife,0,1,0.2f,1);
 	const float fZoom			= ArrowGetZoom( m_PlayerNumber );
 
@@ -1064,13 +1127,13 @@ void NoteDisplay::DrawMineUnderlay( int iCol, float fBeat, float fPercentFadeToF
 	DISPLAY->PopMatrix();
 }
 
-void NoteDisplay::DrawTap( int iCol, float fBeat, bool bOnSameRowAsHoldStart, bool bIsAddition, bool bIsMine, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels )
+void NoteDisplay::DrawTap( int iCol, float fBeat, bool bOnSameRowAsHoldStart, bool bIsAddition, bool bIsMine, float fPercentFadeToFail, float fLife, float fReverseOffsetPixels, const float *pYOffset )
 {
 	Actor* pActor = NULL;
 	bool bUseLighting = false;
 	if( bIsMine )
 	{
-		DrawMineUnderlay( iCol, fBeat, fPercentFadeToFail, fLife, fReverseOffsetPixels );
+		DrawMineUnderlay( iCol, fBeat, fPercentFadeToFail, fLife, fReverseOffsetPixels, pYOffset );
 		pActor = GetTapMineActor( fBeat );
 		bUseLighting = cache->m_bTapMineUseLighting;
 	}
@@ -1090,7 +1153,7 @@ void NoteDisplay::DrawTap( int iCol, float fBeat, bool bOnSameRowAsHoldStart, bo
 		bUseLighting = cache->m_bTapNoteUseLighting;
 	}
 
-	DrawActor( pActor, iCol, fBeat, fPercentFadeToFail, fLife, fReverseOffsetPixels, bUseLighting );
+	DrawActor( pActor, iCol, fBeat, fPercentFadeToFail, fLife, fReverseOffsetPixels, bUseLighting, pYOffset );
 }
 
 /*
