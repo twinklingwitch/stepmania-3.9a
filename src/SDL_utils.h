@@ -18,6 +18,9 @@ void mySDL_PumpEvents();
 bool mySDL_StampedWhilePumping( Uint64 iTimestampNS );
 void mySDL_ForgetPumps();
 
+/* How many times mySDL_PumpEvents has been called. */
+unsigned mySDL_GetPumpCount();
+
 /* Set the window icon from an image file.  The surface variant takes
  * ownership of the surface. */
 void mySDL_SetWindowIcon( SDL_Window *pWindow, CString sIconFile );

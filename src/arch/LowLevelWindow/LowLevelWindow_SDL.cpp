@@ -362,8 +362,14 @@ float LowLevelWindow_SDL::GetRefreshRate() const
 
 void LowLevelWindow_SDL::Update(float fDeltaTime)
 {
-	/* This needs to be called before anything that handles SDL events. */
-	mySDL_PumpEvents();
+	/* The input handler pumps events every frame, just before it reads them,
+	 * and leaves the window's events in the queue for us.  Pumping a second
+	 * time each frame gets us nothing and isn't free (on macOS it runs the
+	 * Cocoa event loop), so only pump here if nobody has since we last looked. */
+	static unsigned iLastPumpCount = 0;
+	if( mySDL_GetPumpCount() == iLastPumpCount )
+		mySDL_PumpEvents();
+	iLastPumpCount = mySDL_GetPumpCount();
 
 	bool bFocusChanged = false;
 	bool bQuit = false;

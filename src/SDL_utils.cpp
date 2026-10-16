@@ -32,6 +32,7 @@ struct PumpTime
 	Uint64 iStart, iEnd;
 };
 static vector<PumpTime> g_Pumps;
+static unsigned g_iPumpCount = 0;
 
 void mySDL_PumpEvents()
 {
@@ -40,6 +41,7 @@ void mySDL_PumpEvents()
 	SDL_PumpEvents();
 	p.iEnd = SDL_GetTicksNS();
 	FrameStats::AddPart( FrameStats::PART_PUMP_EVENTS, p.iEnd - p.iStart );
+	++g_iPumpCount;
 
 	/* Nobody is reading events if this gets long; don't let it grow. */
 	if( g_Pumps.size() >= 16 )
@@ -58,6 +60,11 @@ bool mySDL_StampedWhilePumping( Uint64 iTimestampNS )
 void mySDL_ForgetPumps()
 {
 	g_Pumps.clear();
+}
+
+unsigned mySDL_GetPumpCount()
+{
+	return g_iPumpCount;
 }
 
 void mySDL_SetWindowIcon( SDL_Window *pWindow, CString sIconFile )
