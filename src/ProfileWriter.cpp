@@ -62,7 +62,9 @@ static int WriterMain( void *pUnused )
 
 	for(;;)
 	{
-		g_Wake.Wait();
+		/* Idle until there's a save, however long that is: without false, a
+		 * wait over 20 seconds is taken for a deadlock and crashes the game. */
+		g_Wake.Wait( false );
 
 		ProfileWriteJob *pJob = NULL;
 		{
@@ -139,7 +141,8 @@ static void WaitFor( const CString &sDir )
 			return;
 		g_Waiters.push_back( &w );
 	}
-	w.sem.Wait();
+	/* A big profile on a slow disk can take a while; that's no deadlock. */
+	w.sem.Wait( false );
 }
 
 void ProfileWriter::WaitForDir( const CString &sDir )
