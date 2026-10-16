@@ -19,6 +19,7 @@ Sprite::Sprite()
 	m_bDrawIfTextureNull = false;
 	m_iCurState = 0;
 	m_fSecsIntoState = 0.0;
+	m_fAnimationLengthSeconds = 0;
 	m_bUsingCustomTexCoords = false;
 	
 	m_fRememberedClipWidth = -1;
@@ -182,6 +183,7 @@ retry:
 
 		m_States.push_back( newState );
 	}
+	StatesChanged();
 
 	float f;
 	if( ini.GetValue( "Sprite", "BaseRotationXDegrees", f ) )	Actor::SetBaseRotationX( f );
@@ -249,6 +251,7 @@ bool Sprite::LoadFromTexture( RageTextureID ID )
 		State newState = { i, 0.1f };
 		m_States.push_back( newState );
 	}
+	StatesChanged();
 
 	// apply clipping (if any)
 	if( m_fRememberedClipWidth != -1 && m_fRememberedClipHeight != -1 )
@@ -711,12 +714,19 @@ void Sprite::SetState( int iNewState )
 	m_fSecsIntoState = 0.0; 
 }
 
-float Sprite::GetAnimationLengthSeconds() const
+/* Noteskins ask for the length of the animation of every note drawn, so work
+ * it out when the states change. */
+void Sprite::StatesChanged()
 {
 	float fTotal = 0;
 	FOREACH_CONST( State, m_States, s )
 		fTotal += s->fDelay;
-	return fTotal;
+	m_fAnimationLengthSeconds = fTotal;
+}
+
+float Sprite::GetAnimationLengthSeconds() const
+{
+	return m_fAnimationLengthSeconds;
 }
 
 void Sprite::SetSecondsIntoAnimation( float fSeconds )

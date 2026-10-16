@@ -78,6 +78,8 @@ protected:
 		float fDelay;	// "seconds to show"
 	};
 	vector<State> m_States;
+	float	m_fAnimationLengthSeconds;	// the sum of the states' delays
+	void StatesChanged();
 	int		m_iCurState;
 	float	m_fSecsIntoState;	// number of seconds that have elapsed since we switched to this frame
 
