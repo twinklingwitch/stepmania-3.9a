@@ -31,6 +31,7 @@
 #include "OnlineRules.h"
 
 #include <map>
+#include <set>
 
 class Steps;
 
@@ -98,6 +99,8 @@ private:
 	bool m_bFormOpen;
 	bool m_bFormOnPassword;
 	CString m_sFormUser, m_sFormPassword;
+	/* Keys pressed while the form was open and not let go yet. */
+	set<int> m_FormKeys;
 
 	/* What the select panel was last built for, so it's only redone on a change. */
 	const Steps *m_pSelectSteps;

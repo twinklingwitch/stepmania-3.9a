@@ -946,7 +946,15 @@ bool HandleGlobalInputs( DeviceInput DeviceI, InputEventType type, GameInput Gam
 
 	/* None of the globals keys act on types other than FIRST_PRESS */
 	if( type != IET_FIRST_PRESS ) 
+	{
+#if !defined(WITHOUT_EXTRAS)
+		/* But the Wife login form takes repeats and releases too, while it's
+		 * open and of the keys it had. */
+		if( (PREFSMAN->m_bWife || ONLINE->IsEnabled())  &&  SCREENMAN->WifeInput( DeviceI, type ) )
+			return true;
+#endif
 		return false;
+	}
 
 	switch( MenuI.button )
 	{

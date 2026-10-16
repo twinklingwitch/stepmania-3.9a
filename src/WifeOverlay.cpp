@@ -970,7 +970,32 @@ bool WifeOverlay::Input( const DeviceInput &DeviceI, InputEventType type )
 		return false;
 
 	ScreenSelectMusic *pSelect = dynamic_cast<ScreenSelectMusic *>( pTop );
-	if( pSelect != NULL && m_bShowOnline && m_bFormOpen )
+	const bool bForm = pSelect != NULL && m_bShowOnline && m_bFormOpen;
+
+	/* A key pressed into the form stays the form's until it's let go: the Esc
+	 * that closes the form, or the Enter that logs in, mustn't then repeat or
+	 * be released into the screen, which takes any Esc as Back. */
+	if( DeviceI.device == DEVICE_KEYBOARD )
+	{
+		const int iKey = DeviceI.button;
+		if( bForm )
+		{
+			if( type == IET_FIRST_PRESS )
+				m_FormKeys.insert( iKey );
+			else if( type == IET_RELEASE )
+				m_FormKeys.erase( iKey );
+		}
+		else if( type == IET_FIRST_PRESS )
+			m_FormKeys.erase( iKey );	// in case we missed its release
+		else if( m_FormKeys.find(iKey) != m_FormKeys.end() )
+		{
+			if( type == IET_RELEASE )
+				m_FormKeys.erase( iKey );
+			return true;
+		}
+	}
+
+	if( bForm )
 		return FormInput( DeviceI, type );
 
 	if( type != IET_FIRST_PRESS  ||  DeviceI.device != DEVICE_KEYBOARD )
