@@ -31,6 +31,7 @@ NoteField::NoteField()
 	m_fPercentFadeToFail = -1;
 	LastDisplay = NULL;
 	m_iColumnHoldsRevision = -1;
+	m_iTrackNoteRowsRevision = -1;
 }
 
 NoteField::~NoteField()
@@ -156,6 +157,46 @@ void NoteField::FindHoldsInRange( int iCol, int iFirstRow, int iLastRow, vector<
 		out.push_back( vHolds[k] );
 
 	sort( out.begin(), out.end() );
+}
+
+static bool IsNoteToDraw( const TapNote &tn )
+{
+	return tn.type != TapNote::empty && tn.type != TapNote::hold_head;
+}
+
+void NoteField::RebuildTrackNoteRows()
+{
+	m_iTrackNoteRowsRevision = GetTapNotesRevision();
+
+	const int iNumRows = GetNumRows();
+	for( int c=0; c<MAX_NOTE_TRACKS; c++ )
+	{
+		vector<int> &vRows = m_vTrackNoteRows[c];
+		vRows.clear();
+		if( c >= GetNumTracks() || iNumRows == 0 )
+			continue;
+		const TapNote *pTrackRows = GetTrackRows( c );
+		for( int i=0; i < iNumRows; i++ )
+			if( IsNoteToDraw(pTrackRows[i]) )
+				vRows.push_back( i );
+	}
+}
+
+void NoteField::SetTapNote( int track, int row, TapNote t )
+{
+	const bool bWasCurrent = m_iTrackNoteRowsRevision == GetTapNotesRevision();
+	NoteDataWithScoring::SetTapNote( track, row, t );
+	if( !bWasCurrent || row < 0 || track >= MAX_NOTE_TRACKS )
+		return;
+
+	vector<int> &vRows = m_vTrackNoteRows[track];
+	vector<int>::iterator it = lower_bound( vRows.begin(), vRows.end(), row );
+	const bool bListed = it != vRows.end() && *it == row;
+	if( IsNoteToDraw(t) && !bListed && track < GetNumTracks() )
+		vRows.insert( it, row );
+	else if( !IsNoteToDraw(t) && bListed )
+		vRows.erase( it );
+	m_iTrackNoteRowsRevision = GetTapNotesRevision();
 }
 
 void NoteField::CacheNoteSkin( CString skin )
@@ -628,6 +669,8 @@ void NoteField::DrawPrimitives()
 
 	if( m_iColumnHoldsRevision != GetHoldNotesRevision() )
 		RebuildColumnHolds();
+	if( m_iTrackNoteRowsRevision != GetTapNotesRevision() )
+		RebuildTrackNoteRows();
 
 	/* The notes of every track, for looking across a row. */
 	const TapNote *apTrackRows[MAX_NOTE_TRACKS];
@@ -699,9 +742,12 @@ void NoteField::DrawPrimitives()
 		const int iLastRowToCheck = min( iLastIndexToDraw, iNumRows-1 );
 		const TapNote *pTrackRows = iNumRows > 0? GetTrackRows(c): NULL;
 
-		// draw notes from furthest to closest
-		for( int i=iLastRowToCheck; i>=iFirstRowToCheck; --i )	//	 for each row
-		{	
+		/* Only the rows that have something to draw, from furthest to closest. */
+		const vector<int> &vRows = m_vTrackNoteRows[c];
+		int k = int( upper_bound( vRows.begin(), vRows.end(), iLastRowToCheck ) - vRows.begin() ) - 1;
+		for( ; k >= 0 && vRows[k] >= iFirstRowToCheck; --k )
+		{
+			const int i = vRows[k];
 			const TapNote &tn = pTrackRows[i];
 			if( tn.type == TapNote::empty )	// no note here
 				continue;	// skip

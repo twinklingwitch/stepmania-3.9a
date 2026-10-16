@@ -18,6 +18,8 @@ class NoteData
 	vector<HoldNote>	m_HoldNotes;
 	int m_iHoldNotesRevision;
 	void HoldNotesChanged();
+	int m_iTapNotesRevision;
+	void TapNotesChanged();
 
 	map<unsigned,Attack>	m_AttackMap;
 
@@ -100,6 +102,8 @@ public:
 	/* Changes whenever the list of holds does, so an index built from it can tell
 	 * when it's out of date. */
 	int GetHoldNotesRevision() const { return m_iHoldNotesRevision; }
+	/* The same for the tap notes. */
+	int GetTapNotesRevision() const { return m_iTapNotesRevision; }
 	HoldNote &GetHoldNote( int index ) { ASSERT( index < (int) m_HoldNotes.size() ); return m_HoldNotes[index]; }
 	const HoldNote &GetHoldNote( int index ) const { ASSERT( index < (int) m_HoldNotes.size() ); return m_HoldNotes[index]; }
 

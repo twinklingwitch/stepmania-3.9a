@@ -19,10 +19,17 @@ void NoteData::HoldNotesChanged()
 	m_iHoldNotesRevision = ++iHoldNotesRevisionCounter;
 }
 
+void NoteData::TapNotesChanged()
+{
+	static int iTapNotesRevisionCounter = 0;
+	m_iTapNotesRevision = ++iTapNotesRevisionCounter;
+}
+
 NoteData::NoteData()
 {
 	m_iNumTracks = 0;
 	HoldNotesChanged();
+	TapNotesChanged();
 	Init();
 }
 
@@ -56,6 +63,7 @@ void NoteData::SetNumTracks( int iNewNumTracks )
 		else
 			m_TapNotes[t].clear();
 	}
+	TapNotesChanged();
 
 	/* Remove all hold notes that are out of bounds. */
 	for( int h = m_HoldNotes.size()-1; h >= 0; --h )
@@ -83,6 +91,7 @@ void NoteData::ClearAll()
 {
 	for( int t=0; t<m_iNumTracks; t++ )
 		m_TapNotes[t].clear();
+	TapNotesChanged();
 	m_HoldNotes.clear();
 	HoldNotesChanged();
 }
@@ -134,6 +143,7 @@ void NoteData::CopyAll( const NoteData* pFrom )
 
 	for( int c=0; c<m_iNumTracks; c++ )
 		m_TapNotes[c] = pFrom->m_TapNotes[c];
+	TapNotesChanged();
 	m_HoldNotes = pFrom->m_HoldNotes;
 	HoldNotesChanged();
 	m_AttackMap = pFrom->m_AttackMap;
@@ -664,6 +674,7 @@ void NoteData::Convert2sAnd3sToHoldNotes()
 	for( int col=0; col<m_iNumTracks; col++ )	// foreach column
 	{
 		vector<TapNote> &Track = m_TapNotes[col];
+		TapNotesChanged();
 
 		/* Rows past the end of the track are empty. */
 		const int iLastRow = min( rows, int(Track.size())-1 );
@@ -817,6 +828,7 @@ void NoteData::LoadTransformed( const NoteData* pOriginal, int iNewNumTracks, co
 			continue;
 		m_TapNotes[t] = Original.m_TapNotes[iOriginalTrack];
 	}
+	TapNotesChanged();
 
 	Convert4sToHoldNotes();
 
@@ -842,6 +854,7 @@ void NoteData::SetTapNote(int track, int row, TapNote t)
 
 	PadTapNotes(row);
 	m_TapNotes[track][row]=t;
+	TapNotesChanged();
 }
 
 void NoteData::ReserveRows( int row )
@@ -870,6 +883,7 @@ void NoteData::EliminateAllButOneTap(int row)
 		if( m_TapNotes[track][row].type == TapNote::tap )
 			m_TapNotes[track][row] = TAP_EMPTY;
 	}
+	TapNotesChanged();
 }
 
 void NoteData::GetTracksHeldAtRow( int row, set<int>& addTo )

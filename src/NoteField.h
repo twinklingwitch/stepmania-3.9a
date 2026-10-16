@@ -40,6 +40,10 @@ public:
 	void CacheAllUsedNoteSkins();
 	void CacheNoteSkin( CString skin );
 
+	/* The Player takes notes off the field as they're hit; keep the rows to
+	 * draw up to date as it does. */
+	void SetTapNote( int track, int row, TapNote t );
+
 	void Step( int iCol, TapNoteScore score );
 	void SetPressed( int iCol );
 	void DidTapNote( int iCol, TapNoteScore score, bool bBright );
@@ -72,6 +76,13 @@ protected:
 	vector<int> m_vColumnHolds[MAX_NOTE_TRACKS];
 	vector<int> m_vColumnHoldsMaxEnd[MAX_NOTE_TRACKS];	// furthest end row of the holds up to and including this one
 	vector<int> m_vHoldsToDraw;
+
+	/* The rows of each column that have a note to draw (not empty, and not a
+	 * hold head), in order, so drawing doesn't have to look at every row on the
+	 * screen.  Rebuilt when the tap notes change, except through SetTapNote. */
+	int m_iTrackNoteRowsRevision;
+	vector<int> m_vTrackNoteRows[MAX_NOTE_TRACKS];
+	void RebuildTrackNoteRows();
 
 	/* The graphics for attack notes, by modifier. */
 	map<CString, Sprite *> m_AttackSprites;
