@@ -254,9 +254,12 @@ static void FixLilEndian()
  *   what's behind is kept, which is 1 - alpha for normal blending, all of it
  *   (0) for additive blending and none of it (1) with blending off.  That's
  *   the same color GL's blending made, and each vertex says which it is, so
- *   switching between them doesn't break up a run.  The rest of the blend
- *   modes (BLEND_INVERT, BLEND_NO_EFFECT) are still GL's blend function, and
- *   get the color as it is.  Nothing reads the destination alpha.
+ *   switching between them doesn't break up a run.  The color and alpha are
+ *   rounded to 8 bits before they're multiplied, as GL's blending into an
+ *   8-bit framebuffer did, which keeps the result within 1/255 of it.  The
+ *   rest of the blend modes (BLEND_INVERT, BLEND_NO_EFFECT) are still GL's
+ *   blend function, and get the color as it is.  Nothing reads the
+ *   destination alpha.
  * - One directional light with GL's lighting equation, the default scene
  *   ambient, no GL_NORMALIZE and no color material, like we had it.
  * - Sphere map texture coordinate generation, per unit.
@@ -367,8 +370,12 @@ static const char *g_szFragmentShader =
 "	if( (vBlend & 4) != 0 && c.a <= 0.01 ) discard;\n"
 "	vec3 rgb = c.rgb * uColorScale;\n"
 "	int iBlend = vBlend & 3;\n"
-"	if( iBlend == 0 ) FragColor = vec4( rgb * c.a, c.a );\n"
-"	else if( iBlend == 1 ) FragColor = vec4( rgb * c.a, 0.0 );\n"
+"	if( iBlend < 2 )\n"
+"	{\n"
+"		vec3 rgb8 = floor( clamp(rgb, 0.0, 1.0) * 255.0 + 0.5 ) * (1.0/255.0);\n"
+"		float a8 = floor( clamp(c.a, 0.0, 1.0) * 255.0 + 0.5 ) * (1.0/255.0);\n"
+"		FragColor = vec4( rgb8 * a8, iBlend == 0? c.a: 0.0 );\n"
+"	}\n"
 "	else if( iBlend == 2 ) FragColor = vec4( rgb, 1.0 );\n"
 "	else FragColor = vec4( rgb, c.a );\n"
 "}\n";
