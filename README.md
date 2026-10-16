@@ -396,6 +396,15 @@ The game is started full screen by default.  Set `Windowed=1` in
 `VideoRenderers` in `Data/StepMania.ini` is the list of renderers to try, in
 order:
 
+- `sdlgpu`: SDL's GPU API, which is Metal on macOS and Vulkan on Linux and
+  Windows (with a Vulkan driver).  It draws the same pictures as `glcore`, but
+  the way current GPUs want to be told: each frame is recorded, its vertices
+  go to the GPU in one upload, and it's drawn in one render pass with
+  pipeline objects made ahead of time, so the driver has next to nothing to
+  work out per draw.  On macOS it skips Apple's OpenGL, which is a layer on
+  top of Metal.  Not in the default list yet; try it with
+  `VideoRenderers=sdlgpu,glcore,opengl`.  `SM_RENDER_STATS=1` in the
+  environment logs what each frame sends.
 - `glcore`: OpenGL 3.3 core profile (4.1 on macOS).  It draws what 3.9's
   renderer drew with one small shader program, sends vertices through buffer
   objects and draws runs of sprites that share their state in one draw call.
@@ -411,10 +420,10 @@ context gets the old renderer.  A `StepMania.ini` from before this keeps its
 `VideoRenderers=opengl`; change it to `glcore,opengl` (or delete the line) to
 use the new one.  `log.txt` says which one is running ("Current renderer").
 
-The only difference you can see: core OpenGL has no antialiased or wide lines,
-so with `glcore` the outlines of the groove radar and graph are drawn with
+The only difference you can see: core OpenGL and SDL's GPU API have no
+antialiased or wide lines, so with `glcore` and `sdlgpu` the outlines of the groove radar and graph are drawn with
 polygons, as `opengl` does with "Smooth Lines" off, and the outline of
-cel-shaded characters is one pixel wide on macOS.
+cel-shaded characters is one pixel wide on macOS (and always with `sdlgpu`).
 
 ## Etterna-style scoring
 
