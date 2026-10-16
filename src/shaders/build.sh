@@ -1,8 +1,11 @@
 #!/bin/sh
 # Regenerates ../RageDisplay_SDLGPU_Shaders.h from the shaders here: SPIR-V
-# (Vulkan) with glslangValidator, and Metal Shading Language with spirv-cross.
-# Run it after changing a shader, and commit the result, so building the game
-# doesn't need these tools.
+# (Vulkan) with glslangValidator; Metal Shading Language with spirv-cross; and
+# DXIL (Direct3D 12) with spirv-cross to HLSL and Microsoft's dxc, which has to
+# find its libdxil to sign the DXIL (Direct3D won't take it unsigned).  Linux
+# builds of dxc are on github.com/microsoft/DirectXShaderCompiler; set DXC to
+# where it is if it isn't on the path.  Run this after changing a shader, and
+# commit the result, so building the game doesn't need these tools.
 set -e
 cd "$(dirname "$0")"
 T=$(mktemp -d)
@@ -13,6 +16,18 @@ glslangValidator -V -S vert -DMODEL sdlgpu.vert -o "$T/model.vert.spv" >/dev/nul
 glslangValidator -V -S frag sdlgpu.frag -o "$T/frag.spv" >/dev/null
 for n in sprite.vert model.vert frag; do
 	spirv-cross "$T/$n.spv" --msl --msl-version 20000 --msl-decoration-binding --output "$T/$n.metal"
+	spirv-cross "$T/$n.spv" --hlsl --shader-model 60 --output "$T/$n.hlsl"
+done
+DXC=${DXC:-dxc}
+"$DXC" -T vs_6_0 -E main -Fo "$T/sprite.vert.dxil" "$T/sprite.vert.hlsl" >/dev/null
+"$DXC" -T vs_6_0 -E main -Fo "$T/model.vert.dxil" "$T/model.vert.hlsl" >/dev/null
+"$DXC" -T ps_6_0 -E main -Fo "$T/frag.dxil" "$T/frag.hlsl" >/dev/null
+for n in sprite.vert model.vert frag; do
+	# An unsigned container has a digest of zeros.
+	if [ "$(od -An -j4 -N16 -tx1 "$T/$n.dxil" | tr -d ' \n')" = 00000000000000000000000000000000 ]; then
+		echo "$n.dxil isn't signed: dxc didn't find libdxil" >&2
+		exit 1
+	fi
 done
 
 array() { # name file
@@ -26,6 +41,9 @@ array() { # name file
 	array g_SpriteVertSPIRV "$T/sprite.vert.spv"
 	array g_ModelVertSPIRV "$T/model.vert.spv"
 	array g_FragSPIRV "$T/frag.spv"
+	array g_SpriteVertDXIL "$T/sprite.vert.dxil"
+	array g_ModelVertDXIL "$T/model.vert.dxil"
+	array g_FragDXIL "$T/frag.dxil"
 	printf '\0' >> "$T/sprite.vert.metal"; printf '\0' >> "$T/model.vert.metal"; printf '\0' >> "$T/frag.metal"
 	array g_SpriteVertMSL "$T/sprite.vert.metal"
 	array g_ModelVertMSL "$T/model.vert.metal"

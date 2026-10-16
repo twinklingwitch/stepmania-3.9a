@@ -348,7 +348,7 @@ RageDisplay *CreateDisplay()
 
 		if( sRenderer.CompareNoCase("sdlgpu")==0 )
 		{
-			error += "Initializing SDL GPU (Metal, Vulkan)...\n";
+			error += "Initializing SDL GPU (Metal, Vulkan, Direct3D 12)...\n";
 			try {
 				return new RageDisplay_SDLGPU( params );
 			} catch(const RageException &e) {

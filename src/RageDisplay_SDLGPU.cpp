@@ -1141,24 +1141,39 @@ static void ReleaseDeleted()
 /*
  * Setting up the device.
  */
-static SDL_GPUShader *CreateShader( SDL_GPUShaderStage stage,
-	const unsigned char *pSPIRV, size_t iSPIRVSize, const unsigned char *pMSL, size_t iMSLSize,
+/* A shader in each language a device might take, from shaders/build.sh. */
+struct ShaderCode
+{
+	const unsigned char *pSPIRV, *pDXIL, *pMSL;
+	size_t iSPIRVSize, iDXILSize, iMSLSize;
+};
+#define SHADER_CODE(name) { g_##name##SPIRV, g_##name##DXIL, g_##name##MSL, \
+	sizeof(g_##name##SPIRV), sizeof(g_##name##DXIL), sizeof(g_##name##MSL) }
+
+static SDL_GPUShader *CreateShader( SDL_GPUShaderStage stage, const ShaderCode &code,
 	int iSamplers, int iUniformBuffers )
 {
 	SDL_GPUShaderCreateInfo info;
 	SDL_zero( info );
 	const SDL_GPUShaderFormat formats = SDL_GetGPUShaderFormats( g_pDevice );
-	if( formats & SDL_GPU_SHADERFORMAT_SPIRV )
+	if( formats & SDL_GPU_SHADERFORMAT_SPIRV )	// Vulkan
 	{
-		info.code = pSPIRV;
-		info.code_size = iSPIRVSize;
+		info.code = code.pSPIRV;
+		info.code_size = code.iSPIRVSize;
 		info.entrypoint = "main";
 		info.format = SDL_GPU_SHADERFORMAT_SPIRV;
 	}
-	else
+	else if( formats & SDL_GPU_SHADERFORMAT_DXIL )	// Direct3D 12
 	{
-		info.code = pMSL;
-		info.code_size = iMSLSize - 1;	// without the terminating null
+		info.code = code.pDXIL;
+		info.code_size = code.iDXILSize;
+		info.entrypoint = "main";
+		info.format = SDL_GPU_SHADERFORMAT_DXIL;
+	}
+	else	// Metal
+	{
+		info.code = code.pMSL;
+		info.code_size = code.iMSLSize - 1;	// without the terminating null
 		info.entrypoint = "main0";
 		info.format = SDL_GPU_SHADERFORMAT_MSL;
 	}
@@ -1254,9 +1269,10 @@ static SDL_GPUTexture *CreateGPUTexture( int iWidth, int iHeight, int iLevels, S
 
 static void InitDevice()
 {
-	g_pSpriteVS = CreateShader( SDL_GPU_SHADERSTAGE_VERTEX, g_SpriteVertSPIRV, sizeof(g_SpriteVertSPIRV), g_SpriteVertMSL, sizeof(g_SpriteVertMSL), 0, 2 );
-	g_pModelVS = CreateShader( SDL_GPU_SHADERSTAGE_VERTEX, g_ModelVertSPIRV, sizeof(g_ModelVertSPIRV), g_ModelVertMSL, sizeof(g_ModelVertMSL), 0, 2 );
-	g_pFS = CreateShader( SDL_GPU_SHADERSTAGE_FRAGMENT, g_FragSPIRV, sizeof(g_FragSPIRV), g_FragMSL, sizeof(g_FragMSL), 2, 1 );
+	const ShaderCode SpriteVS = SHADER_CODE( SpriteVert ), ModelVS = SHADER_CODE( ModelVert ), FS = SHADER_CODE( Frag );
+	g_pSpriteVS = CreateShader( SDL_GPU_SHADERSTAGE_VERTEX, SpriteVS, 0, 2 );
+	g_pModelVS = CreateShader( SDL_GPU_SHADERSTAGE_VERTEX, ModelVS, 0, 2 );
+	g_pFS = CreateShader( SDL_GPU_SHADERSTAGE_FRAGMENT, FS, 2, 1 );
 
 	/* 32 bit float depth has room for many slices; 24 bit for a few. */
 	const SDL_GPUTextureFormat Depth[] = { SDL_GPU_TEXTUREFORMAT_D32_FLOAT, SDL_GPU_TEXTUREFORMAT_D24_UNORM, SDL_GPU_TEXTUREFORMAT_D16_UNORM };
@@ -1542,6 +1558,50 @@ static void SetSwapchain( const RageDisplay::VideoModeParams &p )
 	LOG->Info( "SDL GPU present mode: %s%s", szModes[mode], g_bWaitFirst? ", waiting for the window before each frame": "" );
 }
 
+/* Make the device: Direct3D 12 on Windows, where it presents with less work
+ * than Vulkan or GL in a window (DXGI's flip model, tearing when vsync is off),
+ * and whatever SDL picks elsewhere (Metal on macOS, Vulkan otherwise).
+ * SM_SDLGPU_DRIVER (vulkan, direct3d12, metal) asks for one. */
+static SDL_GPUDevice *CreateDevice()
+{
+	const char *szDriver = SDL_getenv( "SM_SDLGPU_DRIVER" );
+	const bool bAsked = szDriver != NULL && szDriver[0] != '\0';
+#if defined(_WIN32)
+	if( !bAsked )
+		szDriver = "direct3d12";
+#else
+	if( !bAsked )
+		szDriver = NULL;
+#endif
+
+	SDL_GPUDevice *pDevice = NULL;
+	for( int iTry = 0; iTry < 2 && pDevice == NULL; ++iTry )
+	{
+		/* If the one we prefer isn't there, let SDL pick, unless it was asked for. */
+		if( iTry == 1 )
+		{
+			if( szDriver == NULL || bAsked )
+				break;
+			LOG->Info( "SDL GPU: no %s device (%s); letting SDL choose", szDriver, SDL_GetError() );
+			szDriver = NULL;
+		}
+
+		SDL_PropertiesID props = SDL_CreateProperties();
+		SDL_SetBooleanProperty( props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN, true );
+		SDL_SetBooleanProperty( props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN, true );
+		SDL_SetBooleanProperty( props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, true );
+		SDL_SetBooleanProperty( props, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, SDL_getenv("SM_SDLGPU_DEBUG") != NULL );
+		/* We use no storage buffers or textures, so older Direct3D 12 hardware
+		 * (resource binding tier 1) is enough. */
+		SDL_SetBooleanProperty( props, "SDL.gpu.device.create.d3d12.allowtier1resourcebinding", true );	// SDL_PROP_GPU_DEVICE_CREATE_D3D12_ALLOW_FEWER_RESOURCE_SLOTS_BOOLEAN, SDL 3.4
+		if( szDriver != NULL )
+			SDL_SetStringProperty( props, SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING, szDriver );
+		pDevice = SDL_CreateGPUDeviceWithProperties( props );
+		SDL_DestroyProperties( props );
+	}
+	return pDevice;
+}
+
 CString RageDisplay_SDLGPU::TryVideoMode( VideoModeParams p, bool &bNewDeviceOut )
 {
 	FlushPendingFrame();
@@ -1556,8 +1616,7 @@ CString RageDisplay_SDLGPU::TryVideoMode( VideoModeParams p, bool &bNewDeviceOut
 		ShutdownDevice();
 		bNewDeviceOut = true;
 
-		const bool bDebug = SDL_getenv( "SM_SDLGPU_DEBUG" ) != NULL;
-		g_pDevice = SDL_CreateGPUDevice( SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_MSL, bDebug, NULL );
+		g_pDevice = CreateDevice();
 		if( g_pDevice == NULL )
 			return GPUError( "SDL_CreateGPUDevice" );
 		if( !SDL_ClaimWindowForGPUDevice(g_pDevice, pWindow) )
