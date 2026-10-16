@@ -231,6 +231,7 @@ static void GameLoop();
 
 #include "RageDisplay_OGL.h"
 #include "RageDisplay_GLCore.h"
+#include "RageDisplay_SDLGPU.h"
 #include "RageDisplay_Null.h"
 
 struct VideoCardDefaults
@@ -344,7 +345,18 @@ RageDisplay *CreateDisplay()
 	{
 		CString sRenderer = asRenderers[i];
 
-		if( sRenderer.CompareNoCase("glcore")==0 )
+		if( sRenderer.CompareNoCase("sdlgpu")==0 )
+		{
+			error += "Initializing SDL GPU (Metal, Vulkan)...\n";
+			try {
+				return new RageDisplay_SDLGPU( params );
+			} catch(const RageException &e) {
+				LOG->Info( "SDL GPU renderer unavailable: %s", e.what() );
+				error += CString(e.what()) + "\n";
+				continue;
+			};
+		}
+		else if( sRenderer.CompareNoCase("glcore")==0 )
 		{
 			error += "Initializing OpenGL (core profile)...\n";
 			try {
@@ -1176,6 +1188,37 @@ static void CheckSkips( float fDeltaTime )
 			iThisFPS, fExpectedTime, fDeltaTime, fDifference );
 }
 
+/* For comparing renderers: with SM_AUTOSHOT_FRAMES=N and SM_AUTOSHOT_DIR set,
+ * frame N of each screen stays on the screen for two seconds, and a file in
+ * SM_AUTOSHOT_DIR says so (named after the screen), for a script to take a
+ * picture of the window.  With ConstantUpdateDeltaSeconds set, frame N is the
+ * same picture in every run. */
+static void AutoShot()
+{
+	static int iFrames = -1;
+	static const char *szDir = getenv( "SM_AUTOSHOT_DIR" );
+	static const char *szFrames = getenv( "SM_AUTOSHOT_FRAMES" );
+	if( szDir == NULL || szFrames == NULL )
+		return;
+
+	static const Screen *pLast = NULL;
+	static int iShot = 0;
+	const Screen *pTop = SCREENMAN->GetTopScreen();
+	if( pTop != pLast )
+	{
+		pLast = pTop;
+		iFrames = 0;
+	}
+	if( ++iFrames != atoi(szFrames) || pTop == NULL )
+		return;
+
+	const CString sPath = ssprintf( "%s/%02i-%s.ready", szDir, iShot++, pTop->GetName().c_str() );
+	FILE *f = fopen( sPath, "w" );
+	if( f )
+		fclose( f );
+	usleep( 2000000 );
+}
+
 /* Don't start frames faster than MaxFPS, so without vsync we don't spin the CPU
  * and GPU for frames nobody can see.  Sleep for most of the wait, since the
  * scheduler may wake us late, and spin for the rest.  How much to leave for
@@ -1293,6 +1336,8 @@ static void GameLoop()
 		 * Render
 		 */
 		SCREENMAN->Draw();
+
+		AutoShot();
 
 		LimitFrameRate();
 

@@ -46,6 +46,7 @@ LowLevelWindow_SDL::LowLevelWindow_SDL()
 	m_iWindowedWidth = m_iWindowedHeight = 0;
 	m_iFramebufferWidth = m_iFramebufferHeight = 0;
 	m_bCoreProfile = false;
+	m_bNoGL = false;
 
 	if( !SDL_InitSubSystem(SDL_INIT_VIDEO) )
 		RageException::Throw( "SDL_INIT_VIDEO failed: %s", mySDL_GetError().c_str() );
@@ -125,7 +126,8 @@ CString LowLevelWindow_SDL::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 
 	bNewDeviceOut = false;
 
-	if( m_pWindow == NULL || p.bpp != m_iWindowBpp )
+	/* Without GL there's no pixel format to change. */
+	if( m_pWindow == NULL || (!m_bNoGL && p.bpp != m_iWindowBpp) )
 	{
 		DestroyWindow();
 
@@ -175,7 +177,9 @@ CString LowLevelWindow_SDL::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 		/* On Retina displays (and scaled Wayland outputs) draw at the display's
 		 * resolution rather than letting it scale up a low resolution picture.
 		 * Window sizes stay in the usual units; only the framebuffer is bigger. */
-		SDL_WindowFlags flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+		SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+		if( !m_bNoGL )
+			flags |= SDL_WINDOW_OPENGL;
 		if( !p.windowed )
 			flags |= SDL_WINDOW_FULLSCREEN;
 
@@ -186,8 +190,9 @@ CString LowLevelWindow_SDL::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 			return mySDL_GetError();	// failed to set mode
 		}
 
-		m_pContext = SDL_GL_CreateContext( m_pWindow );
-		if( m_pContext == NULL )
+		if( !m_bNoGL )
+			m_pContext = SDL_GL_CreateContext( m_pWindow );
+		if( !m_bNoGL && m_pContext == NULL )
 		{
 			const CString err = mySDL_GetError();
 			LOG->Trace( "SDL_GL_CreateContext failed: %s", err.c_str() );
@@ -198,7 +203,7 @@ CString LowLevelWindow_SDL::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 		m_iWindowBpp = p.bpp;
 
 #if defined(HAVE_FRAME_FENCE)
-		if( SDL_GL_ExtensionSupported("GL_ARB_sync") )
+		if( !m_bNoGL && SDL_GL_ExtensionSupported("GL_ARB_sync") )
 		{
 			g_FenceSync = (FenceSyncFunc) SDL_GL_GetProcAddress( "glFenceSync" );
 			g_ClientWaitSync = (ClientWaitSyncFunc) SDL_GL_GetProcAddress( "glClientWaitSync" );
@@ -258,7 +263,7 @@ CString LowLevelWindow_SDL::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 	SyncWindow( m_pWindow );
 
 	/* This applies to the current context, so it has to be set every time. */
-	if( !SDL_GL_SetSwapInterval(p.vsync? 1:0) )
+	if( !m_bNoGL && !SDL_GL_SetSwapInterval(p.vsync? 1:0) )
 		LOG->Info( "SDL_GL_SetSwapInterval failed: %s", mySDL_GetError().c_str() );
 
 	if( p.windowed )
@@ -281,6 +286,7 @@ CString LowLevelWindow_SDL::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 	if( m_iFramebufferWidth != p.width || m_iFramebufferHeight != p.height )
 		LOG->Info( "Framebuffer: %ix%i pixels", m_iFramebufferWidth, m_iFramebufferHeight );
 
+	if( !m_bNoGL )
 	{
 		/* Find out what we really got. */
 		int r,g,b,a, colorbits, depth, stencil;

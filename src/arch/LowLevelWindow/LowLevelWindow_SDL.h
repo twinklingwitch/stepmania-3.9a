@@ -26,6 +26,7 @@ class LowLevelWindow_SDL: public LowLevelWindow
 	int m_iFramebufferWidth, m_iFramebufferHeight;
 
 	bool m_bCoreProfile;
+	bool m_bNoGL;
 
 	void DestroyWindow();
 
@@ -34,6 +35,8 @@ public:
 	~LowLevelWindow_SDL();
 	void *GetProcAddress(CString s);
 	void SetCoreProfile( bool b ) { m_bCoreProfile = b; }
+	void SetNoGL( bool b ) { m_bNoGL = b; }
+	void *GetSDLWindow() const { return m_pWindow; }
 	CString TryVideoMode( RageDisplay::VideoModeParams p, bool &bNewDeviceOut );
 	void SwapBuffers();
 	float GetRefreshRate() const;

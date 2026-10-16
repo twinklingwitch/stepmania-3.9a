@@ -18,6 +18,13 @@ public:
 	 * compatibility one, for windows created after this. */
 	virtual void SetCoreProfile( bool b ) { }
 
+	/* Make windows without OpenGL, for a renderer that draws some other way
+	 * (SDL's GPU API).  GetProcAddress and SwapBuffers aren't used then. */
+	virtual void SetNoGL( bool b ) { }
+
+	/* The SDL_Window, for renderers that need it; NULL if there's none. */
+	virtual void *GetSDLWindow() const { return NULL; }
+
 	// Return "" if mode change was successful, otherwise an error message.
 	// bNewDeviceOut is set true if a new device was created and textures
 	// need to be reloaded.

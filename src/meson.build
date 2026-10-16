@@ -233,6 +233,7 @@ rage = files(
   'RageDisplay.cpp',
   'RageDisplay_OGL.cpp',
   'RageDisplay_GLCore.cpp',
+  'RageDisplay_SDLGPU.cpp',
   'RageDisplay_Null.cpp',
   'RageException.cpp',
   'RageInput.cpp',
