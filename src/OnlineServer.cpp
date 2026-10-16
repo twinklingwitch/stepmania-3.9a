@@ -274,11 +274,32 @@ void OnlineManager::CheckServer()
  * Accounts
  */
 
+static const CString &GetGuestAccountFile( PlayerNumber pn )
+{
+	static CString sFiles[NUM_PLAYERS];
+	if( sFiles[pn].empty() )
+		sFiles[pn] = ONLINE_DIR + ssprintf( "GuestP%i.ini", pn+1 );
+	return sFiles[pn];
+}
+
 CString OnlineManager::GetAccountFile( PlayerNumber pn ) const
 {
 	if( PROFILEMAN->IsUsingProfile(pn) )
 		return PROFILEMAN->GetProfileDir( (ProfileSlot) pn ) + TOKEN_FILE;
-	return ONLINE_DIR + ssprintf( "GuestP%i.ini", pn+1 );
+	return GetGuestAccountFile( pn );
+}
+
+/* sFile == GetAccountFile(pn), without building the path: this is checked
+ * several times a frame. */
+bool OnlineManager::IsAccountFile( PlayerNumber pn, const CString &sFile ) const
+{
+	if( !PROFILEMAN->IsUsingProfile(pn) )
+		return sFile == GetGuestAccountFile( pn );
+
+	const CString sDir = PROFILEMAN->GetProfileDir( (ProfileSlot) pn );
+	return sFile.size() == sDir.size() + TOKEN_FILE.size() &&
+		sFile.compare( 0, sDir.size(), sDir ) == 0 &&
+		sFile.compare( sDir.size(), TOKEN_FILE.size(), TOKEN_FILE ) == 0;
 }
 
 /* The token in sFile if it is for this server and hasn't expired. */
@@ -335,7 +356,7 @@ void OnlineManager::ForgetToken( PlayerNumber pn, const CString &sWhy )
 
 const OnlineAccount &OnlineManager::GetAccount( PlayerNumber pn )
 {
-	if( m_Account[pn].sFile != GetAccountFile(pn) )
+	if( !IsAccountFile(pn, m_Account[pn].sFile) )
 		LoadAccount( pn );
 	return m_Account[pn].info;
 }

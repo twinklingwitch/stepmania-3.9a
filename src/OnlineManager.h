@@ -205,6 +205,7 @@ private:
 	};
 	Account m_Account[NUM_PLAYERS];
 	CString GetAccountFile( PlayerNumber pn ) const;
+	bool IsAccountFile( PlayerNumber pn, const CString &sFile ) const;
 	void LoadAccount( PlayerNumber pn );
 	void ForgetToken( PlayerNumber pn, const CString &sWhy );
 	CString ReadToken( const CString &sFile ) const;
