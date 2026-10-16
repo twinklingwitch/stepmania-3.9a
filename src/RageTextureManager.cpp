@@ -104,7 +104,8 @@ void RageTextureManager::Update( float fDeltaTime )
 		m_vTextures.clear();
 		for( std::map<RageTextureID, RageTexture*>::iterator i = m_mapPathToTexture.begin();
 			i != m_mapPathToTexture.end(); ++i)
-			m_vTextures.push_back( i->second );
+			if( dynamic_cast<RageMovieTexture *>(i->second) != NULL )
+				m_vTextures.push_back( i->second );
 		m_bTexturesChanged = false;
 	}
 

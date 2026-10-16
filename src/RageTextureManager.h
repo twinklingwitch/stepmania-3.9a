@@ -135,7 +135,8 @@ protected:
 
 	std::map<RageTextureID, RageTexture*> m_mapPathToTexture;
 
-	/* The textures in m_mapPathToTexture, in the same order, for Update to walk
+	/* The textures in m_mapPathToTexture that do anything when updated (movies;
+	 * the rest have an empty Update), in the same order, for Update to walk
 	 * every frame; rebuilt when the map changes. */
 	vector<RageTexture*> m_vTextures;
 	bool m_bTexturesChanged;
