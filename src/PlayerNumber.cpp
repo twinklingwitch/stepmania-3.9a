@@ -24,8 +24,6 @@ RageColor PlayerToColor( int p )
 
 PlayerNumber GetNextHumanPlayer( PlayerNumber pn )
 {
-	/* This is asked for every frame. */
-	static ThemeMetricCache<RageColor> s_Colors[NUM_PLAYERS];
 	for( PlayerNumber p=(PlayerNumber)(pn+1); p<NUM_PLAYERS; p=(PlayerNumber)(p+1) )
 	{
 		if( GAMESTATE->IsHumanPlayer(p) )
@@ -36,8 +34,6 @@ PlayerNumber GetNextHumanPlayer( PlayerNumber pn )
 
 PlayerNumber GetNextEnabledPlayer( PlayerNumber pn )
 {
-	/* This is asked for every frame. */
-	static ThemeMetricCache<RageColor> s_Colors[NUM_PLAYERS];
 	for( PlayerNumber p=(PlayerNumber)(pn+1); p<NUM_PLAYERS; p=(PlayerNumber)(p+1) )
 	{
 		if( GAMESTATE->IsPlayerEnabled(p) )
@@ -48,8 +44,6 @@ PlayerNumber GetNextEnabledPlayer( PlayerNumber pn )
 
 PlayerNumber GetNextCpuPlayer( PlayerNumber pn )
 {
-	/* This is asked for every frame. */
-	static ThemeMetricCache<RageColor> s_Colors[NUM_PLAYERS];
 	for( PlayerNumber p=(PlayerNumber)(pn+1); p<NUM_PLAYERS; p=(PlayerNumber)(p+1) )
 	{
 		if( GAMESTATE->IsCpuPlayer(p) )
@@ -60,8 +54,6 @@ PlayerNumber GetNextCpuPlayer( PlayerNumber pn )
 
 PlayerNumber GetNextPotentialCpuPlayer( PlayerNumber pn )
 {
-	/* This is asked for every frame. */
-	static ThemeMetricCache<RageColor> s_Colors[NUM_PLAYERS];
 	for( PlayerNumber p=(PlayerNumber)(pn+1); p<NUM_PLAYERS; p=(PlayerNumber)(p+1) )
 	{
 		if( !GAMESTATE->IsHumanPlayer(p) )
