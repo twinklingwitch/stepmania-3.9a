@@ -204,6 +204,11 @@ namespace
 	 * counter ticks. */
 	Uint64 g_iPresentInterval = 0;
 	Uint64 g_iLastPresent = 0;
+
+	/* Whether g_iPresentInterval follows how fast the window gives back the
+	 * buffers we draw to, and the longest it may get: a display refresh. */
+	bool g_bAutoPresent = false;
+	Uint64 g_iMaxPresentInterval = 0;
 	Uint64 g_iLastEndFrame = 0;
 
 	/* The uniform blocks as they are now, and whether they differ from the last
@@ -979,9 +984,9 @@ static void LogStats()
 	const float f = float( max(s.iFrames, 1) );
 	LOG->Info( "SDL GPU per frame: %.1f commands, %.0f vertices, %.1f pipeline binds, %.1f texture binds, %.1f uniform pushes",
 		s.iCommands/f, s.iVertices/f, s.iPipelines/f, s.iSamplers/f, s.iUniforms/f );
-	LOG->Info( "SDL GPU ms per frame: game %.3f, recording %.3f, GPU wait %.3f, window buffer wait %.3f (longest %.3f), submit %.3f; %d frames drawn, %d not",
+	LOG->Info( "SDL GPU ms per frame: game %.3f, recording %.3f, GPU wait %.3f, window buffer wait %.3f (longest %.3f), submit %.3f; %d frames drawn, %d not; drawing at most every %.3f ms",
 		TicksToMs(s.iGame)/f, TicksToMs(s.iRecord)/f, TicksToMs(s.iGPUWait)/f, TicksToMs(s.iAcquire)/f, TicksToMs(s.iAcquireMax),
-		TicksToMs(s.iSubmit)/f, s.iFrames, s.iSkipped );
+		TicksToMs(s.iSubmit)/f, s.iFrames, s.iSkipped, TicksToMs(g_iPresentInterval) );
 	memset( &g_Stats, 0, sizeof(g_Stats) );
 }
 
@@ -1486,6 +1491,19 @@ static void SetSwapchain( const RageDisplay::VideoModeParams &p )
 	const int iPresentHz = szPresentHz? atoi( szPresentHz ): 0;
 	g_iPresentInterval = iPresentHz > 0? SDL_GetPerformanceFrequency() / iPresentHz: 0;
 
+	/* A macOS window gives back the buffers we draw to only so fast (about 650
+	 * a second on an M5 at 120 Hz), and asking for one before then waits for
+	 * it.  Rather than wait, keep the game running and draw a frame only when
+	 * a buffer should be free: find how often that is by backing off when we
+	 * had to wait and creeping closer when we didn't.  SM_SDLGPU_AUTO_PACE=0
+	 * turns it off, and =1 turns it on with other drivers. */
+	const char *szAuto = SDL_getenv( "SM_SDLGPU_AUTO_PACE" );
+	const bool bMetal = strcmp( SDL_GetGPUDeviceDriver(g_pDevice), "metal" ) == 0;
+	g_bAutoPresent = iPresentHz <= 0 && mode == SDL_GPU_PRESENTMODE_IMMEDIATE &&
+		(szAuto? atoi(szAuto) != 0: bMetal);
+	const float fRefresh = g_pWind->GetRefreshRate();
+	g_iMaxPresentInterval = Uint64( SDL_GetPerformanceFrequency() / (fRefresh > 0? fRefresh: 60.0f) );
+
 	const SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat( g_pDevice, g_pWindow );
 	if( format != g_SwapchainFormat )
 	{
@@ -1518,7 +1536,7 @@ static void SetSwapchain( const RageDisplay::VideoModeParams &p )
 	}
 
 	const char *szModes[] = { "vsync", "immediate", "mailbox" };
-	LOG->Info( "SDL GPU present mode: %s", szModes[mode] );
+	LOG->Info( "SDL GPU present mode: %s%s", szModes[mode], g_bAutoPresent? ", paced to the window": "" );
 }
 
 CString RageDisplay_SDLGPU::TryVideoMode( VideoModeParams p, bool &bNewDeviceOut )
@@ -1624,6 +1642,23 @@ bool RageDisplay_SDLGPU::BeginFrame()
 
 static void DrawFrame( bool bPacing );
 
+/* With g_bAutoPresent, follow how fast the window gives back buffers: iWait is
+ * how long the last one took to come. */
+static void AdjustPresentInterval( Uint64 iWait )
+{
+	const Uint64 iFreq = SDL_GetPerformanceFrequency();
+	if( iWait > iFreq/10000 )
+	{
+		/* We waited more than 0.1 ms: draw less often.  A long wait is usually
+		 * the window being busy once (moving it, a hitch), not the rate, so
+		 * don't back off by more than 0.25 ms at a time. */
+		g_iPresentInterval += min( iWait, iFreq/2000 ) / 2;
+		g_iPresentInterval = min( g_iPresentInterval, g_iMaxPresentInterval );
+	}
+	else
+		g_iPresentInterval -= g_iPresentInterval / 64;
+}
+
 void RageDisplay_SDLGPU::EndFrame()
 {
 	const Uint64 iStart = SDL_GetPerformanceCounter();
@@ -1684,6 +1719,8 @@ static void DrawFrame( bool bPacing )
 	iNow = SDL_GetPerformanceCounter();
 	g_Stats.iAcquire += iNow - iTime;
 	g_Stats.iAcquireMax = max( g_Stats.iAcquireMax, iNow - iTime );
+	if( g_bAutoPresent && !bPacing )
+		AdjustPresentInterval( iNow - iTime );
 	iTime = iNow;
 	FrameStats::Mark( FrameStats::PHASE_PRESENT );
 
