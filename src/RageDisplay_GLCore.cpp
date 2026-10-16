@@ -247,7 +247,16 @@ static void FixLilEndian()
  * - Texture unit modes (glTexEnv): modulate, add, and "glow" (GL_COMBINE: the
  *   vertex color, with the texture's alpha).  Unit 0's mode comes with each
  *   vertex (0 = not textured); unit 1, only used by models, is a uniform.
- * - The alpha test (GL_GREATER 0.01).
+ * - The alpha test (GL_GREATER 0.01), which comes with each vertex.
+ * - Blending.  Normal and additive blending, and no blending, are all done
+ *   with one blend function, ONE and ONE_MINUS_SRC_ALPHA: the color goes
+ *   out multiplied by its alpha, and the alpha that goes out says how much of
+ *   what's behind is kept, which is 1 - alpha for normal blending, all of it
+ *   (0) for additive blending and none of it (1) with blending off.  That's
+ *   the same color GL's blending made, and each vertex says which it is, so
+ *   switching between them doesn't break up a run.  The rest of the blend
+ *   modes (BLEND_INVERT, BLEND_NO_EFFECT) are still GL's blend function, and
+ *   get the color as it is.  Nothing reads the destination alpha.
  * - One directional light with GL's lighting equation, the default scene
  *   ambient, no GL_NORMALIZE and no color material, like we had it.
  * - Sphere map texture coordinate generation, per unit.
@@ -283,6 +292,7 @@ static const char *g_szVertexShader =
 "out vec4 vTexCoord0;\n"
 "out vec4 vTexCoord1;\n"
 "flat out int vMode0;\n"
+"flat out int vBlend;\n"
 "vec4 SphereMap( vec3 u, vec3 n, vec4 tc )\n"
 "{\n"
 "	vec3 r = u - 2.0*n*dot(n, u);\n"
@@ -327,6 +337,7 @@ static const char *g_szVertexShader =
 "	vTexCoord0 = uTexMatrix0 * tc0;\n"
 "	vTexCoord1 = uTexMatrix1 * tc1;\n"
 "	vMode0 = int( aMode.x + 0.5 );\n"
+"	vBlend = int( aMode.y + 0.5 );\n"
 "}\n";
 
 static const char *g_szFragmentShader =
@@ -334,12 +345,12 @@ static const char *g_szFragmentShader =
 "uniform sampler2D uTexture0;\n"
 "uniform sampler2D uTexture1;\n"
 "uniform int uTex1Mode;\n"
-"uniform int uAlphaTest;\n"
 "uniform vec3 uColorScale;\n"
 "in vec4 vColor;\n"
 "in vec4 vTexCoord0;\n"
 "in vec4 vTexCoord1;\n"
 "flat in int vMode0;\n"
+"flat in int vBlend;\n"
 "out vec4 FragColor;\n"
 "vec4 Combine( int iMode, vec4 prev, vec4 tex )\n"
 "{\n"
@@ -353,14 +364,22 @@ static const char *g_szFragmentShader =
 "	vec4 c = vColor;\n"
 "	if( vMode0 != 0 ) c = Combine( vMode0, c, textureProj(uTexture0, vTexCoord0) );\n"
 "	if( uTex1Mode != 0 ) c = Combine( uTex1Mode, c, textureProj(uTexture1, vTexCoord1) );\n"
-"	if( uAlphaTest != 0 && c.a <= 0.01 ) discard;\n"
-"	FragColor = vec4( c.rgb * uColorScale, c.a );\n"
+"	if( (vBlend & 4) != 0 && c.a <= 0.01 ) discard;\n"
+"	vec3 rgb = c.rgb * uColorScale;\n"
+"	int iBlend = vBlend & 3;\n"
+"	if( iBlend == 0 ) FragColor = vec4( rgb * c.a, c.a );\n"
+"	else if( iBlend == 1 ) FragColor = vec4( rgb * c.a, 0.0 );\n"
+"	else if( iBlend == 2 ) FragColor = vec4( rgb, 1.0 );\n"
+"	else FragColor = vec4( rgb, c.a );\n"
 "}\n";
 
 namespace
 {
 	enum { ATTR_POSITION, ATTR_NORMAL, ATTR_TEXCOORD, ATTR_COLOR, ATTR_MODE };
 	enum { TEXMODE_OFF, TEXMODE_MODULATE, TEXMODE_ADD, TEXMODE_GLOW };
+
+	/* How the color goes out (see the shaders), and the alpha test. */
+	enum { BLENDOUT_NORMAL, BLENDOUT_ADD, BLENDOUT_OPAQUE, BLENDOUT_AS_IS, BLENDOUT_ALPHA_TEST = 4 };
 
 	enum
 	{
@@ -369,7 +388,7 @@ namespace
 		U_MATEMISSIVE, U_MATAMBIENT, U_MATDIFFUSE, U_MATSPECULAR, U_MATSHININESS,
 		U_LIGHTAMBIENT, U_LIGHTDIFFUSE, U_LIGHTSPECULAR, U_LIGHTDIR,
 		U_COLORSCALE,
-		U_TEX1MODE, U_ALPHATEST, U_TEXTURE0, U_TEXTURE1,
+		U_TEX1MODE, U_TEXTURE0, U_TEXTURE1,
 		NUM_UNIFORMS
 	};
 	const char *g_szUniformNames[NUM_UNIFORMS] =
@@ -379,7 +398,7 @@ namespace
 		"uMatEmissive", "uMatAmbient", "uMatDiffuse", "uMatSpecular", "uMatShininess",
 		"uLightAmbient", "uLightDiffuse", "uLightSpecular", "uLightDir",
 		"uColorScale",
-		"uTex1Mode", "uAlphaTest", "uTexture0", "uTexture1",
+		"uTex1Mode", "uTexture0", "uTexture1",
 	};
 
 	struct Uniform
@@ -403,7 +422,7 @@ namespace
 		float t[2];
 		GLubyte c[4];	// RGBA
 		GLushort n[3];	// half floats
-		GLubyte mode[2];	// unit 0's texture mode, then padding
+		GLubyte mode[2];	// unit 0's texture mode, then BLENDOUT_*
 	};
 	typedef char VertexSizeCheck[sizeof(Vertex) == 32? 1: -1];
 
@@ -498,6 +517,7 @@ namespace
 		const RageMatrix *pWorld;
 		const RageMatrix *pTexMatrix0;
 		GLubyte iMode0;
+		GLubyte iBlendOut;
 	};
 	DrawContext g_Draw;
 
@@ -646,28 +666,49 @@ static void SetUniformInt( int u, int i )
 	gl.Uniform1i( un.iLocation, i );
 }
 
+/* How the shader puts out the color for the blend mode we want. */
+static bool g_bShaderBlending = true;
+static int GetBlendOut()
+{
+	const WantedState &w = g_Wanted;
+	if( !g_bShaderBlending )
+		return BLENDOUT_AS_IS;
+	if( !w.bBlend )
+		return BLENDOUT_OPAQUE;
+	if( w.BlendSrc == GL_SRC_ALPHA && w.BlendDst == GL_ONE_MINUS_SRC_ALPHA )
+		return BLENDOUT_NORMAL;
+	if( w.BlendSrc == GL_SRC_ALPHA && w.BlendDst == GL_ONE )
+		return BLENDOUT_ADD;
+	return BLENDOUT_AS_IS;
+}
+
 static void ApplyBlendAndDepth()
 {
 	const WantedState &w = g_Wanted;
 	AppliedState &a = g_Applied;
 
-	if( a.iBlend != int(w.bBlend) )
+	/* Blending is always on for the blend modes the shader does itself. */
+	const int iBlendOut = GetBlendOut();
+	const bool bBlend = iBlendOut != BLENDOUT_AS_IS || w.bBlend;
+	const GLenum BlendSrc = iBlendOut != BLENDOUT_AS_IS? GL_ONE: w.BlendSrc;
+	const GLenum BlendDst = iBlendOut != BLENDOUT_AS_IS? GL_ONE_MINUS_SRC_ALPHA: w.BlendDst;
+	if( a.iBlend != int(bBlend) )
 	{
 		FlushQueue( FLUSH_BLEND );
 		STAT( iStateCalls );
-		if( w.bBlend )
+		if( bBlend )
 			glEnable( GL_BLEND );
 		else
 			glDisable( GL_BLEND );
-		a.iBlend = w.bBlend;
+		a.iBlend = bBlend;
 	}
-	if( a.iBlendSrc != int(w.BlendSrc) || a.iBlendDst != int(w.BlendDst) )
+	if( bBlend && (a.iBlendSrc != int(BlendSrc) || a.iBlendDst != int(BlendDst)) )
 	{
 		FlushQueue( FLUSH_BLEND );
 		STAT( iStateCalls );
-		glBlendFunc( w.BlendSrc, w.BlendDst );
-		a.iBlendSrc = w.BlendSrc;
-		a.iBlendDst = w.BlendDst;
+		glBlendFunc( BlendSrc, BlendDst );
+		a.iBlendSrc = BlendSrc;
+		a.iBlendDst = BlendDst;
 	}
 	if( a.iDepthRange != w.iDepthRange )
 	{
@@ -911,6 +952,7 @@ struct VertexFiller
 			bTexMatrix = memcmp( &tex, g_fIdentity, sizeof(tex) ) != 0;
 		}
 		mode = g_Draw.iMode0;
+		blend = g_Draw.iBlendOut;
 	}
 
 	void Fill( Vertex &out, const RageSpriteVertex &in ) const
@@ -953,12 +995,12 @@ struct VertexFiller
 		out.c[3] = in.c.a;
 
 		out.mode[0] = mode;
-		out.mode[1] = 0;
+		out.mode[1] = blend;
 	}
 
 	bool bOnCPU, bTexMatrix;
 	RageMatrix world, tex;
-	GLubyte mode;
+	GLubyte mode, blend;
 };
 
 /*
@@ -1070,7 +1112,7 @@ public:
 		 * values, like glColor did. */
 		const RageColor &c = g_Wanted.ConstColor;
 		gl.VertexAttrib4f( ATTR_COLOR, c.r, c.g, c.b, c.a );
-		gl.VertexAttrib4f( ATTR_MODE, g_Draw.iMode0, 0, 0, 0 );
+		gl.VertexAttrib4f( ATTR_MODE, g_Draw.iMode0, g_Draw.iBlendOut, 0, 0 );
 
 		glDrawElements( GL_TRIANGLES, meshInfo.iTriangleCount*3, GL_UNSIGNED_SHORT,
 			(const void *) (meshInfo.iTriangleStart*3*sizeof(uint16_t)) );
@@ -1183,7 +1225,7 @@ static void InitContext()
 	gl.VertexAttribPointer( ATTR_NORMAL, 3, GLC_HALF_FLOAT, GL_FALSE, stride, (const void *) offsetof(Vertex, n) );
 	gl.VertexAttribPointer( ATTR_TEXCOORD, 2, GL_FLOAT, GL_FALSE, stride, (const void *) offsetof(Vertex, t) );
 	gl.VertexAttribPointer( ATTR_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, stride, (const void *) offsetof(Vertex, c) );
-	gl.VertexAttribPointer( ATTR_MODE, 1, GL_UNSIGNED_BYTE, GL_FALSE, stride, (const void *) offsetof(Vertex, mode) );
+	gl.VertexAttribPointer( ATTR_MODE, 2, GL_UNSIGNED_BYTE, GL_FALSE, stride, (const void *) offsetof(Vertex, mode) );
 	for( int i = ATTR_POSITION; i <= ATTR_MODE; ++i )
 		gl.EnableVertexAttribArray( i );
 
@@ -1744,7 +1786,6 @@ bool RageDisplay_GLCore::PrepareDraw( bool bForceGPU )
 		SetUniformFloats( U_TEXMATRIX1, (const float *) &w.Unit[1].TexMatrix, 16 );
 	SetUniformInt( U_SPHERE0, bSphere0 );
 	SetUniformInt( U_SPHERE1, bSphere1 );
-	SetUniformInt( U_ALPHATEST, w.bAlphaTest );
 	SetUniformFloats( U_COLORSCALE, g_fColorScale, 3 );
 	g_bDrawnThisFrame = true;
 
@@ -1778,6 +1819,7 @@ bool RageDisplay_GLCore::PrepareDraw( bool bForceGPU )
 	g_Draw.pWorld = pWorld;
 	g_Draw.pTexMatrix0 = &w.Unit[0].TexMatrix;
 	g_Draw.iMode0 = GLubyte( iMode0 );
+	g_Draw.iBlendOut = GLubyte( GetBlendOut() | (w.bAlphaTest? BLENDOUT_ALPHA_TEST: 0) );
 	return bOnCPU;
 }
 
