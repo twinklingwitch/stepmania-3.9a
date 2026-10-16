@@ -293,6 +293,9 @@ static void FixLilEndian()
  *   one it is coming with each vertex, so masks and what they mask don't
  *   alternate between two GL states.  The clip distances keep clipping at the
  *   near and far planes where it was, since moving the depth moves them.
+ * - Face culling, which also comes with each vertex: the fragments of a face
+ *   that's culled are discarded, which leaves the same picture.  (The spinning
+ *   CD titles on the music wheel cull one side and then the other.)
  * - One directional light with GL's lighting equation, the default scene
  *   ambient, no GL_NORMALIZE and no color material, like we had it.
  * - Sphere map texture coordinate generation, per unit.
@@ -448,6 +451,8 @@ static const char *g_szFragmentShader =
 "	if( vMode0 != 0 ) c = Combine( vMode0, c, Texture0() );\n"
 "	if( uTex1Mode != 0 ) c = Combine( uTex1Mode, c, texture(uTexture1, vec3(vTexCoord1.xy / vTexCoord1.w, 0.0)) );\n"
 "	if( (vBlend & 8) != 0 && c.a <= 0.01 ) discard;\n"
+"	if( (vBlend & 64) != 0 && !gl_FrontFacing ) discard;\n"
+"	if( (vBlend & 128) != 0 && gl_FrontFacing ) discard;\n"
 "	vec3 rgb = c.rgb * uColorScale;\n"
 "	int iBlend = vBlend & 7;\n"
 "	vec3 rgb8 = floor( clamp(rgb, 0.0, 1.0) * 255.0 + 0.5 ) * (1.0/255.0);\n"
@@ -481,9 +486,9 @@ namespace
 	/* How the color goes out (see the shaders), and the alpha test. */
 	enum { BLENDOUT_NORMAL, BLENDOUT_ADD, BLENDOUT_OPAQUE, BLENDOUT_AS_IS, BLENDOUT_INVERT, BLENDOUT_NO_EFFECT, BLENDOUT_ALPHA_TEST = 8 };
 
-	/* Also in that byte: the depth range (see the shaders), and whether GL does
-	 * the depth range itself instead. */
-	enum { DEPTH_MASK_RANGE = 16, DEPTH_RANGE_IN_GL = 32 };
+	/* Also in that byte: the depth range (see the shaders), whether GL does
+	 * the depth range itself instead, and which faces are culled. */
+	enum { DEPTH_MASK_RANGE = 16, DEPTH_RANGE_IN_GL = 32, CULL_BACK_FACES = 64, CULL_FRONT_FACES = 128 };
 
 	enum
 	{
@@ -943,7 +948,7 @@ static void SetUniformInt( int u, int i )
 
 /* How the shader puts out the color for the blend mode we want. */
 static bool g_bShaderBlending = true;
-static bool g_bShaderDepthRange = true;
+static bool g_bShaderDepthRange = true;	// and culling
 static int GetBlendOut()
 {
 	const WantedState &w = g_Wanted;
@@ -1066,19 +1071,20 @@ static void ApplyBlendAndDepth()
 		a.iDepthFunc = w.DepthFunc;
 	}
 
-	if( a.iCullFace != w.iCullFace )
+	const int iCullFace = g_bShaderDepthRange? 0: w.iCullFace;
+	if( a.iCullFace != iCullFace )
 	{
 		FlushQueue( FLUSH_RASTER );
 		STAT( iStateCalls );
-		if( w.iCullFace == 0 )
+		if( iCullFace == 0 )
 			Issue( CMD_ENABLE, GL_CULL_FACE, 0 );
 		else
 		{
 			if( a.iCullFace <= 0 )
 				Issue( CMD_ENABLE, GL_CULL_FACE, 1 );
-			Issue( CMD_CULLFACE, w.iCullFace );
+			Issue( CMD_CULLFACE, iCullFace );
 		}
-		a.iCullFace = w.iCullFace;
+		a.iCullFace = iCullFace;
 	}
 
 	if( a.iPolygonMode != int(w.PolygonMode) )
@@ -2617,8 +2623,15 @@ bool RageDisplay_GLCore::PrepareDraw( bool bForceGPU )
 		iFlags |= BLENDOUT_ALPHA_TEST;
 	if( !g_bShaderDepthRange )
 		iFlags |= DEPTH_RANGE_IN_GL;
-	else if( w.iDepthRange )
-		iFlags |= DEPTH_MASK_RANGE;
+	else
+	{
+		if( w.iDepthRange )
+			iFlags |= DEPTH_MASK_RANGE;
+		if( w.iCullFace == GL_BACK )
+			iFlags |= CULL_BACK_FACES;
+		else if( w.iCullFace == GL_FRONT )
+			iFlags |= CULL_FRONT_FACES;
+	}
 	g_Draw.iBlendOut = GLubyte( iFlags );
 	return bOnCPU;
 }
