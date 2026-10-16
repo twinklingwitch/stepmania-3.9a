@@ -99,6 +99,7 @@
 #define GLC_READ_FRAMEBUFFER			0x8CA8
 #define GLC_COLOR_ATTACHMENT0			0x8CE0
 #define GLC_MAX_ARRAY_TEXTURE_LAYERS	0x88FF
+#define GLC_SRC1_COLOR					0x88F9
 
 typedef char GLCchar;
 typedef ptrdiff_t GLCsizeiptr;
@@ -138,7 +139,6 @@ typedef ptrdiff_t GLCintptr;
 	F( GLuint, CreateProgram, (void) ) \
 	F( void, AttachShader, (GLuint, GLuint) ) \
 	F( void, BindAttribLocation, (GLuint, GLuint, const GLCchar *) ) \
-	F( void, BindFragDataLocation, (GLuint, GLuint, const GLCchar *) ) \
 	F( void, LinkProgram, (GLuint) ) \
 	F( void, GetProgramiv, (GLuint, GLenum, GLint *) ) \
 	F( void, GetProgramInfoLog, (GLuint, GLsizei, GLsizei *, GLCchar *) ) \
@@ -268,10 +268,20 @@ static void FixLilEndian()
  *   the same color GL's blending made, and each vertex says which it is, so
  *   switching between them doesn't break up a run.  The color and alpha are
  *   rounded to 8 bits before they're multiplied, as GL's blending into an
- *   8-bit framebuffer did, which keeps the result within 1/255 of it.  The
- *   rest of the blend modes (BLEND_INVERT, BLEND_NO_EFFECT) are still GL's
- *   blend function, and get the color as it is.  Nothing reads the
+ *   8-bit framebuffer did, which keeps the result within 1/255 of it.
+ *   BLEND_NO_EFFECT is a color of 0 with an alpha of 0.  Nothing reads the
  *   destination alpha.
+ *
+ *   BLEND_INVERT (ONE_MINUS_DST_COLOR, ONE_MINUS_SRC_ALPHA) can't be done
+ *   that way, since it multiplies the color by what's behind.  It's done
+ *   with a second blend function, ONE_MINUS_DST_COLOR and SRC1_COLOR, with
+ *   the second color the shader puts out (dual source blending) as the
+ *   factor for what's behind: 1 - alpha.  Normal blending works with that
+ *   one too: color c*a, factor 1 - a + c*a, makes c*a*(1 - dst) +
+ *   dst*(1 - a + c*a) = c*a + dst*(1 - a).  So does no blending (c and c)
+ *   and BLEND_NO_EFFECT (0 and 1).  Only additive blending needs the first
+ *   one, so the blend function changes only between additive blending and
+ *   BLEND_INVERT; the mines' markers invert, and are drawn with every mine.
  * - One directional light with GL's lighting equation, the default scene
  *   ambient, no GL_NORMALIZE and no color material, like we had it.
  * - Sphere map texture coordinate generation, per unit.
@@ -385,7 +395,8 @@ static const char *g_szFragmentShader =
 "flat in vec4 vAtlasRect;\n"
 "flat in float vAtlasLayer;\n"
 "flat in float vAtlasRepeat;\n"
-"out vec4 FragColor;\n"
+"layout(location = 0, index = 0) out vec4 FragColor;\n"
+"layout(location = 0, index = 1) out vec4 FragFactor;\n"
 "vec4 Combine( int iMode, vec4 prev, vec4 tex )\n"
 "{\n"
 "	if( iMode == 1 ) return prev * tex;\n"
@@ -410,16 +421,29 @@ static const char *g_szFragmentShader =
 "	vec4 c = vColor;\n"
 "	if( vMode0 != 0 ) c = Combine( vMode0, c, Texture0() );\n"
 "	if( uTex1Mode != 0 ) c = Combine( uTex1Mode, c, texture(uTexture1, vec3(vTexCoord1.xy / vTexCoord1.w, 0.0)) );\n"
-"	if( (vBlend & 4) != 0 && c.a <= 0.01 ) discard;\n"
+"	if( (vBlend & 8) != 0 && c.a <= 0.01 ) discard;\n"
 "	vec3 rgb = c.rgb * uColorScale;\n"
-"	int iBlend = vBlend & 3;\n"
-"	if( iBlend < 2 )\n"
+"	int iBlend = vBlend & 7;\n"
+"	vec3 rgb8 = floor( clamp(rgb, 0.0, 1.0) * 255.0 + 0.5 ) * (1.0/255.0);\n"
+"	float a8 = floor( clamp(c.a, 0.0, 1.0) * 255.0 + 0.5 ) * (1.0/255.0);\n"
+"	FragFactor = vec4( 1.0 );\n"
+"	if( iBlend == 0 )\n"
 "	{\n"
-"		vec3 rgb8 = floor( clamp(rgb, 0.0, 1.0) * 255.0 + 0.5 ) * (1.0/255.0);\n"
-"		float a8 = floor( clamp(c.a, 0.0, 1.0) * 255.0 + 0.5 ) * (1.0/255.0);\n"
-"		FragColor = vec4( rgb8 * a8, iBlend == 0? c.a: 0.0 );\n"
+"		FragColor = vec4( rgb8 * a8, c.a );\n"
+"		FragFactor = vec4( 1.0 - a8 + rgb8 * a8, 1.0 );\n"
 "	}\n"
-"	else if( iBlend == 2 ) FragColor = vec4( rgb, 1.0 );\n"
+"	else if( iBlend == 1 ) FragColor = vec4( rgb8 * a8, 0.0 );\n"
+"	else if( iBlend == 2 )\n"
+"	{\n"
+"		FragColor = vec4( rgb, 1.0 );\n"
+"		FragFactor = vec4( rgb, 1.0 );\n"
+"	}\n"
+"	else if( iBlend == 4 )\n"
+"	{\n"
+"		FragColor = vec4( rgb, c.a );\n"
+"		FragFactor = vec4( vec3(1.0 - c.a), 1.0 );\n"
+"	}\n"
+"	else if( iBlend == 5 ) FragColor = vec4( 0.0 );\n"
 "	else FragColor = vec4( rgb, c.a );\n"
 "}\n";
 
@@ -429,7 +453,7 @@ namespace
 	enum { TEXMODE_OFF, TEXMODE_MODULATE, TEXMODE_ADD, TEXMODE_GLOW };
 
 	/* How the color goes out (see the shaders), and the alpha test. */
-	enum { BLENDOUT_NORMAL, BLENDOUT_ADD, BLENDOUT_OPAQUE, BLENDOUT_AS_IS, BLENDOUT_ALPHA_TEST = 4 };
+	enum { BLENDOUT_NORMAL, BLENDOUT_ADD, BLENDOUT_OPAQUE, BLENDOUT_AS_IS, BLENDOUT_INVERT, BLENDOUT_NO_EFFECT, BLENDOUT_ALPHA_TEST = 8 };
 
 	enum
 	{
@@ -731,6 +755,10 @@ static int GetBlendOut()
 		return BLENDOUT_NORMAL;
 	if( w.BlendSrc == GL_SRC_ALPHA && w.BlendDst == GL_ONE )
 		return BLENDOUT_ADD;
+	if( w.BlendSrc == GL_ONE_MINUS_DST_COLOR && w.BlendDst == GL_ONE_MINUS_SRC_ALPHA )
+		return BLENDOUT_INVERT;
+	if( w.BlendSrc == GL_ZERO && w.BlendDst == GL_ONE )
+		return BLENDOUT_NO_EFFECT;
 	return BLENDOUT_AS_IS;
 }
 
@@ -739,11 +767,25 @@ static void ApplyBlendAndDepth()
 	const WantedState &w = g_Wanted;
 	AppliedState &a = g_Applied;
 
-	/* Blending is always on for the blend modes the shader does itself. */
+	/* Blending is always on for the blend modes the shader does itself, with
+	 * one of two blend functions (see the shaders).  Additive blending needs
+	 * the first, inverting the second, and the rest are fine with either, so
+	 * they keep whichever there is. */
 	const int iBlendOut = GetBlendOut();
-	const bool bBlend = iBlendOut != BLENDOUT_AS_IS || w.bBlend;
-	const GLenum BlendSrc = iBlendOut != BLENDOUT_AS_IS? GL_ONE: w.BlendSrc;
-	const GLenum BlendDst = iBlendOut != BLENDOUT_AS_IS? GL_ONE_MINUS_SRC_ALPHA: w.BlendDst;
+	bool bBlend = true;
+	GLenum BlendSrc = GL_ONE, BlendDst = GL_ONE_MINUS_SRC_ALPHA;
+	if( iBlendOut == BLENDOUT_AS_IS )
+	{
+		bBlend = w.bBlend;
+		BlendSrc = w.BlendSrc;
+		BlendDst = w.BlendDst;
+	}
+	else if( iBlendOut == BLENDOUT_INVERT ||
+		(iBlendOut != BLENDOUT_ADD && a.iBlend == 1 && a.iBlendSrc == GL_ONE_MINUS_DST_COLOR && a.iBlendDst == GLC_SRC1_COLOR) )
+	{
+		BlendSrc = GL_ONE_MINUS_DST_COLOR;
+		BlendDst = GLC_SRC1_COLOR;
+	}
 	if( a.iBlend != int(bBlend) )
 	{
 		FlushQueue( FLUSH_BLEND );
@@ -1751,7 +1793,6 @@ static void InitContext()
 	gl.BindAttribLocation( g_Program, ATTR_COLOR, "aColor" );
 	gl.BindAttribLocation( g_Program, ATTR_MODE, "aMode" );
 	gl.BindAttribLocation( g_Program, ATTR_ATLAS, "aAtlas" );
-	gl.BindFragDataLocation( g_Program, 0, "FragColor" );
 	gl.LinkProgram( g_Program );
 	gl.DeleteShader( vs );
 	gl.DeleteShader( fs );
