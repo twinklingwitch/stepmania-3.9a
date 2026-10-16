@@ -189,8 +189,6 @@ namespace
 	/* The last frame sent, for screenshots, and how big its target was. */
 	Frame g_LastFrame;
 	Uint32 g_iLastWidth = 0, g_iLastHeight = 0;
-	/* Whether g_LastFrame's vertices went to the GPU (it wasn't skipped). */
-	bool g_bLastFrameUploaded = false;
 	bool g_bInFrame = false;
 
 	/* The fences of the frames the GPU may still be drawing, in a ring of
@@ -201,7 +199,8 @@ namespace
 	int g_iFramesInFlight = 2;
 
 	/* With SM_SDLGPU_PRESENT_HZ, frames that come sooner than this after the
-	 * last one shown aren't drawn at all, in performance counter ticks. */
+	 * last one shown aren't drawn at all (BeginFrame says no), in performance
+	 * counter ticks. */
 	Uint64 g_iPresentInterval = 0;
 	Uint64 g_iLastPresent = 0;
 	Uint64 g_iLastEndFrame = 0;
@@ -979,9 +978,9 @@ static void LogStats()
 	const float f = float( max(s.iFrames, 1) );
 	LOG->Info( "SDL GPU per frame: %.1f commands, %.0f vertices, %.1f pipeline binds, %.1f texture binds, %.1f uniform pushes",
 		s.iCommands/f, s.iVertices/f, s.iPipelines/f, s.iSamplers/f, s.iUniforms/f );
-	LOG->Info( "SDL GPU ms per frame: game %.3f, recording %.3f, GPU wait %.3f, window buffer wait %.3f (longest %.3f), submit %.3f; %d of %d frames not drawn",
+	LOG->Info( "SDL GPU ms per frame: game %.3f, recording %.3f, GPU wait %.3f, window buffer wait %.3f (longest %.3f), submit %.3f; %d frames drawn, %d not",
 		TicksToMs(s.iGame)/f, TicksToMs(s.iRecord)/f, TicksToMs(s.iGPUWait)/f, TicksToMs(s.iAcquire)/f, TicksToMs(s.iAcquireMax),
-		TicksToMs(s.iSubmit)/f, s.iSkipped, s.iFrames );
+		TicksToMs(s.iSubmit)/f, s.iFrames, s.iSkipped );
 	memset( &g_Stats, 0, sizeof(g_Stats) );
 }
 
@@ -1592,8 +1591,24 @@ int RageDisplay_SDLGPU::GetMaxTextureSize() const
 	return 8192;
 }
 
+/* Whether to let this frame go without drawing it, for SM_SDLGPU_PRESENT_HZ.
+ * This is decided before the frame is drawn, so the screens don't spend time
+ * drawing it either. */
+static bool SkipFrame()
+{
+	if( g_iPresentInterval == 0 || DISPLAY->IsPacing() )
+		return false;
+	return SDL_GetPerformanceCounter() - g_iLastPresent < g_iPresentInterval;
+}
+
 bool RageDisplay_SDLGPU::BeginFrame()
 {
+	if( SkipFrame() )
+	{
+		++g_Stats.iSkipped;
+		return false;
+	}
+
 	g_Frame.Clear();
 	g_bInFrame = true;
 	g_fColorScale[0] = g_fColorScale[1] = g_fColorScale[2] = 1;
@@ -1608,17 +1623,6 @@ bool RageDisplay_SDLGPU::BeginFrame()
 
 static void DrawFrame( bool bPacing );
 
-/* Whether to let this frame go without drawing it, for SM_SDLGPU_PRESENT_HZ. */
-static bool SkipFrame( bool bPacing, Uint64 iNow )
-{
-	if( g_iPresentInterval == 0 || bPacing )
-		return false;
-	/* Compiled geometry goes up with a drawn frame. */
-	if( !g_Frame.vUploadGeometry.empty() )
-		return false;
-	return iNow - g_iLastPresent < g_iPresentInterval;
-}
-
 void RageDisplay_SDLGPU::EndFrame()
 {
 	const Uint64 iStart = SDL_GetPerformanceCounter();
@@ -1630,17 +1634,12 @@ void RageDisplay_SDLGPU::EndFrame()
 	g_Stats.iCommands += g_Frame.vCommands.size();
 	g_Stats.iVertices += g_Frame.vVertices.size();
 
-	const bool bSkip = SkipFrame( IsPacing(), iStart );
 	FrameSwapping();
-	if( bSkip )
-		++g_Stats.iSkipped;
-	else
-		DrawFrame( IsPacing() );
+	DrawFrame( IsPacing() );
 	FrameSwapped();
 
 	/* Keep it for screenshots; the next frame reuses the other one's memory. */
 	g_Frame.Swap( g_LastFrame );
-	g_bLastFrameUploaded = !bSkip;
 	g_Frame.Clear();
 	ReleaseDeleted();
 
@@ -1730,12 +1729,6 @@ RageSurface* RageDisplay_SDLGPU::CreateScreenshot()
 		RageException::Throw( "%s", GPUError("SDL_CreateGPUTransferBuffer").c_str() );
 
 	SDL_GPUCommandBuffer *pCmd = SDL_AcquireGPUCommandBuffer( g_pDevice );
-	/* A frame that was skipped never sent its vertices. */
-	if( !g_bLastFrameUploaded )
-	{
-		UploadFrame( pCmd, g_LastFrame );
-		g_bLastFrameUploaded = true;
-	}
 	PlayFrame( pCmd, g_LastFrame, pTarget, iWidth, iHeight );
 
 	SDL_GPUCopyPass *pPass = SDL_BeginGPUCopyPass( pCmd );
