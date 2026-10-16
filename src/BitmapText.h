@@ -63,7 +63,7 @@ protected:
 	 * neither have to be written again every frame unless they change. */
 	vector<RageSpriteVertex> m_ShadowVerts;
 	bool m_bShadowColorsSet, m_bDiffuseColorsSet;
-	RageVColor m_ShadowColor, m_DiffuseColors[4];
+	RageColor m_ShadowColor, m_DiffuseColors[4];	// as they were before converting
 
 	void BuildChars();
 	void DrawChars( vector<RageSpriteVertex> &v );

@@ -444,7 +444,7 @@ bool BitmapText::EarlyAbortDraw()
 	return m_wTextLines.empty();
 }
 
-static inline bool SameVColor( const RageVColor &a, const RageVColor &b )
+static inline bool SameColor( const RageColor &a, const RageColor &b )
 {
 	return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
 }
@@ -474,14 +474,15 @@ void BitmapText::DrawPrimitives()
 			DISPLAY->PushMatrix();
 			DISPLAY->TranslateWorld( m_fShadowLength, m_fShadowLength, 0 );	// shift by 5 units
 
-			/* Convert the color once, not once per vertex. */
-			const RageVColor dim = RageColor(0,0,0,0.5f*m_pTempState->diffuse[0].a);	// semi-transparent black
+			const RageColor cDim(0,0,0,0.5f*m_pTempState->diffuse[0].a);	// semi-transparent black
 
-			if( !m_bShadowColorsSet || !SameVColor(m_ShadowColor, dim) )
+			if( !m_bShadowColorsSet || !SameColor(m_ShadowColor, cDim) )
 			{
+				/* Convert the color once, not once per vertex. */
+				const RageVColor dim = cDim;
 				for( unsigned i=0; i<m_ShadowVerts.size(); i++ )
 					m_ShadowVerts[i].c = dim;
-				m_ShadowColor = dim;
+				m_ShadowColor = cDim;
 				m_bShadowColorsSet = true;
 			}
 			DrawChars( m_ShadowVerts );
@@ -509,13 +510,14 @@ void BitmapText::DrawPrimitives()
 		}
 		else
 		{
-			const RageVColor topLeft = m_pTempState->diffuse[0];
-			const RageVColor bottomLeft = m_pTempState->diffuse[2];
-			const RageVColor bottomRight = m_pTempState->diffuse[3];
-			const RageVColor topRight = m_pTempState->diffuse[1];
-			if( !m_bDiffuseColorsSet || !SameVColor(m_DiffuseColors[0], topLeft) || !SameVColor(m_DiffuseColors[1], bottomLeft) ||
-				!SameVColor(m_DiffuseColors[2], bottomRight) || !SameVColor(m_DiffuseColors[3], topRight) )
+			const RageColor *pDiffuse = m_pTempState->diffuse;
+			if( !m_bDiffuseColorsSet || !SameColor(m_DiffuseColors[0], pDiffuse[0]) || !SameColor(m_DiffuseColors[1], pDiffuse[1]) ||
+				!SameColor(m_DiffuseColors[2], pDiffuse[2]) || !SameColor(m_DiffuseColors[3], pDiffuse[3]) )
 			{
+				const RageVColor topLeft = pDiffuse[0];
+				const RageVColor bottomLeft = pDiffuse[2];
+				const RageVColor bottomRight = pDiffuse[3];
+				const RageVColor topRight = pDiffuse[1];
 				for( unsigned i=0; i<verts.size(); i+=4 )
 				{
 					verts[i+0].c = topLeft;
@@ -523,10 +525,8 @@ void BitmapText::DrawPrimitives()
 					verts[i+2].c = bottomRight;
 					verts[i+3].c = topRight;
 				}
-				m_DiffuseColors[0] = topLeft;
-				m_DiffuseColors[1] = bottomLeft;
-				m_DiffuseColors[2] = bottomRight;
-				m_DiffuseColors[3] = topRight;
+				for( int i=0; i<4; i++ )
+					m_DiffuseColors[i] = pDiffuse[i];
 				m_bDiffuseColorsSet = true;
 			}
 		}
