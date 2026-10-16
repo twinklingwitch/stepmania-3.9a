@@ -14,7 +14,7 @@ namespace FrameStats
 {
 	enum Phase
 	{
-		PHASE_PACE,		// PaceFrame, waiting for the refresh with vsync
+		PHASE_PACE,		// PaceFrame and WaitForFrame: waiting for the refresh with vsync, or for the window to give back a buffer
 		PHASE_WINDOW,		// DISPLAY->Update: the window and its events
 		PHASE_SOUND,		// SOUNDMAN and SOUND
 		PHASE_SCREENS,		// SCREENMAN->Update

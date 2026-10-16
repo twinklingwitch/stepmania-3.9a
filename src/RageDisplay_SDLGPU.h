@@ -17,6 +17,7 @@ public:
 
 	bool BeginFrame();
 	void EndFrame();
+	void WaitForFrame();
 	VideoModeParams GetVideoModeParams() const;
 	float GetRefreshRate() const;
 	void HideWindow();

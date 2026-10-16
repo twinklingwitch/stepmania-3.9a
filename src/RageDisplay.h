@@ -303,6 +303,13 @@ public:
 	 * wait until just before the next refresh instead.  FrameSwapping and
 	 * FrameSwapped bracket the buffer swap. */
 	void PaceFrame();
+
+	/* Called at the top of each frame, after PaceFrame.  A renderer that has
+	 * to wait for the window to give it something to draw into waits here,
+	 * before the game updates, so the frame it draws next is as fresh as it
+	 * can be. */
+	virtual void WaitForFrame() { }
+
 	bool IsPacing() const;
 	void FrameSwapping();
 	void FrameSwapped();

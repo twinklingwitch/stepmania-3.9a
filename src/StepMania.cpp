@@ -1285,6 +1285,7 @@ static void GameLoop()
 	{
 		/* With vsync, wait until it's time to start the next frame. */
 		DISPLAY->PaceFrame();
+		DISPLAY->WaitForFrame();
 		FrameStats::Mark( FrameStats::PHASE_PACE );
 
 		/*
