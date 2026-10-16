@@ -273,7 +273,7 @@ struct RageMatrix
 public:
     RageMatrix() {};
 	RageMatrix( const float *f )			{ for(int i=0; i<4; i++) for(int j=0; j<4; j++) m[j][i]=f[j*4+i]; }
-	RageMatrix( const RageMatrix& other )	{ for(int i=0; i<4; i++) for(int j=0; j<4; j++) m[j][i]=other.m[j][i]; }
+	/* No copy constructor: the implicit one copies m as a block, for pushing the matrix stack. */
     RageMatrix( float v00, float v01, float v02, float v03,
                 float v10, float v11, float v12, float v13,
                 float v20, float v21, float v22, float v23,

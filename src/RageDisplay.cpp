@@ -419,9 +419,35 @@ public:
 	}
 	void RotateZLocal( float degrees )
 	{
-		RageMatrix m;
-		RageMatrixRotationZ( &m, degrees );
-		MultMatrixLocal( m );
+		/* This is how the arrows of each column are turned, so it's done for
+		 * most notes: remember the last few angles' sines and cosines. */
+		static float fDegrees[4] = { 0, 0, 0, 0 }, fCos[4] = { 1, 1, 1, 1 }, fSin[4] = { 0, 0, 0, 0 };
+		static int iNext = 0;
+		int i = 0;
+		while( i < 4 && fDegrees[i] != degrees )
+			++i;
+		if( i == 4 )
+		{
+			RageMatrix r;
+			RageMatrixRotationZ( &r, degrees );
+			i = iNext;
+			iNext = (iNext+1) % 4;
+			fDegrees[i] = degrees;
+			fCos[i] = r.m[0][0];
+			fSin[i] = r.m[0][1];
+		}
+
+		/* MultMatrixLocal with the rotation matrix, without the multiplies by
+		 * zero and one: only the first two rows change. */
+		const float c = fCos[i], s = fSin[i];
+		RageMatrix &m = stack.back();
+		for( int j=0; j<4; j++ )
+		{
+			const float a0 = m.m[0][j], a1 = m.m[1][j];
+			m.m[0][j] = c*a0 + s*a1;
+			m.m[1][j] = -s*a0 + c*a1;
+		}
+		++m_iGeneration;
 	}
 
     // Right multiply the current matrix with the computed scale

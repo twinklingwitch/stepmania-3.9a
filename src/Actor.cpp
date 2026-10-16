@@ -191,14 +191,17 @@ void Actor::BeginDraw()		// set the world matrix and calculate actor properties
 		}
 	}
 
-	DISPLAY->Translate(
-		m_pTempState->pos.x,
-		m_pTempState->pos.y,
-		m_pTempState->pos.z );
-	DISPLAY->Scale( 
-		m_pTempState->scale.x * m_baseScale.x,
-		m_pTempState->scale.y * m_baseScale.y,
-		m_pTempState->scale.z * m_baseScale.z );
+	/* Moving by nothing and scaling by 1 don't change the matrix. */
+	if( m_pTempState->pos.x != 0 || m_pTempState->pos.y != 0 || m_pTempState->pos.z != 0 )
+		DISPLAY->Translate(
+			m_pTempState->pos.x,
+			m_pTempState->pos.y,
+			m_pTempState->pos.z );
+	const float fScaleX = m_pTempState->scale.x * m_baseScale.x;
+	const float fScaleY = m_pTempState->scale.y * m_baseScale.y;
+	const float fScaleZ = m_pTempState->scale.z * m_baseScale.z;
+	if( fScaleX != 1 || fScaleY != 1 || fScaleZ != 1 )
+		DISPLAY->Scale( fScaleX, fScaleY, fScaleZ );
 
 	/* The only time rotation and quat should normally be used simultaneously
 	 * is for m_baseRotation. */
