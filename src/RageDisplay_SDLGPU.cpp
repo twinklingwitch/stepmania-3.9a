@@ -37,6 +37,7 @@
 #include "RageTexture.h"
 #include "RageTextureManager.h"
 #include "RageMath.h"
+#include "RageTimer.h"
 #include "RageTypes.h"
 #include "RageSurface.h"
 #include "RageSurfaceUtils.h"
@@ -162,6 +163,17 @@ namespace
 		vector<LightBlock> vLight;
 		vector<FragmentBlock> vFragment;
 		vector<const RageCompiledGeometrySDLGPU *> vUploadGeometry;
+
+		/* Trade contents without copying them. */
+		void Swap( Frame &other )
+		{
+			vVertices.swap( other.vVertices );
+			vCommands.swap( other.vCommands );
+			vTransform.swap( other.vTransform );
+			vLight.swap( other.vLight );
+			vFragment.swap( other.vFragment );
+			vUploadGeometry.swap( other.vUploadGeometry );
+		}
 
 		void Clear()
 		{
@@ -727,9 +739,11 @@ static bool SameState( const Command &a, const Command &b )
 }
 
 /* Make room for iCount more vertices of the given kind, with the state from
- * PrepareDraw, and return where they go. */
+ * PrepareDraw, and return where they go.  A quad command can't have more than
+ * MAX_QUAD_VERTICES, so ask for at most that many quads' worth at a time. */
 static Vertex *RecordVertices( Uint8 iKind, int iCount )
 {
+	ASSERT( iKind != CMD_QUADS || iCount <= MAX_QUAD_VERTICES );
 	Frame &f = g_Frame;
 	const Uint32 iFirst = Uint32( f.vVertices.size() );
 
@@ -756,6 +770,8 @@ static Vertex *RecordVertices( Uint8 iKind, int iCount )
 		cmd.pGeometry = NULL;
 	}
 
+	if( f.vVertices.capacity() < iFirst + iCount )
+		f.vVertices.reserve( max<size_t>(f.vVertices.capacity()*2, iFirst + iCount + 4096) );
 	f.vVertices.resize( iFirst + iCount );
 	return &f.vVertices[iFirst];
 }
@@ -912,6 +928,33 @@ static void UploadFrame( SDL_GPUCommandBuffer *pCmd, Frame &f )
 	SDL_EndGPUCopyPass( pPass );
 }
 
+/* With SM_RENDER_STATS set, what frames send, averaged over a second. */
+namespace
+{
+	struct Stats
+	{
+		int iFrames, iCommands, iVertices, iPipelines, iSamplers, iUniforms;
+	};
+	Stats g_Stats;
+	bool g_bStats = false;
+	RageTimer g_StatsTimer;
+}
+
+static void LogStats()
+{
+	if( !g_bStats )
+		return;
+	++g_Stats.iFrames;
+	if( g_StatsTimer.PeekDeltaTime() < 1.0f )
+		return;
+	g_StatsTimer.GetDeltaTime();
+	const Stats &s = g_Stats;
+	const float f = float( max(s.iFrames, 1) );
+	LOG->Info( "SDL GPU per frame: %.1f commands, %.0f vertices, %.1f pipeline binds, %.1f texture binds, %.1f uniform pushes",
+		s.iCommands/f, s.iVertices/f, s.iPipelines/f, s.iSamplers/f, s.iUniforms/f );
+	memset( &g_Stats, 0, sizeof(g_Stats) );
+}
+
 /* Draw a recorded frame into pTarget, whose vertices are in g_pVertexBuffer. */
 static void PlayFrame( SDL_GPUCommandBuffer *pCmd, const Frame &f, SDL_GPUTexture *pTarget, Uint32 iWidth, Uint32 iHeight )
 {
@@ -955,6 +998,7 @@ static void PlayFrame( SDL_GPUCommandBuffer *pCmd, const Frame &f, SDL_GPUTextur
 		{
 			SDL_BindGPUGraphicsPipeline( pPass, cmd.pPipeline );
 			pPipeline = cmd.pPipeline;
+			++g_Stats.iPipelines;
 		}
 		if( cmd.fMinDepth != fMinDepth || cmd.fMaxDepth != fMaxDepth || cmd.iViewportX != iViewportX || cmd.iViewportY != iViewportY )
 		{
@@ -984,6 +1028,7 @@ static void PlayFrame( SDL_GPUCommandBuffer *pCmd, const Frame &f, SDL_GPUTextur
 			bind[1].texture = pTex1;
 			bind[1].sampler = pSamp1;
 			SDL_BindGPUFragmentSamplers( pPass, 0, bind, 2 );
+			++g_Stats.iSamplers;
 			pTexture[0] = pTex0;
 			pTexture[1] = pTex1;
 			pSampler[0] = pSamp0;
@@ -994,16 +1039,19 @@ static void PlayFrame( SDL_GPUCommandBuffer *pCmd, const Frame &f, SDL_GPUTextur
 		{
 			SDL_PushGPUVertexUniformData( pCmd, 0, &f.vTransform[cmd.iTransform], sizeof(TransformBlock) );
 			iTransform = cmd.iTransform;
+			++g_Stats.iUniforms;
 		}
 		if( cmd.iLight != iLight )
 		{
 			SDL_PushGPUVertexUniformData( pCmd, 1, &f.vLight[cmd.iLight], sizeof(LightBlock) );
 			iLight = cmd.iLight;
+			++g_Stats.iUniforms;
 		}
 		if( cmd.iFragment != iFragment )
 		{
 			SDL_PushGPUFragmentUniformData( pCmd, 0, &f.vFragment[cmd.iFragment], sizeof(FragmentBlock) );
 			iFragment = cmd.iFragment;
+			++g_Stats.iUniforms;
 		}
 
 		switch( cmd.iKind )
@@ -1340,6 +1388,7 @@ RageDisplay_SDLGPU::RageDisplay_SDLGPU( VideoModeParams p )
 
 	g_pWind = MakeLowLevelWindow();
 	g_pWind->SetNoGL( true );
+	g_bStats = SDL_getenv( "SM_RENDER_STATS" ) != NULL;
 
 	try {
 		SetVideoMode( p );
@@ -1397,6 +1446,22 @@ static void SetSwapchain( const RageDisplay::VideoModeParams &p )
 		if( g_pSampler[i] )
 			SDL_ReleaseGPUSampler( g_pDevice, g_pSampler[i] );
 		g_pSampler[i] = CreateSampler( i == 1, p );
+	}
+
+	/* Make the pipelines nearly every screen uses now, rather than at their
+	 * first draw, which would be a hitch: 2D with each blend mode, and the
+	 * depth tested and masking ones the note field and 3D backgrounds use. */
+	const SDL_GPUBlendFactor Blend[][2] = {
+		{ SDL_GPU_BLENDFACTOR_SRC_ALPHA, SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA },
+		{ SDL_GPU_BLENDFACTOR_SRC_ALPHA, SDL_GPU_BLENDFACTOR_ONE },
+		{ SDL_GPU_BLENDFACTOR_ZERO, SDL_GPU_BLENDFACTOR_ONE },
+	};
+	for( unsigned b = 0; b < ARRAYSIZE(Blend); ++b )
+	{
+		GetPipeline( PipelineKey(false, true, Blend[b][0], Blend[b][1], false, false, SDL_GPU_COMPAREOP_ALWAYS, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL) );
+		GetPipeline( PipelineKey(false, true, Blend[b][0], Blend[b][1], true, true, SDL_GPU_COMPAREOP_LESS_OR_EQUAL, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL) );
+		GetPipeline( PipelineKey(false, true, Blend[b][0], Blend[b][1], true, false, SDL_GPU_COMPAREOP_LESS_OR_EQUAL, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL) );
+		GetPipeline( PipelineKey(false, true, Blend[b][0], Blend[b][1], true, true, SDL_GPU_COMPAREOP_ALWAYS, SDL_GPU_CULLMODE_NONE, SDL_GPU_FILLMODE_FILL) );
 	}
 
 	const char *szModes[] = { "vsync", "immediate", "mailbox" };
@@ -1508,6 +1573,8 @@ void RageDisplay_SDLGPU::EndFrame()
 	/* No texture means the window can't be drawn to now (it's minimized). */
 	if( pTarget != NULL )
 		PlayFrame( pCmd, g_Frame, pTarget, iWidth, iHeight );
+	g_Stats.iCommands += g_Frame.vCommands.size();
+	g_Stats.iVertices += g_Frame.vVertices.size();
 
 	/* The frame isn't done until the GPU is, and we need to know how long that
 	 * takes to pace frames.  There's nothing else for the CPU to do meanwhile. */
@@ -1530,10 +1597,11 @@ void RageDisplay_SDLGPU::EndFrame()
 		g_iLastHeight = iHeight;
 	}
 	/* Keep it for screenshots; the next frame reuses the other one's memory. */
-	std::swap( g_Frame, g_LastFrame );
+	g_Frame.Swap( g_LastFrame );
 	g_Frame.Clear();
 	ReleaseDeleted();
 
+	LogStats();
 	ProcessStatsOnFlip();
 }
 
@@ -2177,13 +2245,13 @@ void RageDisplay_SDLGPU::DrawQuadsInternal( const RageSpriteVertex v[], int iNum
 {
 	PrepareDraw();
 	const VertexFiller fill;
-	for( int i = 0; i+3 < iNumVerts; i += 4 )
+	iNumVerts &= ~3;
+	for( int iStart = 0; iStart < iNumVerts; iStart += MAX_QUAD_VERTICES )
 	{
-		Vertex *out = RecordVertices( CMD_QUADS, 4 );
-		fill.Fill( out[0], v[i+0] );
-		fill.Fill( out[1], v[i+1] );
-		fill.Fill( out[2], v[i+2] );
-		fill.Fill( out[3], v[i+3] );
+		const int iCount = min( iNumVerts - iStart, int(MAX_QUAD_VERTICES) );
+		Vertex *out = RecordVertices( CMD_QUADS, iCount );
+		for( int i = 0; i < iCount; ++i )
+			fill.Fill( out[i], v[iStart+i] );
 	}
 }
 
@@ -2198,18 +2266,25 @@ void RageDisplay_SDLGPU::DrawQuadStripInternal( const RageSpriteVertex v[], int 
 	Vertex a, b;
 	fill.Fill( a, v[0] );
 	fill.Fill( b, v[1] );
-	for( int i = 2; i+1 < iNumVerts; i += 2 )
+	int iQuads = (iNumVerts - 2) / 2;
+	int i = 2;
+	while( iQuads > 0 )
 	{
-		Vertex c, d;
-		fill.Fill( c, v[i] );
-		fill.Fill( d, v[i+1] );
-		Vertex *out = RecordVertices( CMD_QUADS, 4 );
-		out[0] = a;
-		out[1] = b;
-		out[2] = d;
-		out[3] = c;
-		a = c;
-		b = d;
+		const int iBatch = min( iQuads, int(MAX_QUAD_VERTICES/4) );
+		Vertex *out = RecordVertices( CMD_QUADS, iBatch*4 );
+		for( int q = 0; q < iBatch; ++q, i += 2, out += 4 )
+		{
+			Vertex c, d;
+			fill.Fill( c, v[i] );
+			fill.Fill( d, v[i+1] );
+			out[0] = a;
+			out[1] = b;
+			out[2] = d;
+			out[3] = c;
+			a = c;
+			b = d;
+		}
+		iQuads -= iBatch;
 	}
 }
 
@@ -2222,11 +2297,11 @@ void RageDisplay_SDLGPU::DrawFanInternal( const RageSpriteVertex v[], int iNumVe
 	Vertex first, prev;
 	fill.Fill( first, v[0] );
 	fill.Fill( prev, v[1] );
-	for( int i = 2; i < iNumVerts; ++i )
+	Vertex *out = RecordVertices( CMD_TRIANGLES, (iNumVerts-2)*3 );
+	for( int i = 2; i < iNumVerts; ++i, out += 3 )
 	{
 		Vertex cur;
 		fill.Fill( cur, v[i] );
-		Vertex *out = RecordVertices( CMD_TRIANGLES, 3 );
 		out[0] = first;
 		out[1] = prev;
 		out[2] = cur;
@@ -2245,11 +2320,11 @@ void RageDisplay_SDLGPU::DrawStripInternal( const RageSpriteVertex v[], int iNum
 	Vertex a, b;
 	fill.Fill( a, v[0] );
 	fill.Fill( b, v[1] );
-	for( int i = 0; i+2 < iNumVerts; ++i )
+	Vertex *out = RecordVertices( CMD_TRIANGLES, (iNumVerts-2)*3 );
+	for( int i = 0; i+2 < iNumVerts; ++i, out += 3 )
 	{
 		Vertex c;
 		fill.Fill( c, v[i+2] );
-		Vertex *out = RecordVertices( CMD_TRIANGLES, 3 );
 		const bool bOdd = (i & 1) != 0;
 		out[0] = bOdd? b: a;
 		out[1] = bOdd? a: b;
@@ -2263,13 +2338,12 @@ void RageDisplay_SDLGPU::DrawTrianglesInternal( const RageSpriteVertex v[], int 
 {
 	PrepareDraw();
 	const VertexFiller fill;
-	for( int i = 0; i+2 < iNumVerts; i += 3 )
-	{
-		Vertex *out = RecordVertices( CMD_TRIANGLES, 3 );
-		fill.Fill( out[0], v[i+0] );
-		fill.Fill( out[1], v[i+1] );
-		fill.Fill( out[2], v[i+2] );
-	}
+	iNumVerts -= iNumVerts % 3;
+	if( iNumVerts == 0 )
+		return;
+	Vertex *out = RecordVertices( CMD_TRIANGLES, iNumVerts );
+	for( int i = 0; i < iNumVerts; ++i )
+		fill.Fill( out[i], v[i] );
 }
 
 void RageDisplay_SDLGPU::DrawCompiledGeometryInternal( const RageCompiledGeometry *p, int iMeshIndex )
