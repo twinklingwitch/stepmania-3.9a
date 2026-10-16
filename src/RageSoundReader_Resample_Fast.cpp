@@ -70,7 +70,8 @@ int RageSoundReader_Resample_Fast::Read(char *buf, unsigned len)
 
 		if(size == 0)
 		{
-			static char buf[BUFSIZE];
+			/* Not static: sounds are read from more than one thread. */
+			char buf[BUFSIZE];
 
 			int cnt = source->Read(buf, sizeof(buf));
 

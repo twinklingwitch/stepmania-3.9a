@@ -552,19 +552,16 @@ int RageSoundReader_WAV::Read(char *buf, unsigned len)
 #endif
 	}
 
-	static int16_t *tmpbuf = NULL;
-	static unsigned tmpbufsize = 0;
-	if( len > tmpbufsize )
-	{
-		tmpbufsize = len;
-		delete [] tmpbuf;
-		tmpbuf = new int16_t[len];
-	}
+	/* Local, not static: sounds are read from more than one thread. */
+	vector<int16_t> tmpbuf;
+	if( Conversion == CONV_8BIT_TO_16BIT || Channels == 1 )
+		tmpbuf.resize( len );
+
 	if( Conversion == CONV_8BIT_TO_16BIT )
 	{
 		for( int s = 0; s < ret; ++s )
 			tmpbuf[s] = (int16_t(buf[s])-128) << 8;
-		memcpy( buf, tmpbuf, ret * sizeof(int16_t) );
+		memcpy( buf, &tmpbuf[0], ret * sizeof(int16_t) );
 		ret *= 2; /* 8-bit to 16-bit */
 	}
 
@@ -573,7 +570,7 @@ int RageSoundReader_WAV::Read(char *buf, unsigned len)
 		int16_t *in = (int16_t*) buf;
 		for( int s = 0; s < ret/2; ++s )
 			tmpbuf[s*2] = tmpbuf[s*2+1] = in[s];
-		memcpy( buf, tmpbuf, ret * sizeof(int16_t) );
+		memcpy( buf, &tmpbuf[0], ret * sizeof(int16_t) );
 		ret *= 2; /* 1 channel -> 2 channels */
 	}
 

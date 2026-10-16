@@ -291,17 +291,28 @@ void RageSound::RateChange(char *buf, int &cnt,
 		return;
 
 	/* Rate change.  Change speed_input_samples into speed_output_samples.
-		* Do this per-channel. */
-	static char *inbuf_tmp = NULL;
-	static int maxcnt = 0;
-	if(cnt > maxcnt)
+	 * Do this per-channel.
+	 *
+	 * The copy of the input is local.  This is called from the decode thread and
+	 * from whichever thread starts a sound (which prebuffers it), so a buffer
+	 * shared between calls gets freed and reallocated under the other thread. */
+	const size_t frame_bytes = channels * sizeof(int16_t);
+	const size_t frames = cnt / frame_bytes;
+	const size_t padded_frames = (frames + speed_input_samples-1) / speed_input_samples * speed_input_samples;
+	const size_t tmp_size = max( size_t(cnt), padded_frames * frame_bytes );
+
+	char stack_tmp[10240 + 128];
+	vector<char> heap_tmp;
+	char *inbuf_tmp = stack_tmp;
+	if( tmp_size > sizeof(stack_tmp) )
 	{
-		maxcnt = cnt;
-		delete [] inbuf_tmp;
-		inbuf_tmp = new char[cnt];
+		heap_tmp.resize( tmp_size );
+		inbuf_tmp = &heap_tmp[0];
 	}
 
+	/* The last block may be partial; give it zeroes to read past the end. */
 	memcpy(inbuf_tmp, buf, cnt);
+	memset(inbuf_tmp + cnt, 0, tmp_size - cnt);
 
 	for(int c = 0; c < channels; ++c)
 	{
