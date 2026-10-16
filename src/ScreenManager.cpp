@@ -41,6 +41,7 @@
 #include "CodeDetector.h"
 #include "StepMania.h"
 #include "RatePopup.h"
+#include "FrameStats.h"
 #if !defined(WITHOUT_EXTRAS)
 #include "WifeOverlay.h"
 #include "ChatOverlay.h"
@@ -591,7 +592,9 @@ void ScreenManager::Draw()
 			m_ScreenStack[i]->Draw();
 	m_SystemLayer->Draw();
 
+	FrameStats::Mark( FrameStats::PHASE_DRAW );
 	DISPLAY->EndFrame();
+	FrameStats::Mark( FrameStats::PHASE_RENDER );
 }
 
 

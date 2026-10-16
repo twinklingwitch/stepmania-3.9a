@@ -12,6 +12,7 @@
 #include "RageThreads.h"
 #include "StepMania.h"
 #include "ProductInfo.h"
+#include "FrameStats.h"
 
 #include <errno.h>
 
@@ -38,6 +39,7 @@ void mySDL_PumpEvents()
 	p.iStart = SDL_GetTicksNS();
 	SDL_PumpEvents();
 	p.iEnd = SDL_GetTicksNS();
+	FrameStats::AddPart( FrameStats::PART_PUMP_EVENTS, p.iEnd - p.iStart );
 
 	/* Nobody is reading events if this gets long; don't let it grow. */
 	if( g_Pumps.size() >= 16 )

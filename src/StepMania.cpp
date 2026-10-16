@@ -68,6 +68,7 @@
 #include "OnlineRoom.h"
 #endif
 #include <sched.h>
+#include "FrameStats.h"
 
 #define ZIPS_DIR "Packages/"
 
@@ -1263,8 +1264,10 @@ static void LimitFrameRate()
 	if( fLeft / 1000000 > fSpinTime )
 	{
 		const float fSleepTime = float(fLeft / 1000000) - fSpinTime;
+		FrameStats::Mark( FrameStats::PHASE_OTHER );
 		const RageTimer SleepStart;
 		usleep( int(fSleepTime * 1000000) );
+		FrameStats::Mark( FrameStats::PHASE_LIMIT_SLEEP );
 
 		const float fLate = SleepStart.Ago() - fSleepTime;
 		fSpinTime = clamp( max(fLate*1.5f + 0.0001f, fSpinTime*0.99f), 0.0002f, 0.0005f );
@@ -1272,6 +1275,7 @@ static void LimitFrameRate()
 
 	while( double(ArchHooks::GetMicrosecondsSinceStart(true)) < fDue )
 		sched_yield();
+	FrameStats::Mark( FrameStats::PHASE_LIMIT_SPIN );
 }
 
 static void GameLoop()
@@ -1281,6 +1285,7 @@ static void GameLoop()
 	{
 		/* With vsync, wait until it's time to start the next frame. */
 		DISPLAY->PaceFrame();
+		FrameStats::Mark( FrameStats::PHASE_PACE );
 
 		/*
 		 * Update
@@ -1309,7 +1314,9 @@ static void GameLoop()
 #endif
 		}
 
+		FrameStats::Mark( FrameStats::PHASE_OTHER );
 		DISPLAY->Update( fDeltaTime );
+		FrameStats::Mark( FrameStats::PHASE_WINDOW );
 
 		/* Update SOUNDMAN early (before any RageSound::GetPosition calls), to flush position data. */
 		SOUNDMAN->Update( fDeltaTime );
@@ -1318,32 +1325,46 @@ static void GameLoop()
 		 * depend on it.  If you don't do this first, the classes are all acting on old 
 		 * information and will lag.  (but no longer fatally, due to timestamping -glenn) */
 		SOUND->Update( fDeltaTime );
+		FrameStats::Mark( FrameStats::PHASE_SOUND );
 		TEXTUREMAN->Update( fDeltaTime );
 		GAMESTATE->Update( fDeltaTime );
+		FrameStats::Mark( FrameStats::PHASE_OTHER );
 		SCREENMAN->Update( fDeltaTime );
+		FrameStats::Mark( FrameStats::PHASE_SCREENS );
 		MEMCARDMAN->Update( fDeltaTime );
 		NSMAN->Update( fDeltaTime );
 		DISCORD->Update( fDeltaTime );
+		FrameStats::Mark( FrameStats::PHASE_OTHER );
 
 		/* Important:  Process input AFTER updating game logic, or input will be acting on song beat from last frame */
 		HandleInputEvents( fDeltaTime );
+		FrameStats::Mark( FrameStats::PHASE_INPUT );
 
 		LIGHTSMAN->Update( fDeltaTime );
 
 		HOOKS->Update( fDeltaTime );
+		FrameStats::Mark( FrameStats::PHASE_OTHER );
 
 		/*
 		 * Render
 		 */
 		SCREENMAN->Draw();
+		FrameStats::Mark( FrameStats::PHASE_DRAW );
 
 		AutoShot();
+		FrameStats::Mark( FrameStats::PHASE_OTHER );
 
 		LimitFrameRate();
+		FrameStats::Mark( FrameStats::PHASE_OTHER );
 
 		/* If we don't have focus, give up lots of CPU. */
 		if( !g_bHasFocus )
+		{
 			usleep( 10000 );// give some time to other processes and threads
+			FrameStats::Mark( FrameStats::PHASE_UNFOCUSED );
+		}
+
+		FrameStats::EndFrame();
 	}
 
 	GAMESTATE->EndGame();

@@ -42,6 +42,7 @@
 #include "RageSurface.h"
 #include "RageSurfaceUtils.h"
 #include "GameConstantsAndTypes.h"
+#include "FrameStats.h"
 #include "arch/arch.h"
 #include "arch/LowLevelWindow/LowLevelWindow.h"
 
@@ -1657,6 +1658,7 @@ static void DrawFrame( bool bPacing )
 		RageException::Throw( "%s", GPUError("SDL_AcquireGPUCommandBuffer").c_str() );
 
 	UploadFrame( pCmd, g_Frame );
+	FrameStats::Mark( FrameStats::PHASE_RENDER );
 
 	/* Wait for the GPU to finish the frame from g_iFramesInFlight ago.  The
 	 * swapchain would wait for it anyway; doing it here first tells us how much
@@ -1683,6 +1685,7 @@ static void DrawFrame( bool bPacing )
 	g_Stats.iAcquire += iNow - iTime;
 	g_Stats.iAcquireMax = max( g_Stats.iAcquireMax, iNow - iTime );
 	iTime = iNow;
+	FrameStats::Mark( FrameStats::PHASE_PRESENT );
 
 	/* No texture means the window can't be drawn to now (it's minimized). */
 	if( pTarget != NULL )
@@ -1694,11 +1697,14 @@ static void DrawFrame( bool bPacing )
 	iNow = SDL_GetPerformanceCounter();
 	g_Stats.iRecord += iNow - iTime;
 	iTime = iNow;
+	FrameStats::Mark( FrameStats::PHASE_RENDER );
 
+	/* Submitting presents the frame, too. */
 	SDL_GPUFence *pFence = SDL_SubmitGPUCommandBufferAndAcquireFence( pCmd );
 	iNow = SDL_GetPerformanceCounter();
 	g_Stats.iSubmit += iNow - iTime;
 	g_iLastPresent = iNow;
+	FrameStats::Mark( FrameStats::PHASE_PRESENT );
 
 	/* The frame isn't done until the GPU is, and we need to know how long that
 	 * takes to pace frames.  There's nothing else for the CPU to do meanwhile. */

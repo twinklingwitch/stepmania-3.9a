@@ -351,7 +351,7 @@ endif
 sound_readers = files('RageSoundReader_WAV.cpp')
 
 stepmania_sources = [
-  files('StepMania.cpp', 'global.cpp', 'SDL_utils.cpp'),
+  files('StepMania.cpp', 'global.cpp', 'SDL_utils.cpp', 'FrameStats.cpp'),
   screens,
   data_structures,
   file_types,

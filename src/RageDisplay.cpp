@@ -12,6 +12,7 @@
 #include "RageSurface.h"
 #include "Preference.h"
 #include "PrefsManager.h"
+#include "FrameStats.h"
 
 //
 // Statistics stuff
@@ -72,6 +73,7 @@ bool RageDisplay::SetVideoMode( VideoModeParams p )
 
 void RageDisplay::ProcessStatsOnFlip()
 {
+	FrameStats::FrameShown();
 	g_iFramesRenderedSinceLastCheck++;
 	g_iFramesRenderedSinceLastReset++;
 
@@ -166,12 +168,14 @@ bool RageDisplay::IsPacing() const { return g_bPacing; }
 
 void RageDisplay::FrameSwapping()
 {
+	FrameStats::Mark( FrameStats::PHASE_RENDER );
 	g_SwapStart.Touch();
 }
 
 void RageDisplay::FrameSwapped()
 {
 	const RageTimer SwapEnd;
+	FrameStats::Mark( FrameStats::PHASE_PRESENT );
 	if( !g_bPacing )
 		return;
 
