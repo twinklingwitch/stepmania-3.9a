@@ -19,6 +19,7 @@ public:
 	void EndFrame();
 	VideoModeParams GetVideoModeParams() const;
 	float GetRefreshRate() const;
+	void HideWindow();
 	void SetBlendMode( BlendMode mode );
 	void SetBlending( bool b );
 	bool SetColorScale( float r, float g, float b );

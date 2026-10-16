@@ -162,6 +162,9 @@ public:
 	virtual void EndFrame() = 0;
 	virtual VideoModeParams GetVideoModeParams() const = 0;
 	virtual float GetRefreshRate() const { return 0; }
+	/* Take the window off the screen, for the slow part of quitting.  Nothing is
+	 * drawn after this. */
+	virtual void HideWindow() { }
 	bool IsWindowed() const { return this->GetVideoModeParams().windowed; }
 	
 	virtual void SetBlendMode( BlendMode mode ) = 0;

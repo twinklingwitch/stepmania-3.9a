@@ -28,6 +28,7 @@ public:
 	// The refresh rate the window is displayed at, or 0 if we don't know.
 	virtual float GetRefreshRate() const { return 0; }
 	virtual void Update(float fDeltaTime) { }
+	virtual void HideWindow() { }
 
 	virtual RageDisplay::VideoModeParams GetVideoModeParams() const = 0;
 

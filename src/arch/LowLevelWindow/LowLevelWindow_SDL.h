@@ -37,6 +37,7 @@ public:
 	CString TryVideoMode( RageDisplay::VideoModeParams p, bool &bNewDeviceOut );
 	void SwapBuffers();
 	float GetRefreshRate() const;
+	void HideWindow();
 	void Update(float fDeltaTime);
 
 	RageDisplay::VideoModeParams GetVideoModeParams() const { return CurrentParams; }

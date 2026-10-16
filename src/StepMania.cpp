@@ -784,6 +784,10 @@ int main(int argc, char* argv[])
 	/* Run the main loop. */
 	GameLoop();
 
+	/* The rest of quitting saves and joins threads, which can take a moment, and
+	 * nothing pumps the window's events meanwhile.  Don't leave it up, frozen. */
+	DISPLAY->HideWindow();
+
 	PREFSMAN->SaveGlobalPrefsToDisk();
 	SaveGamePrefsToDisk();
 

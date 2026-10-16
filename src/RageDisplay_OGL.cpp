@@ -963,6 +963,7 @@ RageSurface* RageDisplay_OGL::CreateScreenshot()
 
 RageDisplay::VideoModeParams RageDisplay_OGL::GetVideoModeParams() const { return wind->GetVideoModeParams(); }
 float RageDisplay_OGL::GetRefreshRate() const { return wind->GetRefreshRate(); }
+void RageDisplay_OGL::HideWindow() { wind->HideWindow(); }
 
 static void SetupVertices( const RageSpriteVertex v[], int iNumVerts )
 {

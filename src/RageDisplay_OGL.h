@@ -18,6 +18,7 @@ public:
 	void EndFrame();
 	VideoModeParams GetVideoModeParams() const;
 	float GetRefreshRate() const;
+	void HideWindow();
 	void SetBlendMode( BlendMode mode );
 	void SetBlending( bool b );
 	bool SupportsTextureFormat( PixelFormat pixfmt, bool realtime=false );

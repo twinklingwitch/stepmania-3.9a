@@ -1308,6 +1308,7 @@ RageSurface* RageDisplay_GLCore::CreateScreenshot()
 
 RageDisplay::VideoModeParams RageDisplay_GLCore::GetVideoModeParams() const { return g_pWind->GetVideoModeParams(); }
 float RageDisplay_GLCore::GetRefreshRate() const { return g_pWind->GetRefreshRate(); }
+void RageDisplay_GLCore::HideWindow() { g_pWind->HideWindow(); }
 
 const RageDisplay::PixelFormatDesc *RageDisplay_GLCore::GetPixelFormatDesc( PixelFormat pf ) const
 {

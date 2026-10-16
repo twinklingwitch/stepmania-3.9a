@@ -331,6 +331,16 @@ void LowLevelWindow_SDL::SwapBuffers()
 	glFinish();
 }
 
+/* Nothing pumps the window's events while the game saves and shuts down, and
+ * on Windows a window that isn't answering is greyed out as "not responding".
+ * Take it off the screen first. */
+void LowLevelWindow_SDL::HideWindow()
+{
+	if( m_pWindow == NULL )
+		return;
+	SDL_HideWindow( m_pWindow );
+}
+
 float LowLevelWindow_SDL::GetRefreshRate() const
 {
 	if( m_pWindow == NULL )
