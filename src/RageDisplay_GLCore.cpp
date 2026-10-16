@@ -1460,6 +1460,22 @@ static inline Vertex *QueueSpace( bool bQuads, int iCount )
 	return v;
 }
 
+/* Make room for a triangle.  With polygons filled, it goes in as a quad with
+ * its last corner twice, so that triangles don't break up a run of quads: the
+ * quad's second triangle has no area, and draws nothing.  The caller fills in
+ * the first three. */
+static inline Vertex *QueueTriangle()
+{
+	return g_Wanted.PolygonMode == GL_FILL? QueueSpace( true, 4 ): QueueSpace( false, 3 );
+}
+
+/* Finish a triangle from QueueTriangle. */
+static inline void QueuedTriangle( Vertex *out )
+{
+	if( g_bQueueQuads )
+		out[3] = out[2];
+}
+
 /* A float as a half float, which is plenty for a normal.  Anything that small
  * rounds to zero, and anything that big to the largest number there is. */
 static inline GLushort FloatToHalf( float f )
@@ -2429,10 +2445,11 @@ void RageDisplay_GLCore::DrawFanInternal( const RageSpriteVertex v[], int iNumVe
 	{
 		Vertex cur;
 		fill.Fill( cur, v[i] );
-		Vertex *out = QueueSpace( false, 3 );
+		Vertex *out = QueueTriangle();
 		out[0] = first;
 		out[1] = prev;
 		out[2] = cur;
+		QueuedTriangle( out );
 		prev = cur;
 	}
 }
@@ -2452,11 +2469,12 @@ void RageDisplay_GLCore::DrawStripInternal( const RageSpriteVertex v[], int iNum
 	{
 		Vertex c;
 		fill.Fill( c, v[i+2] );
-		Vertex *out = QueueSpace( false, 3 );
+		Vertex *out = QueueTriangle();
 		const bool bOdd = (i & 1) != 0;
 		out[0] = bOdd? b: a;
 		out[1] = bOdd? a: b;
 		out[2] = c;
+		QueuedTriangle( out );
 		a = b;
 		b = c;
 	}
@@ -2468,10 +2486,11 @@ void RageDisplay_GLCore::DrawTrianglesInternal( const RageSpriteVertex v[], int 
 	const VertexFiller fill;
 	for( int i = 0; i+2 < iNumVerts; i += 3 )
 	{
-		Vertex *out = QueueSpace( false, 3 );
+		Vertex *out = QueueTriangle();
 		fill.Fill( out[0], v[i+0] );
 		fill.Fill( out[1], v[i+1] );
 		fill.Fill( out[2], v[i+2] );
+		QueuedTriangle( out );
 	}
 }
 
