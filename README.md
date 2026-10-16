@@ -404,9 +404,10 @@ order:
   of time, so the driver has next to nothing to work out per draw.  On
   Windows, Direct3D 12 presents through DXGI's flip model, with tearing when
   vsync is off, which in a window costs less than GL's or Vulkan's usual copy.
-  On macOS a window takes Metal frames only so fast (about 650 a second on an
-  M5), so `glcore` is the one to use there.  Not in the default list yet; try
-  it with `VideoRenderers=sdlgpu,glcore,opengl`.  `SM_SDLGPU_DRIVER`
+  That's about twice the frame rate, so it's the default on Windows.  On macOS
+  a window takes Metal frames only so fast (about 650 a second on an M5), so
+  `glcore` is the one to use there; elsewhere, try it with
+  `VideoRenderers=sdlgpu,glcore,opengl`.  `SM_SDLGPU_DRIVER`
   (`direct3d12`, `vulkan`, `metal`) picks SDL's driver, `SM_RENDER_STATS=1`
   in the environment logs what each frame sends, and `SM_FRAME_STATS=1`
   (any renderer) where each frame's time goes.
@@ -420,10 +421,13 @@ order:
   for drivers without OpenGL 3.3.
 - `null`: draws nothing.
 
-The default is `glcore,opengl`, so a driver that can't make an OpenGL 3.3
-context gets the old renderer.  A `StepMania.ini` from before this keeps its
-`VideoRenderers=opengl`; change it to `glcore,opengl` (or delete the line) to
-use the new one.  `log.txt` says which one is running ("Current renderer").
+The default is `sdlgpu,glcore,opengl` on Windows and `glcore,opengl`
+elsewhere, so each falls back to the next, down to the old renderer for a
+driver that can't make an OpenGL 3.3 context.  On Windows, a `StepMania.ini`
+that still has the old default, `glcore,opengl`, is moved to the new one once;
+any other list is left as it is.  A `StepMania.ini` from before `glcore` keeps
+its `VideoRenderers=opengl`; change it (or delete the line) to use the new
+ones.  `log.txt` says which one is running ("Current renderer").
 
 The only difference you can see: core OpenGL and SDL's GPU API have no
 antialiased or wide lines, so with `glcore` and `sdlgpu` the outlines of the groove radar and graph are drawn with

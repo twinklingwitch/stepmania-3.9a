@@ -249,6 +249,16 @@ struct VideoCardDefaults
 } const g_VideoCardDefaults[] = 
 {
 	{
+		/* Direct3D 12 presents with much less work in a window than GL does
+		 * on Windows (about twice the frame rate). */
+		"Direct3D 12",
+		"sdlgpu,glcore,opengl",
+		640,480,
+		16,16,16,
+		2048,
+		true
+	},
+	{
 		"OpenGL",
 		"glcore,opengl",
 		640,480,
@@ -261,8 +271,15 @@ struct VideoCardDefaults
 
 static CString GetVideoDriverName()
 {
-    return "OpenGL";
+#if defined(_WIN32)
+	return "Direct3D 12";
+#else
+	return "OpenGL";
+#endif
 }
+
+/* The renderer list that was the default before sdlgpu became Windows'. */
+static const char *OLD_DEFAULT_VIDEO_RENDERERS = "glcore,opengl";
 
 static void CheckVideoDefaultSettings()
 {
@@ -295,6 +312,18 @@ static void CheckVideoDefaultSettings()
 	{
 		SetDefaultVideoParams = true;
 		LOG->Trace( "Applying defaults for %s.", sVideoDriver.c_str() );
+	}
+	else if( PREFSMAN->m_sLastSeenVideoDriver == "OpenGL" && sVideoDriver == "Direct3D 12" )
+	{
+		/* sdlgpu (Direct3D 12) became the default on Windows; the card didn't
+		 * change, so keep the rest of the settings, and move the renderer list
+		 * only if it's still the old default.  This happens once. */
+		if( !PREFSMAN->m_sVideoRenderers.CompareNoCase(OLD_DEFAULT_VIDEO_RENDERERS) )
+		{
+			LOG->Info( "Video renderers: '%s' is the new default, instead of '%s'", sVideoRenderers.c_str(), OLD_DEFAULT_VIDEO_RENDERERS );
+			PREFSMAN->m_sVideoRenderers = sVideoRenderers;
+		}
+		PREFSMAN->m_sLastSeenVideoDriver = sVideoDriver;
 	}
 	else if( PREFSMAN->m_sLastSeenVideoDriver != sVideoDriver ) 
 	{
