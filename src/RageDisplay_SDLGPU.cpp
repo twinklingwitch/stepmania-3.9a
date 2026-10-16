@@ -1498,16 +1498,14 @@ static void SetSwapchain( const RageDisplay::VideoModeParams &p )
 	const int iPresentHz = szPresentHz? atoi( szPresentHz ): 0;
 	g_iPresentInterval = iPresentHz > 0? SDL_GetPerformanceFrequency() / iPresentHz: 0;
 
-	/* A macOS window gives back the buffers we draw to only so fast (about 650
-	 * a second on an M5 at 120 Hz), in bursts, and asking for one before then
-	 * waits for it.  Waiting after drawing shows a frame as old as the wait, so
-	 * wait at the top of the frame instead, before the game updates, and draw
-	 * as soon as a buffer is free.  SM_SDLGPU_WAIT_FIRST=0 turns it off, and =1
-	 * turns it on with other drivers. */
+	/* An experiment: a macOS window gives back the buffers we draw to only so
+	 * fast (about 650 a second on an M5 at 120 Hz), and asking for one before
+	 * then waits for it.  With SM_SDLGPU_WAIT_FIRST=1, wait at the top of the
+	 * frame, before the game updates, rather than after drawing.  On an M5 it
+	 * drew fewer frames (350-630 a second instead of 600-660), so it's off. */
 	const char *szWaitFirst = SDL_getenv( "SM_SDLGPU_WAIT_FIRST" );
-	const bool bMetal = strcmp( SDL_GetGPUDeviceDriver(g_pDevice), "metal" ) == 0;
 	g_bWaitFirst = iPresentHz <= 0 && mode == SDL_GPU_PRESENTMODE_IMMEDIATE &&
-		(szWaitFirst? atoi(szWaitFirst) != 0: bMetal);
+		szWaitFirst != NULL && atoi(szWaitFirst) != 0;
 
 	const SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat( g_pDevice, g_pWindow );
 	if( format != g_SwapchainFormat )
