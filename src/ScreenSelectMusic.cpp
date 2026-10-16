@@ -35,9 +35,9 @@
 
 const int NUM_SCORE_DIGITS	=	9;
 
-#define FOV									THEME->GetMetricF(m_sName,"FOV")
-#define FOV_CENTER_X						THEME->GetMetricF(m_sName,"FOVCenterX")
-#define FOV_CENTER_Y						THEME->GetMetricF(m_sName,"FOVCenterY")
+#define FOV									m_FOV.Get(m_sName,"FOV")
+#define FOV_CENTER_X						m_FOVCenterX.Get(m_sName,"FOVCenterX")
+#define FOV_CENTER_Y						m_FOVCenterY.Get(m_sName,"FOVCenterY")
 #define BANNER_WIDTH						THEME->GetMetricF(m_sName,"BannerWidth")
 #define BANNER_HEIGHT						THEME->GetMetricF(m_sName,"BannerHeight")
 #define SONG_OPTIONS_EXTRA_COMMAND			THEME->GetMetric (m_sName,"SongOptionsExtraCommand")

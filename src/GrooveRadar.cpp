@@ -13,7 +13,8 @@
 #define LABEL_ON_COMMAND			THEME->GetMetric ("GrooveRadar","LabelOnCommand")
 #define LABEL_ON_DELAY				THEME->GetMetricF("GrooveRadar","LabelOnDelay")
 #define LABEL_ON_COMMAND_POST_DELAY THEME->GetMetric ("GrooveRadar","LabelOnCommandPostDelay")
-#define DISABLE_RADAR				THEME->GetMetricI("GrooveRadar","DisableRadar")
+static ThemeMetricCache<int> g_DisableRadar;	/* read every frame */
+#define DISABLE_RADAR				g_DisableRadar.Get("GrooveRadar","DisableRadar")
 
 float RADAR_VALUE_ROTATION( int iValueIndex ) {	return PI/2 + PI*2 / 5.0f * iValueIndex; }
 

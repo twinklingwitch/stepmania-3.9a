@@ -12,7 +12,7 @@
 #define NORMAL_COLOR		THEME->GetMetricC(m_sName,"NormalColor")
 #define CHANGE_COLOR		THEME->GetMetricC(m_sName,"ChangeColor")
 #define EXTRA_COLOR			THEME->GetMetricC(m_sName,"ExtraColor")
-#define CYCLE				THEME->GetMetricB(m_sName,"Cycle")
+#define CYCLE				m_Cycle.Get(m_sName,"Cycle")
 #define SEPARATOR			THEME->GetMetric (m_sName,"Separator")
 #define NO_BPM_TEXT			THEME->GetMetric (m_sName,"NoBPMText")
 

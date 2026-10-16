@@ -30,6 +30,8 @@ public:
 	CString GetCurThemeDir() { return GetThemeDirFromName(m_sCurThemeName); };
 	void NextTheme();
 	void ReloadMetrics();
+	/* Changes whenever the metrics might have. */
+	unsigned GetMetricsGeneration() const { return m_iMetricsGeneration; }
 	void GetModifierNames( set<CString>& AddTo );
 
 	/* I renamed these for two reasons.  The overload conflicts with the ones below:
@@ -71,9 +73,36 @@ protected:
 
 	CString m_sCurThemeName;
 	CString m_sCurLanguage;
+	unsigned m_iMetricsGeneration;
 };
 
 extern ThemeManager*	THEME;	// global and accessable from anywhere in our program
+
+/* A metric that's read every frame: only look it up again when the metrics
+ * may have changed (they're reloaded, or the theme changes). */
+template<class T>
+class ThemeMetricCache
+{
+	unsigned m_iGeneration;
+	T m_Value;
+
+	static void Read( const CString &sClassName, const char *szValueName, float &out ) { out = THEME->GetMetricF( sClassName, szValueName ); }
+	static void Read( const CString &sClassName, const char *szValueName, int &out ) { out = THEME->GetMetricI( sClassName, szValueName ); }
+	static void Read( const CString &sClassName, const char *szValueName, bool &out ) { out = THEME->GetMetricB( sClassName, szValueName ); }
+	static void Read( const CString &sClassName, const char *szValueName, RageColor &out ) { out = THEME->GetMetricC( sClassName, szValueName ); }
+
+public:
+	ThemeMetricCache(): m_iGeneration(0) { }
+	const T &Get( const CString &sClassName, const char *szValueName )
+	{
+		if( m_iGeneration != THEME->GetMetricsGeneration() )
+		{
+			Read( sClassName, szValueName, m_Value );
+			m_iGeneration = THEME->GetMetricsGeneration();
+		}
+		return m_Value;
+	}
+};
 
 class CachedThemeMetric
 {

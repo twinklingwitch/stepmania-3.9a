@@ -49,6 +49,7 @@ public:
 #endif
 
 protected:
+	ThemeMetricCache<float> m_FOV, m_FOVCenterX, m_FOVCenterY;	/* read every frame */
 	void TweenOnScreen();
 	void TweenOffScreen();
 	void TweenScoreOnAndOffAfterChangeSort();

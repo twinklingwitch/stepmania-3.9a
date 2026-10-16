@@ -9,6 +9,7 @@
 #include "BitmapText.h"
 #include "Quad.h"
 #include "ActorUtil.h"
+#include "ThemeManager.h"
 class Song;
 class Course;
 
@@ -25,6 +26,8 @@ public:
 	void NoBPM();
 
 protected:
+	ThemeMetricCache<bool> m_Cycle;	/* read every frame */
+
 	float GetActiveBPM() const;
 	void SetBPMRange( const DisplayBpms &bpms );
 

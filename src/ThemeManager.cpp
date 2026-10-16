@@ -81,6 +81,7 @@ CString ClassAndElementToFileName( const CString &sClassName, const CString &sEl
 ThemeManager::ThemeManager()
 {
 	/* We don't have any theme loaded until SwitchThemeAndLanguage is called. */
+	m_iMetricsGeneration = 1;
 	m_sCurThemeName = "";
 	
 	CStringArray arrayThemeNames;
@@ -221,6 +222,7 @@ void ThemeManager::SwitchThemeAndLanguage( CString sThemeName, CString sLanguage
 		g_vThemes.front().iniMetrics.SetValue( sBits[0], sBits[1], sBits[2] );
 	}
 	g_MetricCache.clear();
+	++m_iMetricsGeneration;
 	
 	LOG->MapLog("theme", "Theme: %s", sThemeName.c_str());
 	LOG->MapLog("language", "Language: %s", sLanguage.c_str());

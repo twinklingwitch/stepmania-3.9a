@@ -7,10 +7,12 @@
 
 RageColor PlayerToColor( PlayerNumber pn ) 
 {
+	/* This is asked for every frame. */
+	static ThemeMetricCache<RageColor> s_Colors[NUM_PLAYERS];
 	switch( pn )
 	{
-		case PLAYER_1:	return COLOR_P1;
-		case PLAYER_2:	return COLOR_P2;
+		case PLAYER_1:	return s_Colors[pn].Get( "Common", "ColorP1" );
+		case PLAYER_2:	return s_Colors[pn].Get( "Common", "ColorP2" );
 		default: ASSERT(0); return RageColor(0.5f,0.5f,0.5f,1);
 	}
 };
@@ -22,6 +24,8 @@ RageColor PlayerToColor( int p )
 
 PlayerNumber GetNextHumanPlayer( PlayerNumber pn )
 {
+	/* This is asked for every frame. */
+	static ThemeMetricCache<RageColor> s_Colors[NUM_PLAYERS];
 	for( PlayerNumber p=(PlayerNumber)(pn+1); p<NUM_PLAYERS; p=(PlayerNumber)(p+1) )
 	{
 		if( GAMESTATE->IsHumanPlayer(p) )
@@ -32,6 +36,8 @@ PlayerNumber GetNextHumanPlayer( PlayerNumber pn )
 
 PlayerNumber GetNextEnabledPlayer( PlayerNumber pn )
 {
+	/* This is asked for every frame. */
+	static ThemeMetricCache<RageColor> s_Colors[NUM_PLAYERS];
 	for( PlayerNumber p=(PlayerNumber)(pn+1); p<NUM_PLAYERS; p=(PlayerNumber)(p+1) )
 	{
 		if( GAMESTATE->IsPlayerEnabled(p) )
@@ -42,6 +48,8 @@ PlayerNumber GetNextEnabledPlayer( PlayerNumber pn )
 
 PlayerNumber GetNextCpuPlayer( PlayerNumber pn )
 {
+	/* This is asked for every frame. */
+	static ThemeMetricCache<RageColor> s_Colors[NUM_PLAYERS];
 	for( PlayerNumber p=(PlayerNumber)(pn+1); p<NUM_PLAYERS; p=(PlayerNumber)(p+1) )
 	{
 		if( GAMESTATE->IsCpuPlayer(p) )
@@ -52,6 +60,8 @@ PlayerNumber GetNextCpuPlayer( PlayerNumber pn )
 
 PlayerNumber GetNextPotentialCpuPlayer( PlayerNumber pn )
 {
+	/* This is asked for every frame. */
+	static ThemeMetricCache<RageColor> s_Colors[NUM_PLAYERS];
 	for( PlayerNumber p=(PlayerNumber)(pn+1); p<NUM_PLAYERS; p=(PlayerNumber)(p+1) )
 	{
 		if( !GAMESTATE->IsHumanPlayer(p) )
