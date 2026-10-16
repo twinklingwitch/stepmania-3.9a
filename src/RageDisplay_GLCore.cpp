@@ -18,12 +18,16 @@
  * done by the shader, whether a draw is textured and how the texture combines
  * with the color (modulate, add, glow) travels with each vertex instead of
  * being GL state, so untextured quads and glow passes don't break up a run.
- * Lighting and sphere mapping need eye space normals, so those draws send the
- * world matrix to GL instead.
+ * So do the blend mode (the shader does the blending GL's blend function did,
+ * see the shaders), and which texture it is, for textures in the atlas (see
+ * below).  Lighting and sphere mapping need eye space normals, so those draws
+ * send the world matrix to GL instead.
  *
  * State is applied lazily: the Set* calls record what's wanted, and each draw
  * brings GL up to date, sending out the queue first if anything it depends on
- * has to change.
+ * has to change.  What's sent out is recorded, and played back at the end of
+ * the frame, with all of the frame's vertices sent to GL at once (see the
+ * command list).
  */
 
 /* Keep the system glext.h out; we declare what we use ourselves, so this builds
@@ -501,16 +505,19 @@ namespace
 	};
 	typedef char VertexSizeCheck[sizeof(Vertex) == 36? 1: -1];
 
-	/* The queue.  Indices into it fit in 16 bits. */
-	enum { QUEUE_VERTICES = 8192 };
-	Vertex g_Queue[QUEUE_VERTICES];
-	int g_iQueued = 0;
+	/* The frame's vertices, in runs (see FlushQueue).  Indices into a run fit
+	 * in 16 bits. */
+	enum { QUEUE_VERTICES = 8192, FRAME_VERTICES = 65536 };
+	Vertex g_Queue[FRAME_VERTICES];
+	int g_iRunStart = 0;	// where the run being queued starts
+	int g_iQueued = 0;	// how many vertices are in it
 	bool g_bQueueQuads = false;
 
-	/* The queue goes into this buffer, one run after another; when it fills up,
-	 * it's replaced by a fresh one, so we never write over a run GL may still be
-	 * reading.  The index buffer turns quads into triangles. */
-	const int RING_BYTES = sizeof(Vertex) * 65536;
+	/* The vertices go into this buffer, one frame (or part of one) after
+	 * another; when it fills up, it's replaced by a fresh one, so we never
+	 * write over vertices GL may still be reading.  The index buffer turns
+	 * quads into triangles. */
+	const int RING_BYTES = sizeof(Vertex) * FRAME_VERTICES;
 	GLuint g_StreamBuffer = 0, g_QuadIndexBuffer = 0, g_StreamVAO = 0;
 	int g_iRingOffset = 0;
 
@@ -665,6 +672,179 @@ static bool g_bColorScaleInexact = false;	// drew something that doesn't scale l
 static void FlushQueue( int iReason );
 
 /*
+ * The command list.
+ *
+ * A run that's sent out isn't drawn right away: it's recorded, along with the
+ * state changes between runs, and at the end of the frame all of the frame's
+ * vertices go to GL at once, and the list is played back.  Uploading the
+ * vertices is what costs on macOS, where each upload is a new buffer.
+ *
+ * Anything that has to happen in GL now (making and changing textures,
+ * models, reading the framebuffer) plays back what's recorded first, with
+ * an ImmediateGL, and while that's around, commands are carried out as
+ * they're given.
+ */
+namespace
+{
+	enum
+	{
+		CMD_DRAW, CMD_ENABLE, CMD_BLENDFUNC, CMD_DEPTHRANGE, CMD_DEPTHMASK,
+		CMD_DEPTHFUNC, CMD_CULLFACE, CMD_POLYGONMODE, CMD_LINEWIDTH, CMD_CLEAR,
+		CMD_BIND, CMD_WRAP, CMD_UNIFORM, CMD_UNIFORM_INT
+	};
+	struct Command
+	{
+		int iType;
+		int a, b, c;
+		float f[16];
+	};
+	vector<Command> g_Commands;
+	int g_iImmediate = 0;
+}
+
+static void SetActiveUnit( int iUnit );
+static void BindVAO( GLuint uVAO );
+static void BindArrayBuffer( GLuint uBuffer );
+
+static void Execute( const Command &c, GLint iBaseVertex )
+{
+	switch( c.iType )
+	{
+	case CMD_DRAW:
+		BindVAO( g_StreamVAO );
+		if( c.c )
+			gl.DrawElementsBaseVertex( GL_TRIANGLES, c.b/4*6, GL_UNSIGNED_SHORT, NULL, iBaseVertex + c.a );
+		else
+			glDrawArrays( GL_TRIANGLES, iBaseVertex + c.a, c.b );
+		STAT( iDrawCalls );
+		break;
+	case CMD_ENABLE:
+		if( c.b )
+			glEnable( c.a );
+		else
+			glDisable( c.a );
+		break;
+	case CMD_BLENDFUNC:	glBlendFunc( c.a, c.b ); break;
+	case CMD_DEPTHRANGE:	// see SetBlendMode
+		if( c.a )
+			glDepthRange( 0.0, 0.95 );
+		else
+			glDepthRange( 0.05, 1.0 );
+		break;
+	case CMD_DEPTHMASK:	glDepthMask( GLboolean(c.a) ); break;
+	case CMD_DEPTHFUNC:	glDepthFunc( c.a ); break;
+	case CMD_CULLFACE:	glCullFace( c.a ); break;
+	case CMD_POLYGONMODE:	glPolygonMode( GL_FRONT_AND_BACK, c.a ); break;
+	case CMD_LINEWIDTH:	glLineWidth( c.f[0] ); break;
+	case CMD_CLEAR:		glClear( c.a ); break;
+	case CMD_BIND:
+		SetActiveUnit( c.a );
+		glBindTexture( GLC_TEXTURE_2D_ARRAY, c.b );
+		break;
+	case CMD_WRAP:
+		SetActiveUnit( c.a );
+		glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, c.b );
+		glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, c.b );
+		break;
+	case CMD_UNIFORM:
+		switch( c.b )
+		{
+		case 1:  gl.Uniform1f( c.a, c.f[0] ); break;
+		case 3:  gl.Uniform3fv( c.a, 1, c.f ); break;
+		case 4:  gl.Uniform4fv( c.a, 1, c.f ); break;
+		case 9:  gl.UniformMatrix3fv( c.a, 1, GL_FALSE, c.f ); break;
+		case 16: gl.UniformMatrix4fv( c.a, 1, GL_FALSE, c.f ); break;
+		default: ASSERT(0);
+		}
+		break;
+	case CMD_UNIFORM_INT:	gl.Uniform1i( c.a, c.b ); break;
+	default:	ASSERT(0);
+	}
+}
+
+/* Record a command, or carry it out if we're doing things now. */
+static void Issue( int iType, int a = 0, int b = 0, const float *f = NULL, int iFloats = 0 )
+{
+	Command c;
+	c.iType = iType;
+	c.a = a;
+	c.b = b;
+	c.c = 0;
+	if( iFloats )
+		memcpy( c.f, f, iFloats*sizeof(float) );
+	if( g_iImmediate )
+		Execute( c, 0 );
+	else
+		g_Commands.push_back( c );
+}
+
+/* Send the recorded vertices to GL, and play back the commands. */
+static void Replay()
+{
+	ASSERT( g_iQueued == 0 );
+	if( g_Commands.empty() )
+	{
+		g_iRunStart = 0;
+		return;
+	}
+
+	GLint iBaseVertex = 0;
+	if( g_iRunStart )
+	{
+		BindVAO( g_StreamVAO );
+		BindArrayBuffer( g_StreamBuffer );
+
+		const int iBytes = g_iRunStart * sizeof(Vertex);
+#if defined(DARWIN)
+		/* macOS's GL is slow to map buffers and may wait for the GPU to do it.
+		 * A new buffer each time never waits. */
+		gl.BufferData( GLC_ARRAY_BUFFER, iBytes, g_Queue, GLC_STREAM_DRAW );
+		g_iRingOffset = 0;
+#else
+		if( g_iRingOffset + iBytes > RING_BYTES )
+		{
+			/* Start a new buffer; the old one goes away once GL is done with it. */
+			gl.BufferData( GLC_ARRAY_BUFFER, RING_BYTES, NULL, GLC_STREAM_DRAW );
+			g_iRingOffset = 0;
+		}
+
+		void *p = gl.MapBufferRange( GLC_ARRAY_BUFFER, g_iRingOffset, iBytes,
+			GLC_MAP_WRITE_BIT | GLC_MAP_INVALIDATE_RANGE_BIT | GLC_MAP_UNSYNCHRONIZED_BIT );
+		if( p != NULL )
+		{
+			memcpy( p, g_Queue, iBytes );
+			gl.UnmapBuffer( GLC_ARRAY_BUFFER );
+		}
+		else
+			gl.BufferSubData( GLC_ARRAY_BUFFER, g_iRingOffset, iBytes, g_Queue );
+#endif
+		iBaseVertex = g_iRingOffset / sizeof(Vertex);
+		g_iRingOffset += iBytes;
+		STAT( iBufferWrites );
+	}
+
+	++g_iImmediate;
+	for( unsigned i = 0; i < g_Commands.size(); ++i )
+		Execute( g_Commands[i], iBaseVertex );
+	--g_iImmediate;
+	g_Commands.clear();
+	g_iRunStart = 0;
+}
+
+/* While one of these is around, GL is up to date, and commands are carried
+ * out right away. */
+struct ImmediateGL
+{
+	ImmediateGL( int iReason )
+	{
+		FlushQueue( iReason );
+		Replay();
+		++g_iImmediate;
+	}
+	~ImmediateGL() { --g_iImmediate; }
+};
+
+/*
  * Applying state.  Each of these sends out the queue before changing anything
  * it depends on.
  */
@@ -681,8 +861,7 @@ static void BindTextureToUnit( int iUnit, GLuint uTex )
 	if( g_Applied.iBound[iUnit] == int64_t(uTex) )
 		return;
 	FlushQueue( FLUSH_TEXTURE );
-	SetActiveUnit( iUnit );
-	glBindTexture( GLC_TEXTURE_2D_ARRAY, uTex );
+	Issue( CMD_BIND, iUnit, uTex );
 	STAT( iTextureBinds );
 	g_Applied.iBound[iUnit] = uTex;
 }
@@ -718,15 +897,7 @@ static void SetUniformFloats( int u, const float *f, int iCount )
 	Uniform &un = g_Uniforms[u];
 	memcpy( un.f, f, iCount*sizeof(float) );
 	un.bValid = true;
-	switch( iCount )
-	{
-	case 1:  gl.Uniform1f( un.iLocation, f[0] ); break;
-	case 3:  gl.Uniform3fv( un.iLocation, 1, f ); break;
-	case 4:  gl.Uniform4fv( un.iLocation, 1, f ); break;
-	case 9:  gl.UniformMatrix3fv( un.iLocation, 1, GL_FALSE, f ); break;
-	case 16: gl.UniformMatrix4fv( un.iLocation, 1, GL_FALSE, f ); break;
-	default: ASSERT(0);
-	}
+	Issue( CMD_UNIFORM, un.iLocation, iCount, f, iCount );
 }
 
 static void SetUniformInt( int u, int i )
@@ -739,7 +910,7 @@ static void SetUniformInt( int u, int i )
 	STAT( iUniformCalls );
 	un.f[0] = f;
 	un.bValid = true;
-	gl.Uniform1i( un.iLocation, i );
+	Issue( CMD_UNIFORM_INT, un.iLocation, i );
 }
 
 /* How the shader puts out the color for the blend mode we want. */
@@ -791,16 +962,16 @@ static void ApplyBlendAndDepth()
 		FlushQueue( FLUSH_BLEND );
 		STAT( iStateCalls );
 		if( bBlend )
-			glEnable( GL_BLEND );
+			Issue( CMD_ENABLE, GL_BLEND, 1 );
 		else
-			glDisable( GL_BLEND );
+			Issue( CMD_ENABLE, GL_BLEND, 0 );
 		a.iBlend = bBlend;
 	}
 	if( bBlend && (a.iBlendSrc != int(BlendSrc) || a.iBlendDst != int(BlendDst)) )
 	{
 		FlushQueue( FLUSH_BLEND );
 		STAT( iStateCalls );
-		glBlendFunc( BlendSrc, BlendDst );
+		Issue( CMD_BLENDFUNC, BlendSrc, BlendDst );
 		a.iBlendSrc = BlendSrc;
 		a.iBlendDst = BlendDst;
 	}
@@ -808,10 +979,7 @@ static void ApplyBlendAndDepth()
 	{
 		FlushQueue( FLUSH_DEPTH );
 		STAT( iStateCalls );
-		if( w.iDepthRange )
-			glDepthRange( 0.0, 0.95 );
-		else
-			glDepthRange( 0.05, 1.0 );
+		Issue( CMD_DEPTHRANGE, w.iDepthRange );
 		a.iDepthRange = w.iDepthRange;
 	}
 
@@ -826,7 +994,7 @@ static void ApplyBlendAndDepth()
 		{
 			FlushQueue( FLUSH_DEPTH );
 			STAT( iStateCalls );
-			glDisable( GL_DEPTH_TEST );
+			Issue( CMD_ENABLE, GL_DEPTH_TEST, 0 );
 			a.iDepthTest = 0;
 		}
 	}
@@ -839,17 +1007,17 @@ static void ApplyBlendAndDepth()
 			/* Clearing is affected by the depth mask. */
 			if( a.iDepthMask != 1 )
 			{
-				glDepthMask( GL_TRUE );
+				Issue( CMD_DEPTHMASK, 1 );
 				a.iDepthMask = 1;
 			}
-			glClear( GL_DEPTH_BUFFER_BIT );
+			Issue( CMD_CLEAR, GL_DEPTH_BUFFER_BIT );
 			g_Wanted.bClearDepthPending = false;
 		}
 		if( a.iDepthTest != 1 )
 		{
 			FlushQueue( FLUSH_DEPTH );
 			STAT( iStateCalls );
-			glEnable( GL_DEPTH_TEST );
+			Issue( CMD_ENABLE, GL_DEPTH_TEST, 1 );
 			a.iDepthTest = 1;
 		}
 	}
@@ -857,14 +1025,14 @@ static void ApplyBlendAndDepth()
 	{
 		FlushQueue( FLUSH_DEPTH );
 		STAT( iStateCalls );
-		glDepthMask( w.bZWrite );
+		Issue( CMD_DEPTHMASK, w.bZWrite );
 		a.iDepthMask = w.bZWrite;
 	}
 	if( a.iDepthFunc != int(w.DepthFunc) )
 	{
 		FlushQueue( FLUSH_DEPTH );
 		STAT( iStateCalls );
-		glDepthFunc( w.DepthFunc );
+		Issue( CMD_DEPTHFUNC, w.DepthFunc );
 		a.iDepthFunc = w.DepthFunc;
 	}
 
@@ -873,12 +1041,12 @@ static void ApplyBlendAndDepth()
 		FlushQueue( FLUSH_RASTER );
 		STAT( iStateCalls );
 		if( w.iCullFace == 0 )
-			glDisable( GL_CULL_FACE );
+			Issue( CMD_ENABLE, GL_CULL_FACE, 0 );
 		else
 		{
 			if( a.iCullFace <= 0 )
-				glEnable( GL_CULL_FACE );
-			glCullFace( w.iCullFace );
+				Issue( CMD_ENABLE, GL_CULL_FACE, 1 );
+			Issue( CMD_CULLFACE, w.iCullFace );
 		}
 		a.iCullFace = w.iCullFace;
 	}
@@ -887,14 +1055,14 @@ static void ApplyBlendAndDepth()
 	{
 		FlushQueue( FLUSH_RASTER );
 		STAT( iStateCalls );
-		glPolygonMode( GL_FRONT_AND_BACK, w.PolygonMode );
+		Issue( CMD_POLYGONMODE, w.PolygonMode );
 		a.iPolygonMode = w.PolygonMode;
 	}
 	if( a.fLineWidth != w.fLineWidth )
 	{
 		FlushQueue( FLUSH_RASTER );
 		STAT( iStateCalls );
-		glLineWidth( w.fLineWidth );
+		Issue( CMD_LINEWIDTH, 0, 0, &w.fLineWidth, 1 );
 		a.fLineWidth = w.fLineWidth;
 	}
 }
@@ -1097,7 +1265,7 @@ static bool GrowAtlas()
 		return false;
 
 	/* Runs that are waiting draw from the old one. */
-	FlushQueue( FLUSH_TEXTURE_UPLOAD );
+	ImmediateGL immediate( FLUSH_TEXTURE_UPLOAD );
 
 	GLuint uNew;
 	glGenTextures( 1, &uNew );
@@ -1268,8 +1436,6 @@ static unsigned AddToAtlas( RageSurface *img, RageDisplay::PixelFormat pixfmt )
 	t.iWrapWanted = 0;
 	t.iWrapApplied = 0;
 
-	/* Nothing waiting to be drawn uses this part of the atlas (see DeleteTexture),
-	 * so this doesn't need to send out the queue. */
 	UploadToAtlas( t, img, pixfmt, 0, 0, img->w, img->h );
 	return ATLAS_HANDLE | uIndex;
 }
@@ -1277,7 +1443,7 @@ static unsigned AddToAtlas( RageSurface *img, RageDisplay::PixelFormat pixfmt )
 static void CopyOutOfAtlas( AtlasTexture &t )
 {
 	/* What's waiting may draw from where it is now, which may be reused. */
-	FlushQueue( FLUSH_TEXTURE );
+	ImmediateGL immediate( FLUSH_TEXTURE );
 
 	/* Make it on the atlas's unit, so units 0 and 1 keep what they have. */
 	GLuint uTex;
@@ -1316,7 +1482,7 @@ static bool TileInAtlas( AtlasTexture &t )
 		return false;
 
 	/* What's waiting may draw from where it is now, which may be reused. */
-	FlushQueue( FLUSH_TEXTURE );
+	ImmediateGL immediate( FLUSH_TEXTURE );
 
 	int iLayer, iNode;
 	if( !AllocateFromAtlas(t.w*2, t.h*2, iLayer, iNode) )
@@ -1367,10 +1533,7 @@ static void ApplyWrap( int iUnit, signed char iWrap, signed char &iApplied )
 		return;
 	FlushQueue( FLUSH_WRAP );
 	STAT( iStateCalls );
-	SetActiveUnit( iUnit );
-	const GLint mode = iWrap? GL_REPEAT: GLC_CLAMP_TO_EDGE;
-	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, mode );
-	glTexParameteri( GLC_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, mode );
+	Issue( CMD_WRAP, iUnit, iWrap? GL_REPEAT: GLC_CLAMP_TO_EDGE );
 	iApplied = iWrap;
 }
 
@@ -1446,49 +1609,20 @@ static void FlushQueue( int iReason )
 	if( g_iQueued == 0 )
 		return;
 	if( g_bStats )
-	{
 		++g_Stats.iFlushes[iReason];
-		++g_Stats.iDrawCalls;
-		++g_Stats.iBufferWrites;
-	}
-	const int iNum = g_iQueued;
+
+	/* Record the run; it's drawn when the list is played back. */
+	Command c;
+	c.iType = CMD_DRAW;
+	c.a = g_iRunStart;
+	c.b = g_iQueued;
+	c.c = g_bQueueQuads;
+	g_Commands.push_back( c );
+	g_iRunStart += g_iQueued;
 	g_iQueued = 0;
 
-	BindVAO( g_StreamVAO );
-	BindArrayBuffer( g_StreamBuffer );
-
-	const int iBytes = iNum * sizeof(Vertex);
-#if defined(DARWIN)
-	/* macOS's GL is slow to map buffers and may wait for the GPU to do it.  A
-	 * new buffer for each run never waits. */
-	gl.BufferData( GLC_ARRAY_BUFFER, iBytes, g_Queue, GLC_STREAM_DRAW );
-	g_iRingOffset = 0;
-#else
-	if( g_iRingOffset + iBytes > RING_BYTES )
-	{
-		/* Start a new buffer; the old one goes away once GL is done with it. */
-		gl.BufferData( GLC_ARRAY_BUFFER, RING_BYTES, NULL, GLC_STREAM_DRAW );
-		g_iRingOffset = 0;
-	}
-
-	void *p = gl.MapBufferRange( GLC_ARRAY_BUFFER, g_iRingOffset, iBytes,
-		GLC_MAP_WRITE_BIT | GLC_MAP_INVALIDATE_RANGE_BIT | GLC_MAP_UNSYNCHRONIZED_BIT );
-	if( p != NULL )
-	{
-		memcpy( p, g_Queue, iBytes );
-		gl.UnmapBuffer( GLC_ARRAY_BUFFER );
-	}
-	else
-		gl.BufferSubData( GLC_ARRAY_BUFFER, g_iRingOffset, iBytes, g_Queue );
-#endif
-
-	const GLint iFirst = g_iRingOffset / sizeof(Vertex);
-	if( g_bQueueQuads )
-		gl.DrawElementsBaseVertex( GL_TRIANGLES, iNum/4*6, GL_UNSIGNED_SHORT, NULL, iFirst );
-	else
-		glDrawArrays( GL_TRIANGLES, iFirst, iNum );
-
-	g_iRingOffset += iBytes;
+	if( g_iImmediate )
+		Replay();
 }
 
 /* Make room for iCount more vertices of the given kind, and return where they go. */
@@ -1496,8 +1630,13 @@ static inline Vertex *QueueSpace( bool bQuads, int iCount )
 {
 	if( g_iQueued && (g_bQueueQuads != bQuads || g_iQueued + iCount > QUEUE_VERTICES) )
 		FlushQueue( g_bQueueQuads != bQuads? FLUSH_PRIMITIVE: FLUSH_FULL );
+	if( g_iRunStart + g_iQueued + iCount > FRAME_VERTICES )
+	{
+		FlushQueue( FLUSH_FULL );
+		Replay();
+	}
 	g_bQueueQuads = bQuads;
-	Vertex *v = &g_Queue[g_iQueued];
+	Vertex *v = &g_Queue[g_iRunStart + g_iQueued];
 	g_iQueued += iCount;
 	return v;
 }
@@ -1851,6 +1990,8 @@ static void InitContext()
 	g_TexWrapApplied.clear();
 	g_TexWrapWanted.clear();
 	ResetAtlas();
+	g_Commands.clear();
+	g_iRunStart = 0;
 	g_iQueued = 0;
 	++g_iContextGeneration;
 }
@@ -1936,7 +2077,7 @@ void RageDisplay_GLCore::Update( float fDeltaTime )
 
 CString RageDisplay_GLCore::TryVideoMode( VideoModeParams p, bool &bNewDeviceOut )
 {
-	FlushQueue( FLUSH_OTHER );
+	ImmediateGL immediate( FLUSH_OTHER );
 
 	CString err = g_pWind->TryVideoMode( p, bNewDeviceOut );
 	if( err != "" )
@@ -1970,7 +2111,7 @@ void RageDisplay_GLCore::ResolutionChanged()
 
 void RageDisplay_GLCore::SetViewport( int shift_left, int shift_down )
 {
-	FlushQueue( FLUSH_OTHER );
+	ImmediateGL immediate( FLUSH_OTHER );
 
 	/* left and down are on a 0..SCREEN_WIDTH, 0..SCREEN_HEIGHT scale.
 	 * Scale them to the actual viewport range, in framebuffer pixels. */
@@ -1991,7 +2132,7 @@ int RageDisplay_GLCore::GetMaxTextureSize() const
 
 bool RageDisplay_GLCore::BeginFrame()
 {
-	FlushQueue( FLUSH_FRAME );
+	ImmediateGL immediate( FLUSH_FRAME );
 	glClearColor( 0,0,0,1 );
 	SetZWrite( true );
 
@@ -2015,7 +2156,7 @@ bool RageDisplay_GLCore::BeginFrame()
 
 void RageDisplay_GLCore::EndFrame()
 {
-	FlushQueue( FLUSH_FRAME );
+	ImmediateGL immediate( FLUSH_FRAME );
 	g_fColorScale[0] = g_fColorScale[1] = g_fColorScale[2] = 1;
 
 	/* The frame isn't done until the GPU is, and we need to know how long that
@@ -2032,7 +2173,7 @@ void RageDisplay_GLCore::EndFrame()
 
 RageSurface* RageDisplay_GLCore::CreateScreenshot()
 {
-	FlushQueue( FLUSH_OTHER );
+	ImmediateGL immediate( FLUSH_OTHER );
 
 	int width, height;
 	g_pWind->GetFramebufferSize( width, height );
@@ -2108,7 +2249,7 @@ bool RageDisplay_GLCore::SetColorScale( float r, float g, float b )
 	{
 		/* The frame was empty when the scale was set, so everything in it was
 		 * drawn with the scale: wipe it, and the caller draws it again. */
-		FlushQueue( FLUSH_OTHER );
+		ImmediateGL immediate( FLUSH_OTHER );
 		glClear( GL_COLOR_BUFFER_BIT );
 		g_Wanted.bClearDepthPending = true;
 		g_bDrawnThisFrame = false;
@@ -2549,7 +2690,7 @@ void RageDisplay_GLCore::DrawCompiledGeometryInternal( const RageCompiledGeometr
 {
 	/* Models keep their vertices in GL, so the world matrix goes to GL. */
 	PrepareDraw( true );
-	FlushQueue( FLUSH_MODEL );
+	ImmediateGL immediate( FLUSH_MODEL );
 	p->Draw( iMeshIndex );
 	STAT( iDrawCalls );
 }
@@ -2599,7 +2740,7 @@ bool RageDisplay_GLCore::SupportsTextureFormat( PixelFormat pixfmt, bool realtim
 
 static GLuint CreateOwnTexture( RageDisplay::PixelFormat pixfmt, RageDisplay::PixelFormat imgpixfmt, RageSurface *img, bool bGenerateMipMaps )
 {
-	FlushQueue( FLUSH_TEXTURE_UPLOAD );
+	ImmediateGL immediate( FLUSH_TEXTURE_UPLOAD );
 
 	const GLenum glTexFormat = GL_PIXFMT[pixfmt].internalfmt;
 	const GLenum glImageFormat = GL_PIXFMT[imgpixfmt].format;
@@ -2641,6 +2782,7 @@ unsigned RageDisplay_GLCore::CreateTexture(
 {
 	ASSERT( pixfmt < NUM_PIX_FORMATS && pixfmt != FMT_PAL );
 	ASSERT( img->w == power_of_two(img->w) && img->h == power_of_two(img->h) );
+	ImmediateGL immediate( FLUSH_TEXTURE_UPLOAD );
 
 	bool bFreeImg;
 	PixelFormat imgpixfmt = GetImgPixelFormat( img, bFreeImg, img->w, img->h );
@@ -2663,7 +2805,7 @@ void RageDisplay_GLCore::UpdateTexture(
 	int xoffset, int yoffset, int width, int height )
 {
 	/* The queue may still draw the old contents. */
-	FlushQueue( FLUSH_TEXTURE_UPLOAD );
+	ImmediateGL immediate( FLUSH_TEXTURE_UPLOAD );
 
 	bool bFreeImg;
 	PixelFormat pixfmt = GetImgPixelFormat( img, bFreeImg, width, height );
@@ -2702,7 +2844,7 @@ void RageDisplay_GLCore::DeleteTexture( unsigned uTexHandle )
 {
 	/* Also keeps a part of the atlas that's freed from being reused while
 	 * something waiting to be drawn still uses it. */
-	FlushQueue( FLUSH_TEXTURE_UPLOAD );
+	ImmediateGL immediate( FLUSH_TEXTURE_UPLOAD );
 
 	if( uTexHandle & ATLAS_HANDLE )
 	{
