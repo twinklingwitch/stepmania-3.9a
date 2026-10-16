@@ -775,8 +775,8 @@ static void ApplyBlendAndDepth()
 
 	/*
 	 * Most frames never touch the depth buffer, so the depth test is only on
-	 * while something tests or writes Z, and the depth buffer is only cleared
-	 * when it's about to be used (see RageDisplay_OGL).
+	 * while something tests or writes Z.  BeginFrame clears it; ClearZBuffer
+	 * clears it again when it's next used.
 	 */
 	if( !w.bZWrite && !w.bZTest )
 	{
@@ -1953,11 +1953,21 @@ bool RageDisplay_GLCore::BeginFrame()
 	FlushQueue( FLUSH_FRAME );
 	glClearColor( 0,0,0,1 );
 	SetZWrite( true );
-	glClear( GL_COLOR_BUFFER_BIT );
+
+	/* Clear the depth buffer with the color, even if it isn't used: clearing
+	 * them together is quicker, and a tiled GPU otherwise loads the depth
+	 * buffer from memory each frame.  Clearing is affected by the depth mask. */
+	if( g_Applied.iDepthMask != 1 )
+	{
+		glDepthMask( GL_TRUE );
+		g_Applied.iDepthMask = 1;
+	}
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+	g_Wanted.bClearDepthPending = false;
+
 	g_fColorScale[0] = g_fColorScale[1] = g_fColorScale[2] = 1;
 	g_bDrawnThisFrame = false;
 	g_bColorScaleInexact = false;
-	g_Wanted.bClearDepthPending = true;
 	return true;
 }
 
