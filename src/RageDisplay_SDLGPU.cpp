@@ -189,7 +189,22 @@ namespace
 	/* The last frame sent, for screenshots, and how big its target was. */
 	Frame g_LastFrame;
 	Uint32 g_iLastWidth = 0, g_iLastHeight = 0;
+	/* Whether g_LastFrame's vertices went to the GPU (it wasn't skipped). */
+	bool g_bLastFrameUploaded = false;
 	bool g_bInFrame = false;
+
+	/* The fences of the frames the GPU may still be drawing, in a ring of
+	 * g_iFramesInFlight, so waiting for the GPU can be told apart from waiting
+	 * for the window. */
+	SDL_GPUFence *g_pFrameFence[3] = { NULL, NULL, NULL };
+	int g_iFenceSlot = 0;
+	int g_iFramesInFlight = 2;
+
+	/* With SM_SDLGPU_PRESENT_HZ, frames that come sooner than this after the
+	 * last one shown aren't drawn at all, in performance counter ticks. */
+	Uint64 g_iPresentInterval = 0;
+	Uint64 g_iLastPresent = 0;
+	Uint64 g_iLastEndFrame = 0;
 
 	/* The uniform blocks as they are now, and whether they differ from the last
 	 * ones recorded. */
@@ -934,10 +949,22 @@ namespace
 	struct Stats
 	{
 		int iFrames, iCommands, iVertices, iPipelines, iSamplers, iUniforms;
+
+		/* Where the time goes, in performance counter ticks: the game between
+		 * frames, recording the GPU's work, waiting for the GPU to finish an
+		 * older frame, waiting for the window to give us a buffer to draw to,
+		 * and submitting. */
+		Uint64 iGame, iRecord, iGPUWait, iAcquire, iAcquireMax, iSubmit;
+		int iSkipped;
 	};
 	Stats g_Stats;
 	bool g_bStats = false;
 	RageTimer g_StatsTimer;
+}
+
+static double TicksToMs( Uint64 iTicks )
+{
+	return iTicks * 1000.0 / SDL_GetPerformanceFrequency();
 }
 
 static void LogStats()
@@ -952,6 +979,9 @@ static void LogStats()
 	const float f = float( max(s.iFrames, 1) );
 	LOG->Info( "SDL GPU per frame: %.1f commands, %.0f vertices, %.1f pipeline binds, %.1f texture binds, %.1f uniform pushes",
 		s.iCommands/f, s.iVertices/f, s.iPipelines/f, s.iSamplers/f, s.iUniforms/f );
+	LOG->Info( "SDL GPU ms per frame: game %.3f, recording %.3f, GPU wait %.3f, window buffer wait %.3f (longest %.3f), submit %.3f; %d of %d frames not drawn",
+		TicksToMs(s.iGame)/f, TicksToMs(s.iRecord)/f, TicksToMs(s.iGPUWait)/f, TicksToMs(s.iAcquire)/f, TicksToMs(s.iAcquireMax),
+		TicksToMs(s.iSubmit)/f, s.iSkipped, s.iFrames );
 	memset( &g_Stats, 0, sizeof(g_Stats) );
 }
 
@@ -1276,11 +1306,23 @@ static void InitDevice()
 	}
 }
 
+static void ReleaseFrameFences()
+{
+	for( unsigned i = 0; i < ARRAYSIZE(g_pFrameFence); ++i )
+	{
+		if( g_pFrameFence[i] )
+			SDL_ReleaseGPUFence( g_pDevice, g_pFrameFence[i] );
+		g_pFrameFence[i] = NULL;
+	}
+	g_iFenceSlot = 0;
+}
+
 static void ShutdownDevice()
 {
 	if( g_pDevice == NULL )
 		return;
 	SDL_WaitForGPUIdle( g_pDevice );
+	ReleaseFrameFences();
 
 	g_Frame.Clear();
 	g_LastFrame.Clear();
@@ -1431,7 +1473,18 @@ static void SetSwapchain( const RageDisplay::VideoModeParams &p )
 	 * wait for the display, fewer shows what we draw sooner. */
 	const char *szFrames = SDL_getenv( "SM_SDLGPU_FRAMES" );
 	if( szFrames )
-		SDL_SetGPUAllowedFramesInFlight( g_pDevice, clamp(atoi(szFrames), 1, 3) );
+	{
+		SDL_WaitForGPUIdle( g_pDevice );
+		ReleaseFrameFences();
+		g_iFramesInFlight = clamp( atoi(szFrames), 1, 3 );
+		SDL_SetGPUAllowedFramesInFlight( g_pDevice, g_iFramesInFlight );
+	}
+
+	/* An experiment: draw only as many frames a second as this, and let the
+	 * game run between them without drawing. */
+	const char *szPresentHz = SDL_getenv( "SM_SDLGPU_PRESENT_HZ" );
+	const int iPresentHz = szPresentHz? atoi( szPresentHz ): 0;
+	g_iPresentInterval = iPresentHz > 0? SDL_GetPerformanceFrequency() / iPresentHz: 0;
 
 	const SDL_GPUTextureFormat format = SDL_GetGPUSwapchainTextureFormat( g_pDevice, g_pWindow );
 	if( format != g_SwapchainFormat )
@@ -1553,56 +1606,111 @@ bool RageDisplay_SDLGPU::BeginFrame()
 	return true;
 }
 
+static void DrawFrame( bool bPacing );
+
+/* Whether to let this frame go without drawing it, for SM_SDLGPU_PRESENT_HZ. */
+static bool SkipFrame( bool bPacing, Uint64 iNow )
+{
+	if( g_iPresentInterval == 0 || bPacing )
+		return false;
+	/* Compiled geometry goes up with a drawn frame. */
+	if( !g_Frame.vUploadGeometry.empty() )
+		return false;
+	return iNow - g_iLastPresent < g_iPresentInterval;
+}
+
 void RageDisplay_SDLGPU::EndFrame()
 {
+	const Uint64 iStart = SDL_GetPerformanceCounter();
+	if( g_iLastEndFrame != 0 )
+		g_Stats.iGame += iStart - g_iLastEndFrame;
+
 	g_bInFrame = false;
 	g_fColorScale[0] = g_fColorScale[1] = g_fColorScale[2] = 1;
+	g_Stats.iCommands += g_Frame.vCommands.size();
+	g_Stats.iVertices += g_Frame.vVertices.size();
 
+	const bool bSkip = SkipFrame( IsPacing(), iStart );
+	FrameSwapping();
+	if( bSkip )
+		++g_Stats.iSkipped;
+	else
+		DrawFrame( IsPacing() );
+	FrameSwapped();
+
+	/* Keep it for screenshots; the next frame reuses the other one's memory. */
+	g_Frame.Swap( g_LastFrame );
+	g_bLastFrameUploaded = !bSkip;
+	g_Frame.Clear();
+	ReleaseDeleted();
+
+	LogStats();
+	ProcessStatsOnFlip();
+	g_iLastEndFrame = SDL_GetPerformanceCounter();
+}
+
+/* Send g_Frame to the GPU and show it. */
+static void DrawFrame( bool bPacing )
+{
+	Uint64 iTime = SDL_GetPerformanceCounter();
 	SDL_GPUCommandBuffer *pCmd = SDL_AcquireGPUCommandBuffer( g_pDevice );
 	if( pCmd == NULL )
 		RageException::Throw( "%s", GPUError("SDL_AcquireGPUCommandBuffer").c_str() );
 
 	UploadFrame( pCmd, g_Frame );
 
-	FrameSwapping();
+	/* Wait for the GPU to finish the frame from g_iFramesInFlight ago.  The
+	 * swapchain would wait for it anyway; doing it here first tells us how much
+	 * of the wait is the GPU and how much is the window. */
+	Uint64 iNow = SDL_GetPerformanceCounter();
+	g_Stats.iRecord += iNow - iTime;
+	iTime = iNow;
+	SDL_GPUFence *&pOldFence = g_pFrameFence[g_iFenceSlot];
+	if( pOldFence != NULL )
+	{
+		SDL_WaitForGPUFences( g_pDevice, true, &pOldFence, 1 );
+		SDL_ReleaseGPUFence( g_pDevice, pOldFence );
+		pOldFence = NULL;
+	}
+	iNow = SDL_GetPerformanceCounter();
+	g_Stats.iGPUWait += iNow - iTime;
+	iTime = iNow;
+
 	SDL_GPUTexture *pTarget = NULL;
 	Uint32 iWidth = 0, iHeight = 0;
 	if( !SDL_WaitAndAcquireGPUSwapchainTexture(pCmd, g_pWindow, &pTarget, &iWidth, &iHeight) )
 		LOG->Warn( "%s", GPUError("SDL_WaitAndAcquireGPUSwapchainTexture").c_str() );
+	iNow = SDL_GetPerformanceCounter();
+	g_Stats.iAcquire += iNow - iTime;
+	g_Stats.iAcquireMax = max( g_Stats.iAcquireMax, iNow - iTime );
+	iTime = iNow;
 
 	/* No texture means the window can't be drawn to now (it's minimized). */
 	if( pTarget != NULL )
+	{
 		PlayFrame( pCmd, g_Frame, pTarget, iWidth, iHeight );
-	g_Stats.iCommands += g_Frame.vCommands.size();
-	g_Stats.iVertices += g_Frame.vVertices.size();
-
-	/* The frame isn't done until the GPU is, and we need to know how long that
-	 * takes to pace frames.  There's nothing else for the CPU to do meanwhile. */
-	if( IsPacing() )
-	{
-		SDL_GPUFence *pFence = SDL_SubmitGPUCommandBufferAndAcquireFence( pCmd );
-		if( pFence )
-		{
-			SDL_WaitForGPUFences( g_pDevice, true, &pFence, 1 );
-			SDL_ReleaseGPUFence( g_pDevice, pFence );
-		}
-	}
-	else
-		SDL_SubmitGPUCommandBuffer( pCmd );
-	FrameSwapped();
-
-	if( pTarget != NULL )
-	{
 		g_iLastWidth = iWidth;
 		g_iLastHeight = iHeight;
 	}
-	/* Keep it for screenshots; the next frame reuses the other one's memory. */
-	g_Frame.Swap( g_LastFrame );
-	g_Frame.Clear();
-	ReleaseDeleted();
+	iNow = SDL_GetPerformanceCounter();
+	g_Stats.iRecord += iNow - iTime;
+	iTime = iNow;
 
-	LogStats();
-	ProcessStatsOnFlip();
+	SDL_GPUFence *pFence = SDL_SubmitGPUCommandBufferAndAcquireFence( pCmd );
+	iNow = SDL_GetPerformanceCounter();
+	g_Stats.iSubmit += iNow - iTime;
+	g_iLastPresent = iNow;
+
+	/* The frame isn't done until the GPU is, and we need to know how long that
+	 * takes to pace frames.  There's nothing else for the CPU to do meanwhile. */
+	if( pFence != NULL && bPacing )
+	{
+		SDL_WaitForGPUFences( g_pDevice, true, &pFence, 1 );
+		SDL_ReleaseGPUFence( g_pDevice, pFence );
+		pFence = NULL;
+	}
+	g_pFrameFence[g_iFenceSlot] = pFence;
+	g_iFenceSlot = (g_iFenceSlot + 1) % g_iFramesInFlight;
 }
 
 RageSurface* RageDisplay_SDLGPU::CreateScreenshot()
@@ -1622,6 +1730,12 @@ RageSurface* RageDisplay_SDLGPU::CreateScreenshot()
 		RageException::Throw( "%s", GPUError("SDL_CreateGPUTransferBuffer").c_str() );
 
 	SDL_GPUCommandBuffer *pCmd = SDL_AcquireGPUCommandBuffer( g_pDevice );
+	/* A frame that was skipped never sent its vertices. */
+	if( !g_bLastFrameUploaded )
+	{
+		UploadFrame( pCmd, g_LastFrame );
+		g_bLastFrameUploaded = true;
+	}
 	PlayFrame( pCmd, g_LastFrame, pTarget, iWidth, iHeight );
 
 	SDL_GPUCopyPass *pPass = SDL_BeginGPUCopyPass( pCmd );
