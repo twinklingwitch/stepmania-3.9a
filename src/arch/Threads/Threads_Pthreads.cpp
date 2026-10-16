@@ -244,8 +244,10 @@ void SemaImpl_Pthreads::Post()
 {
 	pthread_mutex_lock( &m_Mutex );
 	++m_iValue;
-	if( m_iValue == 1 )
-		pthread_cond_signal( &m_Cond );
+	/* Every post, not only the one that makes it 1: with two threads waiting,
+	 * two posts in a row would wake just one, and the other would sleep until
+	 * its wait timed out (ten seconds) before noticing the count. */
+	pthread_cond_signal( &m_Cond );
 	pthread_mutex_unlock( &m_Mutex );
 }
 
